@@ -23,12 +23,13 @@ interface Student {
 
 interface LessonAssignmentProps {
   courses: Course[];
+  initialCourseId?: string;
 }
 
-export default function LessonAssignment({ courses }: LessonAssignmentProps) {
+export default function LessonAssignment({ courses, initialCourseId }: LessonAssignmentProps) {
   const { profile } = useAuth();
   const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState<string>('');
+  const [selectedCourse, setSelectedCourse] = useState<string>(initialCourseId || '');
   const [selectedStudent, setSelectedStudent] = useState<string>('');
   const [selectedLessons, setSelectedLessons] = useState<string[]>([]);
   const [students, setStudents] = useState<Student[]>([]);

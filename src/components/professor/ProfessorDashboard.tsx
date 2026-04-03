@@ -16,6 +16,7 @@ export default function ProfessorDashboard() {
   const { signOut, profile } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [activeTab, setActiveTab] = useState<'courses' | 'assignments'>('courses');
+  const [preselectedCourseId, setPreselectedCourseId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
 
   // Usamos useCallback para que la función sea estable y se pueda reutilizar
@@ -103,9 +104,19 @@ export default function ProfessorDashboard() {
         ) : (
           <>
             {activeTab === 'courses' ? (
-              <CourseManager courses={courses} onUpdate={loadCourses} />
+              <CourseManager 
+                courses={courses} 
+                onUpdate={loadCourses} 
+                onAssignLessons={(courseId) => {
+                  setPreselectedCourseId(courseId);
+                  setActiveTab('assignments');
+                }}
+              />
             ) : (
-              <LessonAssignment courses={courses} />
+              <LessonAssignment 
+                courses={courses} 
+                initialCourseId={preselectedCourseId}
+              />
             )}
           </>
         )}

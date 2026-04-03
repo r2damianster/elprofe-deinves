@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, UserPlus, X } from 'lucide-react';
+import { Plus, X, Eye } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import StudentManager from './StudentManager';
+import CourseDetails from './CourseDetails';
 
 interface Course {
   id: string;
@@ -14,14 +14,15 @@ interface Course {
 interface CourseManagerProps {
   courses: Course[];
   onUpdate: () => void;
+  onAssignLessons: (courseId: string) => void;
 }
 
-export default function CourseManager({ courses, onUpdate }: CourseManagerProps) {
+export default function CourseManager({ courses, onUpdate, onAssignLessons }: CourseManagerProps) {
   const { profile } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [courseName, setCourseName] = useState('');
   const [courseDescription, setCourseDescription] = useState('');
-  const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function createCourse(e: React.FormEvent) {
@@ -47,6 +48,8 @@ export default function CourseManager({ courses, onUpdate }: CourseManagerProps)
       setLoading(false);
     }
   }
+
+  const selectedCourse = courses.find((c) => c.id === selectedCourseId);
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -94,37 +97,46 @@ export default function CourseManager({ courses, onUpdate }: CourseManagerProps)
         {courses.map((course) => (
           <div
             key={course.id}
-            className="border rounded-lg p-4 hover:border-blue-500 transition cursor-pointer"
-            onClick={() => setSelectedCourse(course.id)}
+            className="border rounded-xl p-5 hover:border-blue-500 hover:shadow-md transition cursor-pointer bg-white flex flex-col justify-between"
+            onClick={() => setSelectedCourseId(course.id)}
           >
-            <h3 className="font-semibold text-lg text-gray-800">{course.name}</h3>
-            {course.description && (
-              <p className="text-gray-600 text-sm mt-2">{course.description}</p>
-            )}
-            <p className="text-gray-500 text-xs mt-2">
-              Creado: {new Date(course.created_at).toLocaleDateString()}
-            </p>
-            <button className="mt-3 text-blue-600 text-sm font-semibold hover:underline flex items-center">
-              <UserPlus className="w-4 h-4 mr-1" />
-              Gestionar Estudiantes
-            </button>
+            <div>
+              <h3 className="font-semibold text-lg text-gray-800">{course.name}</h3>
+              {course.description && (
+                <p className="text-gray-600 text-sm mt-2 line-clamp-2">{course.description}</p>
+              )}
+            </div>
+            <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
+               <p className="text-gray-500 text-xs">
+                {new Date(course.created_at).toLocaleDateString()}
+              </p>
+              <span className="text-blue-600 text-sm font-semibold flex items-center px-2 py-1 hover:bg-blue-50 rounded-lg">
+                <Eye className="w-4 h-4 mr-1.5" />
+                Ver Detalles
+              </span>
+            </div>
           </div>
         ))}
       </div>
 
       {selectedCourse && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h3 className="text-xl font-bold">Gestionar Estudiantes</h3>
-              <button
-                onClick={() => setSelectedCourse(null)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <StudentManager courseId={selectedCourse} />
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full h-[90vh] overflow-hidden relative flex flex-col">
+            <button
+              onClick={() => setSelectedCourseId(null)}
+              className="absolute top-4 right-4 z-10 p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <CourseDetails 
+              courseId={selectedCourse.id} 
+              courseName={selectedCourse.name}
+              onClose={() => setSelectedCourseId(null)}
+              onAssignLessons={() => {
+                setSelectedCourseId(null);
+                onAssignLessons(selectedCourse.id);
+              }}
+            />
           </div>
         </div>
       )}
