@@ -263,7 +263,12 @@ export default function LessonAssignment({ courses }: LessonAssignmentProps) {
 
         <button
           type="submit"
-          disabled={loading || selectedLessons.length === 0 || !selectedCourse}
+          disabled={
+            loading || 
+            selectedLessons.length === 0 || 
+            !selectedCourse || 
+            (assignmentType === 'student' && !selectedStudent)
+          }
           className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 disabled:opacity-50 disabled:shadow-none flex items-center justify-center"
         >
           {loading ? (

@@ -1,5 +1,15 @@
 export type UserRole = 'admin' | 'professor' | 'student';
-export type ActivityType = 'multiple_choice' | 'drag_drop' | 'essay' | 'short_answer';
+export type ActivityType = 
+  | 'multiple_choice' 
+  | 'drag_drop' 
+  | 'essay' 
+  | 'short_answer'
+  | 'fill_blank'
+  | 'true_false'
+  | 'matching'
+  | 'ordering'
+  | 'image_question'
+  | 'listening';
 export type ProductionStatus = 'draft' | 'submitted' | 'reviewed';
 
 export interface Database {
@@ -103,35 +113,54 @@ export interface Database {
           student_id?: string;
         };
       };
-      activities: {
+      lesson_activities: {
         Row: {
           id: string;
           lesson_id: string;
-          type: ActivityType;
-          title: string;
-          content: any;
-          points: number;
+          activity_id: string;
           order_index: number;
           created_at: string;
         };
         Insert: {
           id?: string;
           lesson_id: string;
-          type: ActivityType;
-          title: string;
-          content?: any;
-          points?: number;
+          activity_id: string;
           order_index?: number;
           created_at?: string;
         };
         Update: {
           id?: string;
           lesson_id?: string;
+          activity_id?: string;
+          order_index?: number;
+        };
+      };
+      activities: {
+        Row: {
+          id: string;
+          type: ActivityType;
+          title: string;
+          content: any;
+          points: number;
+          media_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          type: ActivityType;
+          title: string;
+          content?: any;
+          points?: number;
+          media_url?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
           type?: ActivityType;
           title?: string;
           content?: any;
           points?: number;
-          order_index?: number;
+          media_url?: string | null;
         };
       };
       lesson_assignments: {
