@@ -275,6 +275,8 @@ export interface Database {
           score: number | null;
           feedback: string | null;
           attempts: number;
+          compliance_score: number;
+          integrity_score: number;
           created_at: string;
           submitted_at: string | null;
           reviewed_at: string | null;
@@ -289,6 +291,8 @@ export interface Database {
           score?: number | null;
           feedback?: string | null;
           attempts?: number;
+          compliance_score?: number;
+          integrity_score?: number;
           created_at?: string;
           submitted_at?: string | null;
           reviewed_at?: string | null;
@@ -301,6 +305,8 @@ export interface Database {
           score?: number | null;
           feedback?: string | null;
           attempts?: number;
+          compliance_score?: number;
+          integrity_score?: number;
           submitted_at?: string | null;
           reviewed_at?: string | null;
         };
