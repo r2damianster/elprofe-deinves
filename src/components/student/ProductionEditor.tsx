@@ -141,7 +141,7 @@ export default function ProductionEditor({ lessonId, onBack }: ProductionEditorP
       return;
     }
 
-    if (!confirm('¿Estás seguro de enviar esta producción? No podrás editarla después.')) {
+    if (!confirm('¿Estás seguro de enviar esta producción? No podrás editarla después (a menos que te quede un reintento).')) {
       return;
     }
 
@@ -180,9 +180,37 @@ export default function ProductionEditor({ lessonId, onBack }: ProductionEditorP
     }
   }
 
+  async function retryProduction() {
+    if (!confirm('Esto reiniciará tu ensayo al formato de borrador consumiendo tu último intento. ¿Proceder?')) return;
+    
+    setSubmitting(true);
+    try {
+      if (production) {
+        await supabase
+          .from('productions')
+          .update({
+            status: 'draft',
+            score: null,
+            feedback: null,
+            reviewed_at: null,
+            attempts: (production.attempts || 1) + 1,
+            submitted_at: null
+          })
+          .eq('id', production.id);
+        
+        loadProduction();
+      }
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
   const isSubmitted = production?.status === 'submitted' || production?.status === 'reviewed';
   const isValid = validationErrors.length === 0 && wordCount > 0;
+  const attempts = production?.attempts || 1;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -195,7 +223,14 @@ export default function ProductionEditor({ lessonId, onBack }: ProductionEditorP
             <ArrowLeft className="w-5 h-5 mr-2" />
             Volver a la lección
           </button>
-          <h1 className="text-2xl font-bold text-gray-800">Producción</h1>
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-gray-800">Producción</h1>
+            {isSubmitted && (
+              <span className="text-sm text-gray-500 font-medium">
+                Intento {attempts} de 2
+              </span>
+            )}
+          </div>
           {rules?.instructions && (
             <p className="text-gray-600 mt-2">{rules.instructions}</p>
           )}
@@ -205,7 +240,18 @@ export default function ProductionEditor({ lessonId, onBack }: ProductionEditorP
       <main className="max-w-4xl mx-auto px-4 py-8">
         {production?.status === 'reviewed' && (
           <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
-            <h3 className="font-bold text-lg text-blue-900 mb-2">Producción Revisada</h3>
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="font-bold text-lg text-blue-900">Producción Revisada</h3>
+              {attempts < 2 && (
+                <button
+                  onClick={retryProduction}
+                  disabled={submitting}
+                  className="bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 transition px-4 py-1.5 rounded-lg text-sm font-semibold shadow-sm disabled:opacity-50"
+                >
+                  Rehacer Ensayo
+                </button>
+              )}
+            </div>
             <p className="text-blue-800 mb-2">
               Puntuación: {production.score} / 100
             </p>

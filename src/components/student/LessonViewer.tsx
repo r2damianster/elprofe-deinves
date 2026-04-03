@@ -127,6 +127,8 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
   const [showProduction, setShowProduction]         = useState(false);
   const [loading, setLoading]                       = useState(true);
 
+  const [attempts, setAttempts]                     = useState(1);
+
   // ── Carga inicial ──────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -153,7 +155,7 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
 
     if (lessonData) setLesson(lessonData);
 
-    // 2. NUEVA LÓGICA: Cargar actividades desde la tabla PUENTE (lesson_activities)
+    // 2. Cargar actividades desde la tabla PUENTE (lesson_activities)
     const { data: joinData } = await supabase
       .from('lesson_activities')
       .select(`
@@ -170,7 +172,6 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
       .eq('lesson_id', lessonId)
       .order('order_index');
 
-    // Aplanamos los datos para que el resto de la función los entienda
     const activitiesData = joinData?.map((item: any) => ({
       ...item.activities,
       order_index: item.order_index
@@ -186,15 +187,18 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
       setCompletedActivities(new Set(responses.map((r) => r.activity_id)));
     }
 
-    // 4. Cargar progreso guardado
+    // 4. Cargar progreso e intentos guardados
     const { data: progressData } = await supabase
       .from('student_progress')
-      .select('completion_percentage')
+      .select('completion_percentage, attempts')
       .eq('student_id', profile?.id)
       .eq('lesson_id', lessonId)
       .maybeSingle();
 
-    if (progressData) setProgress(progressData.completion_percentage);
+    if (progressData) {
+      setProgress(progressData.completion_percentage);
+      if (progressData.attempts) setAttempts(progressData.attempts);
+    }
 
     // 5. Construir la lista unificada de pasos
     const contentSteps: CombinedStep[] = lessonData?.content?.steps ?? [];
@@ -220,7 +224,7 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
 
     const { data: existing } = await supabase
       .from('student_progress')
-      .select('id')
+      .select('id, attempts')
       .eq('student_id', profile?.id)
       .eq('lesson_id', lessonId)
       .maybeSingle();
@@ -228,6 +232,7 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
     const payload = {
       completion_percentage: percentage,
       completed_at: percentage === 100 ? new Date().toISOString() : null,
+      attempts: existing?.attempts || attempts,
     };
 
     if (existing) {
@@ -238,6 +243,53 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
         lesson_id: lessonId,
         ...payload,
       });
+    }
+  }
+
+  // ── Reintentar Lección ─────────────────────────────────────────────────────
+
+  async function handleRetryLesson() {
+    if (!confirm('¿Estás seguro de reintentar la lección? Se borrarán tus notas de todas las actividades. Esta acción no se puede deshacer.')) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // 1. Identificar actividades de esta lección
+      const activitySteps = combinedSteps.filter((s) => s.isActivity) as Activity[];
+      const activityIds = activitySteps.map(a => a.id);
+
+      if (activityIds.length > 0) {
+        // 2. Eliminar respuestas anteriores de estas actividades
+        await supabase
+          .from('activity_responses')
+          .delete()
+          .eq('student_id', profile?.id)
+          .in('activity_id', activityIds);
+      }
+
+      // 3. Aumentar intentos y resetear progreso
+      const newAttempts = attempts + 1;
+      await supabase
+        .from('student_progress')
+        .update({ 
+          completion_percentage: 0, 
+          attempts: newAttempts,
+          completed_at: null 
+        })
+        .eq('student_id', profile?.id)
+        .eq('lesson_id', lessonId);
+
+      // 4. Actualizar estado local
+      setAttempts(newAttempts);
+      setProgress(0);
+      setCompletedActivities(new Set());
+      setCurrentStepIndex(0);
+      
+    } catch (err: any) {
+      alert('Error al reintentar la lección: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -408,25 +460,44 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
             Anterior
           </button>
 
-          {/* Botón de Producción: aparece solo en el último paso */}
-          {isLastStep && lesson?.has_production && (
-            <div className="flex flex-col items-center gap-1">
-              {canAccessProduction ? (
-                <button
-                  onClick={() => setShowProduction(true)}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-green-600
-                    text-white font-semibold text-sm hover:bg-green-700 transition shadow"
-                >
-                  <Layers className="w-4 h-4" />
-                  Ir a Producción
-                </button>
-              ) : (
-                <div className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gray-100
-                  text-gray-500 text-sm border border-gray-200"
-                >
-                  <Lock className="w-4 h-4" />
-                  Necesitas {lesson.production_unlock_percentage}% para desbloquear
-                </div>
+          {/* Botón de Producción y Reintentos: aparece solo en el último paso */}
+          {isLastStep && (
+            <div className="flex flex-col items-center gap-3">
+              {/* Intentos y Reintentar */}
+              <div className="flex flex-col items-center">
+                <span className="text-xs text-gray-500 font-medium mb-1">
+                  Intento {attempts} de 3
+                </span>
+                {attempts < 3 && (
+                  <button
+                    onClick={handleRetryLesson}
+                    disabled={loading}
+                    className="text-red-600 hover:text-red-700 text-sm font-semibold underline decoration-red-200 hover:decoration-red-400 transition"
+                  >
+                    Reintentar Lección
+                  </button>
+                )}
+              </div>
+
+              {/* Botón de Producción */}
+              {lesson?.has_production && (
+                canAccessProduction ? (
+                  <button
+                    onClick={() => setShowProduction(true)}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-green-600
+                      text-white font-semibold text-sm hover:bg-green-700 transition shadow"
+                  >
+                    <Layers className="w-4 h-4" />
+                    Ir a Producción
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gray-100
+                    text-gray-500 text-sm border border-gray-200"
+                  >
+                    <Lock className="w-4 h-4" />
+                    Necesitas {lesson.production_unlock_percentage}% para desbloquear
+                  </div>
+                )
               )}
             </div>
           )}

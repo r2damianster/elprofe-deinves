@@ -193,6 +193,7 @@ export interface Database {
           student_id: string;
           lesson_id: string;
           completion_percentage: number;
+          attempts: number;
           started_at: string;
           completed_at: string | null;
         };
@@ -201,12 +202,14 @@ export interface Database {
           student_id: string;
           lesson_id: string;
           completion_percentage?: number;
+          attempts?: number;
           started_at?: string;
           completed_at?: string | null;
         };
         Update: {
           id?: string;
           completion_percentage?: number;
+          attempts?: number;
           completed_at?: string | null;
         };
       };
@@ -271,6 +274,7 @@ export interface Database {
           status: ProductionStatus;
           score: number | null;
           feedback: string | null;
+          attempts: number;
           created_at: string;
           submitted_at: string | null;
           reviewed_at: string | null;
@@ -284,6 +288,7 @@ export interface Database {
           status?: ProductionStatus;
           score?: number | null;
           feedback?: string | null;
+          attempts?: number;
           created_at?: string;
           submitted_at?: string | null;
           reviewed_at?: string | null;
@@ -295,6 +300,7 @@ export interface Database {
           status?: ProductionStatus;
           score?: number | null;
           feedback?: string | null;
+          attempts?: number;
           submitted_at?: string | null;
           reviewed_at?: string | null;
         };

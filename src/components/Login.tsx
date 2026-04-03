@@ -27,8 +27,8 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-8">
         <div className="flex items-center justify-center mb-8">
-          <GraduationCap className="w-12 h-12 text-blue-600 mr-3" />
-          <h1 className="text-3xl font-bold text-gray-800">Profe Arturito</h1>
+          <img src="/avatar.png" alt="Profe" className="w-16 h-16 rounded-full border-2 border-blue-500 object-cover shadow-sm mr-4" />
+          <h1 className="text-3xl font-bold text-gray-800">El Profe de Inves</h1>
         </div>
 
         <h2 className="text-2xl font-semibold text-center mb-6 text-gray-700">
