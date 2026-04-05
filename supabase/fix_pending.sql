@@ -52,7 +52,7 @@ ALTER TABLE productions ADD COLUMN IF NOT EXISTS compliance_score int DEFAULT 0;
 ALTER TABLE productions ADD COLUMN IF NOT EXISTS integrity_score int DEFAULT 100;
 
 -- Recargar esquema PostgREST
-NOTIFY pgrst, reload_schema;
+NOTIFY pgrst, 'reload_schema';
 
 
 -- 2. AGREGAR URLs DE SLIDES A LA LECCIÓN
