@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { BookOpen, CheckCircle, Lock } from 'lucide-react';
+import { BookOpen, CheckCircle, Lock, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import LessonViewer from './LessonViewer';
+import GroupEnrollment from './GroupEnrollment';
 
 interface Lesson {
   id: string;
@@ -24,6 +25,7 @@ export default function StudentDashboard() {
   const [progress, setProgress] = useState<Record<string, Progress>>({});
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'lessons' | 'groups'>('lessons');
 
   useEffect(() => {
     loadAssignedLessons();
@@ -118,7 +120,7 @@ export default function StudentDashboard() {
           <div className="flex items-center">
             <BookOpen className="w-8 h-8 text-blue-600 mr-3" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Mis Lecciones</h1>
+              <h1 className="text-2xl font-bold text-gray-800">Mi Aula</h1>
               <p className="text-sm text-gray-600">{profile?.full_name}</p>
             </div>
           </div>
@@ -129,10 +131,30 @@ export default function StudentDashboard() {
             Cerrar Sesión
           </button>
         </div>
+
+        {/* Tabs */}
+        <div className="max-w-7xl mx-auto px-4 pb-2 flex gap-2">
+          {[
+            { key: 'lessons', label: 'Mis Lecciones', icon: BookOpen },
+            { key: 'groups',  label: 'Mis Grupos',    icon: Users },
+          ].map(({ key, label, icon: Icon }) => (
+            <button key={key}
+              onClick={() => setTab(key as any)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-t-lg text-sm font-medium transition border-b-2 ${
+                tab === key
+                  ? 'border-blue-600 text-blue-600 bg-white'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}>
+              <Icon className="w-4 h-4" /> {label}
+            </button>
+          ))}
+        </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {assignedLessons.length === 0 ? (
+        {tab === 'groups' && <GroupEnrollment />}
+
+        {tab === 'lessons' && (assignedLessons.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-700 mb-2">
@@ -209,7 +231,7 @@ export default function StudentDashboard() {
               );
             })}
           </div>
-        )}
+        ))}
       </main>
     </div>
   );
