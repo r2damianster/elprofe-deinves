@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Users, BookOpen, Clock, Loader2, ArrowLeft } from 'lucide-react';
+import { Plus, Users, BookOpen, Clock, Loader2, ArrowLeft, Trash2 } from 'lucide-react';
 import StudentManager from './StudentManager';
 
 interface AssignedLesson {
@@ -22,6 +22,7 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
   const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [showStudentManager, setShowStudentManager] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadAssignedLessons();
@@ -60,6 +61,23 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
       console.error('Error al cargar lecciones asignadas:', err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function removeLesson(assignmentId: string, lessonTitle: string) {
+    if (!confirm(`¿Desasignar "${lessonTitle}" de este curso?`)) return;
+    setRemovingId(assignmentId);
+    try {
+      const { error } = await supabase
+        .from('lesson_assignments')
+        .delete()
+        .eq('id', assignmentId);
+      if (error) throw error;
+      setAssignedLessons((prev) => prev.filter((l) => l.lesson_assignments_id !== assignmentId));
+    } catch (err: any) {
+      alert('Error al desasignar: ' + err.message);
+    } finally {
+      setRemovingId(null);
     }
   }
 
@@ -146,11 +164,11 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
         ) : (
           <div className="space-y-3">
             {assignedLessons.map((lesson, idx) => (
-              <div 
-                key={lesson.lesson_assignments_id} 
+              <div
+                key={lesson.lesson_assignments_id}
                 className="flex items-start p-4 border border-gray-200 rounded-xl bg-white hover:border-blue-300 transition-colors group"
               >
-                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm mr-4 mt-0.5">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm mr-4 mt-0.5 flex-shrink-0">
                   {idx + 1}
                 </div>
                 <div className="flex-1">
@@ -163,6 +181,16 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
                     Asignado el {new Date(lesson.assigned_at).toLocaleDateString()}
                   </div>
                 </div>
+                <button
+                  onClick={() => removeLesson(lesson.lesson_assignments_id, lesson.title)}
+                  disabled={removingId === lesson.lesson_assignments_id}
+                  className="ml-3 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                  title="Desasignar lección"
+                >
+                  {removingId === lesson.lesson_assignments_id
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Trash2 className="w-4 h-4" />}
+                </button>
               </div>
             ))}
           </div>
