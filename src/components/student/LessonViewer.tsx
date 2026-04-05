@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, ArrowRight, CheckCircle, Lock, BookOpen, Video, FileText, Layers } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Lock, BookOpen, Video, FileText, Layers, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import ActivityRenderer from './ActivityRenderer';
 import ProductionEditor from './ProductionEditor';
@@ -15,6 +15,13 @@ interface Lesson {
   content: { steps?: ContentStep[] } | null;
   has_production: boolean;
   production_unlock_percentage: number;
+}
+
+interface GroupInfo {
+  groupId: string;
+  groupName: string;
+  // activityId → nombre del compañero que lo completó
+  completedBy: Record<string, string>;
 }
 
 interface ContentStep {
@@ -141,6 +148,7 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
   const [loading, setLoading]                       = useState(true);
 
   const [attempts, setAttempts]                     = useState(1);
+  const [groupInfo, setGroupInfo]                   = useState<GroupInfo | null>(null);
 
   // ── Carga inicial ──────────────────────────────────────────────────────────
 
@@ -191,27 +199,71 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
       order_index: item.order_index
     })) || [];
 
-    // 3. Cargar respuestas previas del estudiante
-    const { data: responses } = await supabase
-      .from('activity_responses')
-      .select('activity_id')
-      .eq('student_id', profile?.id);
-
-    if (responses) {
-      setCompletedActivities(new Set(responses.map((r) => r.activity_id)));
-    }
-
-    // 4. Cargar progreso e intentos guardados
-    const { data: progressData } = await supabase
-      .from('student_progress')
-      .select('completion_percentage, attempts')
-      .eq('student_id', profile?.id)
+    // 3. Detectar si la lección es grupal para este estudiante
+    const { data: groupAssignment } = await supabase
+      .from('group_lesson_assignments')
+      .select(`
+        group_id,
+        groups!group_id (name)
+      `)
       .eq('lesson_id', lessonId)
+      .in('group_id',
+        // subquery: grupos donde el estudiante es miembro
+        (await supabase
+          .from('group_members')
+          .select('group_id')
+          .eq('student_id', profile?.id)
+        ).data?.map((r: any) => r.group_id) ?? []
+      )
       .maybeSingle();
 
-    if (progressData) {
-      setProgress(progressData.completion_percentage);
-      if (progressData.attempts) setAttempts(progressData.attempts);
+    if (groupAssignment) {
+      // Modo grupal: cargar completaciones del grupo
+      const { data: groupCompletions } = await supabase
+        .from('group_activity_completions')
+        .select('activity_id, completed_by, profiles!completed_by(full_name)')
+        .eq('group_id', groupAssignment.group_id);
+
+      const completedByMap: Record<string, string> = {};
+      const completedIds = new Set<string>();
+      (groupCompletions || []).forEach((c: any) => {
+        completedIds.add(c.activity_id);
+        completedByMap[c.activity_id] = c.profiles.full_name;
+      });
+      setCompletedActivities(completedIds);
+      setGroupInfo({
+        groupId:     groupAssignment.group_id,
+        groupName:   (groupAssignment as any).groups.name,
+        completedBy: completedByMap,
+      });
+
+      // Progreso grupal
+      const { data: gProgress } = await supabase
+        .from('group_progress')
+        .select('completion_percentage')
+        .eq('group_id', groupAssignment.group_id)
+        .eq('lesson_id', lessonId)
+        .maybeSingle();
+      if (gProgress) setProgress(gProgress.completion_percentage);
+
+    } else {
+      // Modo individual normal
+      const { data: responses } = await supabase
+        .from('activity_responses')
+        .select('activity_id')
+        .eq('student_id', profile?.id);
+      if (responses) setCompletedActivities(new Set(responses.map((r) => r.activity_id)));
+
+      const { data: progressData } = await supabase
+        .from('student_progress')
+        .select('completion_percentage, attempts')
+        .eq('student_id', profile?.id)
+        .eq('lesson_id', lessonId)
+        .maybeSingle();
+      if (progressData) {
+        setProgress(progressData.completion_percentage);
+        if (progressData.attempts) setAttempts(progressData.attempts);
+      }
     }
 
     // 5. Construir la lista unificada de pasos
@@ -232,32 +284,51 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
     const activitySteps = combinedSteps.filter((s) => s.isActivity) as (Activity & { isActivity: true })[];
     if (activitySteps.length === 0) return;
 
-    const completed = activitySteps.filter((a) => completedActivities.has(a.id)).length;
+    const completed  = activitySteps.filter((a) => completedActivities.has(a.id)).length;
     const percentage = Math.round((completed / activitySteps.length) * 100);
-
     setProgress(percentage);
 
-    const { data: existing } = await supabase
-      .from('student_progress')
-      .select('id, attempts')
-      .eq('student_id', profile?.id)
-      .eq('lesson_id', lessonId)
-      .maybeSingle();
+    if (groupInfo) {
+      // ── Modo grupal: actualizar group_progress ──
+      const { data: existing } = await supabase
+        .from('group_progress')
+        .select('id')
+        .eq('group_id', groupInfo.groupId)
+        .eq('lesson_id', lessonId)
+        .maybeSingle();
 
-    const payload = {
-      completion_percentage: percentage,
-      completed_at: percentage === 100 ? new Date().toISOString() : null,
-      attempts: existing?.attempts || attempts,
-    };
-
-    if (existing) {
-      await supabase.from('student_progress').update(payload).eq('id', existing.id);
+      const payload = {
+        completion_percentage: percentage,
+        completed_at: percentage === 100 ? new Date().toISOString() : null,
+      };
+      if (existing) {
+        await supabase.from('group_progress').update(payload).eq('id', existing.id);
+      } else {
+        await supabase.from('group_progress').insert({
+          group_id: groupInfo.groupId, lesson_id: lessonId, ...payload,
+        });
+      }
     } else {
-      await supabase.from('student_progress').insert({
-        student_id: profile?.id,
-        lesson_id: lessonId,
-        ...payload,
-      });
+      // ── Modo individual: actualizar student_progress ──
+      const { data: existing } = await supabase
+        .from('student_progress')
+        .select('id, attempts')
+        .eq('student_id', profile?.id)
+        .eq('lesson_id', lessonId)
+        .maybeSingle();
+
+      const payload = {
+        completion_percentage: percentage,
+        completed_at: percentage === 100 ? new Date().toISOString() : null,
+        attempts: existing?.attempts || attempts,
+      };
+      if (existing) {
+        await supabase.from('student_progress').update(payload).eq('id', existing.id);
+      } else {
+        await supabase.from('student_progress').insert({
+          student_id: profile?.id, lesson_id: lessonId, ...payload,
+        });
+      }
     }
   }
 
@@ -319,11 +390,27 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
   }
 
   // Cuando una actividad se completa, la marcamos y avanzamos automáticamente
-  function handleActivityComplete(activityId: string) {
+  async function handleActivityComplete(activityId: string, response?: any, score?: number) {
+    if (groupInfo) {
+      // Guardar en group_activity_completions
+      await supabase.from('group_activity_completions').upsert({
+        group_id:     groupInfo.groupId,
+        activity_id:  activityId,
+        completed_by: profile?.id,
+        response:     response ?? null,
+        score:        score ?? 0,
+      }, { onConflict: 'group_id,activity_id' });
+
+      // Actualizar el mapa de "completado por"
+      setGroupInfo(prev => prev ? {
+        ...prev,
+        completedBy: { ...prev.completedBy, [activityId]: profile?.full_name ?? 'Tú' },
+      } : prev);
+    }
+
     setCompletedActivities((prev) => new Set([...prev, activityId]));
-    // Avanzar solo si no es el último paso
     if (currentStepIndex < combinedSteps.length - 1) {
-      setTimeout(() => navigate('next'), 600); // pequeña pausa para feedback visual
+      setTimeout(() => navigate('next'), 600);
     }
   }
 
@@ -371,6 +458,11 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
               {lesson?.description && (
                 <p className="text-sm text-gray-500 mt-0.5">{lesson.description}</p>
               )}
+              {groupInfo && (
+                <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                  <Users className="w-3 h-3" /> Grupo: {groupInfo.groupName}
+                </span>
+              )}
             </div>
             <span className="text-sm font-semibold text-blue-600 whitespace-nowrap mt-1">
               {progress}% completado
@@ -401,7 +493,11 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
                 <button
                   key={index}
                   onClick={() => setCurrentStepIndex(index)}
-                  title={step.title ?? `Paso ${index + 1}`}
+                  title={
+                    isCompleted && groupInfo?.completedBy[(step as Activity).id]
+                      ? `Completado por ${groupInfo.completedBy[(step as Activity).id]}`
+                      : (step.title ?? `Paso ${index + 1}`)
+                  }
                   className={`
                     flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center
                     text-xs font-semibold transition-all border-2
@@ -448,6 +544,16 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
                 Paso {currentStepIndex + 1} de {combinedSteps.length}
               </span>
             </div>
+
+            {/* Banner grupal: quién completó este paso */}
+            {currentStep.isActivity &&
+              groupInfo?.completedBy[(currentStep as Activity).id] &&
+              groupInfo.completedBy[(currentStep as Activity).id] !== profile?.full_name && (
+              <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-purple-50 border border-purple-200 rounded-xl text-sm text-purple-800">
+                <Users className="w-4 h-4 text-purple-500 shrink-0" />
+                Completado por <strong>{groupInfo.completedBy[(currentStep as Activity).id]}</strong> — ya cuenta para tu grupo.
+              </div>
+            )}
 
             {/* Renderizador dinámico */}
             {currentStep.isActivity ? (

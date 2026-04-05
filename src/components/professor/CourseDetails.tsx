@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Users, BookOpen, Clock, Loader2, ArrowLeft, Trash2 } from 'lucide-react';
+import { Plus, Users, BookOpen, Clock, Loader2, ArrowLeft, Trash2, UsersRound } from 'lucide-react';
 import StudentManager from './StudentManager';
+import GroupManager from './GroupManager';
 
 interface AssignedLesson {
   id: string;
@@ -21,12 +22,12 @@ interface CourseDetailsProps {
 export default function CourseDetails({ courseId, courseName, onAssignLessons, onClose }: CourseDetailsProps) {
   const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showStudentManager, setShowStudentManager] = useState(false);
+  const [view, setView] = useState<'lessons' | 'students' | 'groups'>('lessons');
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadAssignedLessons();
-  }, [courseId, showStudentManager]);
+  }, [courseId]);
 
   async function loadAssignedLessons() {
     setLoading(true);
@@ -81,60 +82,52 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
     }
   }
 
-  // Vista del Gestor de Estudiantes encapsulada
-  if (showStudentManager) {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="p-4 border-b bg-gray-50 flex items-center gap-3">
-          <button 
-            onClick={() => setShowStudentManager(false)}
-            className="p-2 hover:bg-gray-200 rounded-full transition"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <div>
-            <h3 className="text-lg font-bold text-gray-800">Gestionar Estudiantes</h3>
-            <p className="text-xs text-gray-500">Curso: {courseName}</p>
-          </div>
-        </div>
-        <div className="p-4 flex-1 overflow-y-auto">
-          <StudentManager courseId={courseId} />
-        </div>
-      </div>
-    );
-  }
-
-  // Vista principal: Detalles del Curso
+  // Vista principal con tabs
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Header Modal */}
+      {/* Header */}
       <div className="p-6 border-b bg-gray-50">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">{courseName}</h2>
-            <p className="text-sm text-gray-500 mt-1">Detalles y temario del curso</p>
+            <p className="text-sm text-gray-500 mt-1">Gestión del curso</p>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowStudentManager(true)}
-              className="flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium shadow-sm"
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Estudiantes
+          {view === 'lessons' && (
+            <button onClick={onAssignLessons}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
+              <Plus className="w-4 h-4 mr-2" /> Asignar Lección
             </button>
-            <button
-              onClick={onAssignLessons}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Asignar Lección
+          )}
+        </div>
+        {/* Tabs */}
+        <div className="flex gap-2">
+          {[
+            { key: 'lessons',  label: 'Lecciones',   icon: BookOpen },
+            { key: 'students', label: 'Estudiantes',  icon: Users },
+            { key: 'groups',   label: 'Grupos',       icon: UsersRound },
+          ].map(({ key, label, icon: Icon }) => (
+            <button key={key}
+              onClick={() => setView(key as any)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                view === key ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}>
+              <Icon className="w-4 h-4" /> {label}
             </button>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* Contenido principal */}
+      {/* Contenido por tab */}
       <div className="p-6 flex-1 overflow-y-auto">
+
+        {/* Tab: Estudiantes */}
+        {view === 'students' && <StudentManager courseId={courseId} />}
+
+        {/* Tab: Grupos */}
+        {view === 'groups' && <GroupManager courseId={courseId} />}
+
+        {/* Tab: Lecciones */}
+        {view === 'lessons' && (<>
         <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
           <BookOpen className="w-5 h-5 mr-2 text-blue-600" />
           Lecciones Asignadas al Curso
@@ -195,6 +188,7 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
             ))}
           </div>
         )}
+        </>)}
       </div>
     </div>
   );
