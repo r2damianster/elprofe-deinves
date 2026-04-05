@@ -1,10 +1,9 @@
 import { useState } from 'react';
+import { useIntegrity } from './useIntegrity';
+import MetricsBar from './MetricsBar';
 
 interface EssayProps {
-  content: {
-    prompt: string;
-    minWords?: number;
-  };
+  content: { prompt: string; minWords?: number };
   onSubmit: (response: any, score: number) => void;
   disabled: boolean;
   points: number;
@@ -12,47 +11,52 @@ interface EssayProps {
 
 export default function Essay({ content, onSubmit, disabled, points }: EssayProps) {
   const [text, setText] = useState('');
+  const { score: integrity, events, onPaste } = useIntegrity(disabled);
 
-  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-  const minWords = content.minWords || 50;
-  const meetsRequirement = wordCount >= minWords;
+  const minWords   = content.minWords || 50;
+  const wordCount  = text.trim().split(/\s+/).filter(Boolean).length;
+  const meetsMin   = wordCount >= minWords;
+  const compliance = Math.min(100, Math.round((wordCount / minWords) * 100));
 
-  function handleSubmit() {
-    if (!meetsRequirement) {
-      alert(`Debes escribir al menos ${minWords} palabras`);
-      return;
-    }
-
-    onSubmit({ text, wordCount }, points);
-  }
+  const complianceLabel = meetsMin
+    ? '✓ Mínimo alcanzado'
+    : `Faltan ${minWords - wordCount} palabras`;
 
   return (
     <div className="space-y-4">
       <p className="text-gray-700 font-medium">{content.prompt}</p>
 
+      <MetricsBar
+        compliance={compliance}
+        complianceLabel={complianceLabel}
+        integrity={integrity}
+        events={events}
+      />
+
       <div>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition"
+          onPaste={onPaste}
+          disabled={disabled}
           rows={10}
           placeholder="Escribe tu respuesta aquí..."
-          disabled={disabled}
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition text-gray-800 text-sm"
         />
-        <div className="flex justify-between text-sm mt-2">
-          <span className={`${meetsRequirement ? 'text-green-600' : 'text-gray-600'}`}>
+        <div className="flex justify-between text-sm mt-1">
+          <span className={meetsMin ? 'text-green-600 font-medium' : 'text-gray-500'}>
             {wordCount} palabras
           </span>
-          <span className="text-gray-600">Mínimo: {minWords} palabras</span>
+          <span className="text-gray-500">Mínimo: {minWords} palabras</span>
         </div>
       </div>
 
       <button
-        onClick={handleSubmit}
-        disabled={disabled || !meetsRequirement}
-        className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+        onClick={() => onSubmit({ text, wordCount, integrity_score: integrity }, points)}
+        disabled={disabled || !meetsMin}
+        className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 font-semibold"
       >
-        {disabled ? 'Enviando...' : 'Enviar Respuesta'}
+        Enviar Respuesta
       </button>
     </div>
   );
