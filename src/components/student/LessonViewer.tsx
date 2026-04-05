@@ -102,13 +102,26 @@ function ContentStepRenderer({ step }: { step: ContentStep }) {
     case 'CONTENT':
     default:
       return (
-        <div className="w-full">
+        <div className="w-full space-y-4">
           {step.title && (
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">{step.title}</h3>
+            <h3 className="text-lg font-semibold text-gray-800">{step.title}</h3>
           )}
-          <div className="prose max-w-none text-gray-700 leading-relaxed">
-            {step.text}
-          </div>
+          {step.text && (
+            <div className="prose max-w-none text-gray-700 leading-relaxed">
+              {step.text}
+            </div>
+          )}
+          {step.url && (
+            <div className="relative w-full overflow-hidden rounded-xl shadow border border-gray-200" style={{ paddingTop: '56.25%' }}>
+              <iframe
+                src={step.url}
+                className="absolute inset-0 w-full h-full border-0"
+                allowFullScreen
+                allow="autoplay; encrypted-media"
+                loading="lazy"
+              />
+            </div>
+          )}
         </div>
       );
   }
