@@ -132,8 +132,9 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
   // ── Carga inicial ──────────────────────────────────────────────────────────
 
   useEffect(() => {
+    if (!profile?.id) return;
     loadAll();
-  }, [lessonId]);
+  }, [lessonId, profile?.id]);
 
   // ── Recalcular progreso cuando cambian actividades completadas ─────────────
 
@@ -214,6 +215,7 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
   // ── Persistencia de progreso ───────────────────────────────────────────────
 
   async function calculateProgress() {
+    if (!profile?.id) return;
     const activitySteps = combinedSteps.filter((s) => s.isActivity) as (Activity & { isActivity: true })[];
     if (activitySteps.length === 0) return;
 
