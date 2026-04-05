@@ -13,6 +13,11 @@ import Ordering from './activities/Ordering';
 import Matching from './activities/Matching';
 import Listening from './activities/Listening';
 import ImageQuestion from './activities/ImageQuestion';
+import ErrorSpotting from './activities/ErrorSpotting';
+import CategorySorting from './activities/CategorySorting';
+import MatrixGrid from './activities/MatrixGrid';
+import LongResponse from './activities/LongResponse';
+import StructuredEssay from './activities/StructuredEssay';
 
 interface Activity {
   id: string;
@@ -181,6 +186,51 @@ export default function ActivityRenderer({
 
         {activity.type === 'true_false' && (
           <MultipleChoice
+            content={activity.content}
+            onSubmit={handleSubmit}
+            disabled={submitting || isCompleted}
+            points={activity.points}
+          />
+        )}
+
+        {activity.type === 'error_spotting' && (
+          <ErrorSpotting
+            content={activity.content}
+            onSubmit={handleSubmit}
+            disabled={submitting || isCompleted}
+            points={activity.points}
+          />
+        )}
+
+        {activity.type === 'category_sorting' && (
+          <CategorySorting
+            content={activity.content}
+            onSubmit={handleSubmit}
+            disabled={submitting || isCompleted}
+            points={activity.points}
+          />
+        )}
+
+        {activity.type === 'matrix_grid' && (
+          <MatrixGrid
+            content={activity.content}
+            onSubmit={handleSubmit}
+            disabled={submitting || isCompleted}
+            points={activity.points}
+          />
+        )}
+
+        {activity.type === 'long_response' && (
+          <LongResponse
+            content={activity.content}
+            onSubmit={handleSubmit}
+            disabled={submitting || isCompleted}
+            points={activity.points}
+          />
+        )}
+
+        {activity.type === 'structured_essay' && (
+          <StructuredEssay
             content={activity.content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
