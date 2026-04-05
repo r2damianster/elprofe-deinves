@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Users, Plus, Trash2, BookOpen, ChevronDown, ChevronUp,
-  Loader2, UserPlus, Shuffle, ToggleLeft, ToggleRight, MoveRight,
+  Loader2, UserPlus, Shuffle, ToggleLeft, ToggleRight, MoveRight, Heart,
 } from 'lucide-react';
 
 interface Group {
@@ -61,6 +61,11 @@ export default function GroupManager({ courseId }: Props) {
   const [randomSize, setRandomSize]         = useState(4);
   const [randomPreview, setRandomPreview]   = useState<{ name: string; members: CourseStudent[] }[] | null>(null);
   const [confirmingRandom, setConfirmingRandom] = useState(false);
+
+  // Affinity grouping (students self-select)
+  const [affinityCount, setAffinityCount]   = useState(4);
+  const [affinityMax, setAffinityMax]       = useState<number | ''>('');
+  const [creatingAffinity, setCreatingAffinity] = useState(false);
 
   // Move member between groups
   const [moveTarget, setMoveTarget]         = useState<Record<string, string>>({});  // key: `${groupId}_${studentId}`
@@ -271,6 +276,25 @@ export default function GroupManager({ courseId }: Props) {
     finally { setConfirmingRandom(false); }
   }
 
+  async function createAffinityGroups() {
+    if (affinityCount < 1) return;
+    setCreatingAffinity(true);
+    try {
+      const max = affinityMax === '' ? null : Number(affinityMax);
+      for (let i = 1; i <= affinityCount; i++) {
+        await supabase.from('groups').insert({
+          course_id: courseId,
+          name: `Grupo ${groups.length + i}`,
+          created_by: profile?.id,
+          enrollment_open: true,
+          max_members: max,
+        });
+      }
+      await loadGroups();
+    } catch (err: any) { alert(err.message); }
+    finally { setCreatingAffinity(false); }
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center py-12 text-gray-400">
       <Loader2 className="w-6 h-6 animate-spin mr-2" /> Cargando grupos...
@@ -333,6 +357,41 @@ export default function GroupManager({ courseId }: Props) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── Grupos por afinidad ── */}
+      <div className="bg-pink-50 border border-pink-200 rounded-xl p-4">
+        <h3 className="text-sm font-bold text-pink-800 flex items-center gap-2 mb-3">
+          <Heart className="w-4 h-4" /> Grupos por afinidad
+        </h3>
+        <p className="text-xs text-pink-600 mb-3">
+          Crea grupos vacíos con inscripción abierta. Los estudiantes eligen en cuál unirse.
+        </p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-pink-700 font-medium">Número de grupos:</label>
+            <input
+              type="number" min={1} max={30} value={affinityCount}
+              onChange={e => setAffinityCount(Number(e.target.value))}
+              className="w-20 border border-pink-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-pink-700 font-medium">Máx. por grupo:</label>
+            <input
+              type="number" min={1} placeholder="∞" value={affinityMax}
+              onChange={e => setAffinityMax(e.target.value === '' ? '' : Number(e.target.value))}
+              className="w-20 border border-pink-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
+            />
+          </div>
+          <button
+            onClick={createAffinityGroups}
+            disabled={creatingAffinity || affinityCount < 1}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-600 text-white rounded-lg text-sm font-medium hover:bg-pink-700 disabled:opacity-50 transition">
+            {creatingAffinity ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Heart className="w-3.5 h-3.5" />}
+            Crear grupos abiertos
+          </button>
+        </div>
       </div>
 
       {/* ── Crear grupo manual ── */}
