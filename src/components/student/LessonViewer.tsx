@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, ArrowRight, CheckCircle, Lock, BookOpen, Video, FileText, Layers, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Lock, BookOpen, Video, FileText, Layers, Users, Monitor } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import ActivityRenderer from './ActivityRenderer';
 import ProductionEditor from './ProductionEditor';
@@ -150,6 +150,34 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
 
   const [attempts, setAttempts]                     = useState(1);
   const [groupInfo, setGroupInfo]                   = useState<GroupInfo | null>(null);
+  const [presentationBlocked, setPresentationBlocked] = useState(false);
+
+  // ── Detectar presentación activa del profesor (bloquea actividades) ───────
+
+  useEffect(() => {
+    if (previewMode || !profile?.id) return;
+
+    async function checkPresentation() {
+      // Obtener cursos del estudiante
+      const { data: cs } = await supabase
+        .from('course_students').select('course_id').eq('student_id', profile!.id);
+      const ids = (cs || []).map((r: any) => r.course_id);
+      if (ids.length === 0) return;
+
+      const { data } = await supabase
+        .from('presentation_sessions')
+        .select('id')
+        .eq('is_active', true)
+        .in('course_id', ids)
+        .maybeSingle();
+
+      setPresentationBlocked(!!data);
+    }
+
+    checkPresentation();
+    const interval = setInterval(checkPresentation, 5000);
+    return () => clearInterval(interval);
+  }, [profile?.id, previewMode]);
 
   // ── Carga inicial ──────────────────────────────────────────────────────────
 
@@ -492,6 +520,11 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
                   <Layers className="w-3 h-3" /> Vista Previa — el progreso no se guarda
                 </span>
               )}
+              {presentationBlocked && (
+                <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
+                  <Monitor className="w-3 h-3" /> Clase en directo — actividades bloqueadas
+                </span>
+              )}
               {groupInfo && (
                 <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
                   <Users className="w-3 h-3" /> Grupo: {groupInfo.groupName}
@@ -589,8 +622,16 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
               </div>
             )}
 
-            {/* Renderizador dinámico */}
-            {currentStep.isActivity ? (
+            {/* Bloqueo por presentación activa */}
+            {presentationBlocked && currentStep.isActivity ? (
+              <div className="flex flex-col items-center justify-center py-14 px-6 bg-blue-50 border-2 border-blue-200 rounded-xl text-center">
+                <Monitor className="w-12 h-12 text-blue-500 mb-4" />
+                <h3 className="text-lg font-bold text-blue-800 mb-2">Clase en directo</h3>
+                <p className="text-blue-600 text-sm max-w-sm">
+                  Tu profesor está presentando. Las actividades estarán disponibles cuando termine la presentación.
+                </p>
+              </div>
+            ) : currentStep.isActivity ? (
               <ActivityRenderer
                 activity={currentStep as Activity}
                 isCompleted={completedActivities.has((currentStep as Activity).id)}
@@ -606,7 +647,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
         <div className="flex items-center justify-between">
           <button
             onClick={() => navigate('prev')}
-            disabled={isFirstStep}
+            disabled={isFirstStep || presentationBlocked}
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-300
               text-gray-700 font-medium text-sm transition hover:bg-gray-100
               disabled:opacity-40 disabled:cursor-not-allowed"
@@ -659,7 +700,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
 
           <button
             onClick={() => navigate('next')}
-            disabled={isLastStep}
+            disabled={isLastStep || presentationBlocked}
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600
               text-white font-medium text-sm transition hover:bg-blue-700
               disabled:opacity-40 disabled:cursor-not-allowed"

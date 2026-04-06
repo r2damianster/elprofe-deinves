@@ -45,7 +45,10 @@ export default function StudentDashboard() {
     if (!profile?.id) return;
     checkActiveSession();
 
-    // Suscripción Realtime para detectar inicio/fin de sesiones
+    // Polling cada 5 segundos como mecanismo principal
+    const interval = setInterval(checkActiveSession, 5000);
+
+    // Realtime como mecanismo complementario (requiere migration aplicada)
     const channel = supabase
       .channel('student_presentation_watch')
       .on('postgres_changes', {
@@ -53,7 +56,10 @@ export default function StudentDashboard() {
       }, () => { checkActiveSession(); })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [profile?.id]);
 
   async function checkActiveSession() {
