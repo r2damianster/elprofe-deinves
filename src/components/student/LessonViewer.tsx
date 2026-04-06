@@ -12,7 +12,7 @@ interface Lesson {
   id: string;
   title: string;
   description: string | null;
-  content: { steps?: ContentStep[] } | null;
+  content: any; // array of ContentStep[] OR { steps: ContentStep[] }
   has_production: boolean;
   production_unlock_percentage: number;
 }
@@ -28,6 +28,7 @@ interface ContentStep {
   type: 'CONTENT' | 'VIDEO' | 'READING_FOCUS';
   text?: string;
   url?: string;
+  media_url?: string; // alternative field name used in DB
   pdf_url?: string;
   page?: number;
   task?: string;
@@ -67,7 +68,20 @@ function stepIcon(step: CombinedStep) {
 
 // ─── Renderizador de tipos de contenido ──────────────────────────────────────
 
+function toEmbedUrl(url: string): string {
+  if (url.includes('docs.google.com/presentation')) {
+    return url
+      .replace(/\/edit.*$/, '/embed?start=false&loop=false&delayms=3000')
+      .replace(/\/pub.*$/, '/embed?start=false&loop=false&delayms=3000');
+  }
+  return url;
+}
+
 function ContentStepRenderer({ step }: { step: ContentStep }) {
+  // Normalise: media_url is the primary field in DB; url is fallback
+  const effectiveUrl = step.media_url || step.url;
+  const effectivePdfUrl = step.pdf_url || (effectiveUrl?.includes('.pdf') || effectiveUrl?.includes('supabase.co/storage') ? effectiveUrl : undefined);
+
   switch (step.type) {
     case 'VIDEO':
       return (
@@ -77,7 +91,7 @@ function ContentStepRenderer({ step }: { step: ContentStep }) {
           )}
           <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
             <iframe
-              src={step.url}
+              src={effectiveUrl}
               className="absolute inset-0 w-full h-full rounded-lg"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -94,7 +108,7 @@ function ContentStepRenderer({ step }: { step: ContentStep }) {
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[500px]">
             <iframe
-              src={`${step.pdf_url}#page=${step.page ?? 1}`}
+              src={`${effectivePdfUrl}#page=${step.page ?? 1}`}
               className="w-full h-full rounded-lg border border-gray-200"
             />
             <div className="p-5 bg-blue-50 rounded-lg border border-blue-100 overflow-auto">
@@ -108,7 +122,11 @@ function ContentStepRenderer({ step }: { step: ContentStep }) {
       );
 
     case 'CONTENT':
-    default:
+    default: {
+      const isGoogleSlides = effectiveUrl?.includes('docs.google.com/presentation');
+      const isPdf = effectivePdfUrl && !isGoogleSlides;
+      const embedUrl = effectiveUrl ? toEmbedUrl(effectiveUrl) : undefined;
+
       return (
         <div className="w-full space-y-4">
           {step.title && (
@@ -119,10 +137,19 @@ function ContentStepRenderer({ step }: { step: ContentStep }) {
               {step.text}
             </div>
           )}
-          {step.url && (
+          {isPdf && effectivePdfUrl && (
+            <div className="w-full overflow-hidden rounded-xl shadow border border-gray-200" style={{ height: '600px' }}>
+              <iframe
+                src={effectivePdfUrl}
+                className="w-full h-full border-0"
+                loading="lazy"
+              />
+            </div>
+          )}
+          {!isPdf && embedUrl && (
             <div className="relative w-full overflow-hidden rounded-xl shadow border border-gray-200" style={{ paddingTop: '56.25%' }}>
               <iframe
-                src={step.url}
+                src={embedUrl}
                 className="absolute inset-0 w-full h-full border-0"
                 allowFullScreen
                 allow="autoplay; encrypted-media"
@@ -132,6 +159,7 @@ function ContentStepRenderer({ step }: { step: ContentStep }) {
           )}
         </div>
       );
+    }
   }
 }
 
@@ -210,7 +238,8 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
       .order('order_index');
 
     const activitiesData = joinData?.map((item: any) => ({ ...item.activities, order_index: item.order_index })) || [];
-    const contentSteps: CombinedStep[] = lessonData?.content?.steps ?? [];
+    const raw = lessonData?.content;
+    const contentSteps: CombinedStep[] = (Array.isArray(raw) ? raw : Array.isArray(raw?.steps) ? raw.steps : []) as CombinedStep[];
     const activitySteps: CombinedStep[] = activitiesData.map((a: Activity) => ({ ...a, isActivity: true as const }));
     setCombinedSteps([...contentSteps, ...activitySteps]);
     setLoading(false);
@@ -318,7 +347,8 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
     }
 
     // 5. Construir la lista unificada de pasos
-    const contentSteps: CombinedStep[] = lessonData?.content?.steps ?? [];
+    const raw2 = lessonData?.content;
+    const contentSteps: CombinedStep[] = (Array.isArray(raw2) ? raw2 : Array.isArray(raw2?.steps) ? raw2.steps : []) as CombinedStep[];
     const activitySteps: CombinedStep[] = (activitiesData ?? []).map((a: Activity) => ({
       ...a,
       isActivity: true as const,
