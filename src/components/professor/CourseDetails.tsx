@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Users, BookOpen, Clock, Loader2, ArrowLeft, Trash2, UsersRound } from 'lucide-react';
+import { Plus, Users, BookOpen, Clock, Loader2, Trash2, UsersRound, Monitor } from 'lucide-react';
 import StudentManager from './StudentManager';
 import GroupManager from './GroupManager';
+import ProfessorLessonView from './ProfessorLessonView';
 
 interface AssignedLesson {
   id: string;
@@ -22,7 +23,7 @@ interface CourseDetailsProps {
 export default function CourseDetails({ courseId, courseName, onAssignLessons, onClose }: CourseDetailsProps) {
   const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'lessons' | 'students' | 'groups'>('lessons');
+  const [view, setView] = useState<'lessons' | 'students' | 'groups' | 'present'>('lessons');
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -92,7 +93,7 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
             <h2 className="text-2xl font-bold text-gray-800">{courseName}</h2>
             <p className="text-sm text-gray-500 mt-1">Gestión del curso</p>
           </div>
-          {view === 'lessons' && (
+          {view === 'lessons' && view !== 'present' && (
             <button onClick={onAssignLessons}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
               <Plus className="w-4 h-4 mr-2" /> Asignar Lección
@@ -105,6 +106,7 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
             { key: 'lessons',  label: 'Lecciones',   icon: BookOpen },
             { key: 'students', label: 'Estudiantes',  icon: Users },
             { key: 'groups',   label: 'Grupos',       icon: UsersRound },
+            { key: 'present',  label: 'Presentar',    icon: Monitor },
           ].map(({ key, label, icon: Icon }) => (
             <button key={key}
               onClick={() => setView(key as any)}
@@ -125,6 +127,15 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
 
         {/* Tab: Grupos */}
         {view === 'groups' && <GroupManager courseId={courseId} />}
+
+        {/* Tab: Presentar */}
+        {view === 'present' && (
+          <ProfessorLessonView
+            courseId={courseId}
+            courseName={courseName}
+            onBack={() => setView('lessons')}
+          />
+        )}
 
         {/* Tab: Lecciones */}
         {view === 'lessons' && (<>

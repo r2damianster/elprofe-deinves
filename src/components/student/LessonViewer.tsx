@@ -51,6 +51,7 @@ type CombinedStep =
 interface LessonViewerProps {
   lessonId: string;
   onBack: () => void;
+  previewMode?: boolean; // profesor viendo la lección — sin guardar progreso
 }
 
 // ─── Íconos por tipo de paso ─────────────────────────────────────────────────
@@ -136,7 +137,7 @@ function ContentStepRenderer({ step }: { step: ContentStep }) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
+export default function LessonViewer({ lessonId, onBack, previewMode = false }: LessonViewerProps) {
   const { profile } = useAuth();
 
   const [lesson, setLesson]                         = useState<Lesson | null>(null);
@@ -153,6 +154,7 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
   // ── Carga inicial ──────────────────────────────────────────────────────────
 
   useEffect(() => {
+    if (previewMode) { loadPreview(); return; }
     if (!profile?.id) return;
     loadAll();
   }, [lessonId, profile?.id]);
@@ -160,10 +162,31 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
   // ── Recalcular progreso cuando cambian actividades completadas ─────────────
 
   useEffect(() => {
+    if (previewMode) return; // no guardar en preview
     if (combinedSteps.length > 0) {
       calculateProgress();
     }
   }, [completedActivities, combinedSteps]);
+
+  // ── Carga en modo previa (profesor) — solo lección + actividades, sin progreso ──
+
+  async function loadPreview() {
+    setLoading(true);
+    const { data: lessonData } = await supabase.from('lessons').select('*').eq('id', lessonId).maybeSingle();
+    if (lessonData) setLesson(lessonData);
+
+    const { data: joinData } = await supabase
+      .from('lesson_activities')
+      .select('order_index, activities(id, type, title, content, points, media_url)')
+      .eq('lesson_id', lessonId)
+      .order('order_index');
+
+    const activitiesData = joinData?.map((item: any) => ({ ...item.activities, order_index: item.order_index })) || [];
+    const contentSteps: CombinedStep[] = lessonData?.content?.steps ?? [];
+    const activitySteps: CombinedStep[] = activitiesData.map((a: Activity) => ({ ...a, isActivity: true as const }));
+    setCombinedSteps([...contentSteps, ...activitySteps]);
+    setLoading(false);
+  }
 
   async function loadAll() {
     setLoading(true);
@@ -391,6 +414,12 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
 
   // Cuando una actividad se completa, la marcamos y avanzamos automáticamente
   async function handleActivityComplete(activityId: string, response?: any, score?: number) {
+    if (previewMode) {
+      // En vista previa solo marcar localmente, no guardar nada
+      setCompletedActivities(prev => new Set([...prev, activityId]));
+      setTimeout(() => setCurrentStepIndex(i => Math.min(i + 1, combinedSteps.length - 1)), 600);
+      return;
+    }
     if (groupInfo) {
       // Guardar en group_activity_completions
       await supabase.from('group_activity_completions').upsert({
@@ -457,6 +486,11 @@ export default function LessonViewer({ lessonId, onBack }: LessonViewerProps) {
               <h1 className="text-xl font-bold text-gray-800">{lesson?.title}</h1>
               {lesson?.description && (
                 <p className="text-sm text-gray-500 mt-0.5">{lesson.description}</p>
+              )}
+              {previewMode && (
+                <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">
+                  <Layers className="w-3 h-3" /> Vista Previa — el progreso no se guarda
+                </span>
               )}
               {groupInfo && (
                 <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">

@@ -4,6 +4,7 @@ import { BookOpen, CheckCircle, Lock, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import LessonViewer from './LessonViewer';
 import GroupEnrollment from './GroupEnrollment';
+import PresentationViewer from './PresentationViewer';
 
 interface Lesson {
   id: string;
@@ -19,6 +20,13 @@ interface Progress {
   completed_at: string | null;
 }
 
+interface ActiveSession {
+  id: string;
+  lesson_id: string;
+  current_step_index: number;
+  professor_name?: string;
+}
+
 export default function StudentDashboard() {
   const { signOut, profile } = useAuth();
   const [assignedLessons, setAssignedLessons] = useState<Lesson[]>([]);
@@ -26,10 +34,51 @@ export default function StudentDashboard() {
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'lessons' | 'groups'>('lessons');
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
 
   useEffect(() => {
     loadAssignedLessons();
   }, []);
+
+  // ── Detectar sesión activa para los cursos del estudiante ──────────────
+  useEffect(() => {
+    if (!profile?.id) return;
+    checkActiveSession();
+
+    // Suscripción Realtime para detectar inicio/fin de sesiones
+    const channel = supabase
+      .channel('student_presentation_watch')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'presentation_sessions',
+      }, () => { checkActiveSession(); })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.id]);
+
+  async function checkActiveSession() {
+    if (!profile?.id) return;
+    const courseIds = await getCourseIds();
+    if (!courseIds) return;
+
+    const { data } = await supabase
+      .from('presentation_sessions')
+      .select('id, lesson_id, current_step_index, profiles!professor_id(full_name)')
+      .eq('is_active', true)
+      .in('course_id', courseIds.split(',').filter(Boolean))
+      .maybeSingle();
+
+    if (data) {
+      setActiveSession({
+        id:                 data.id,
+        lesson_id:          data.lesson_id,
+        current_step_index: data.current_step_index,
+        professor_name:     (data as any).profiles?.full_name,
+      });
+    } else {
+      setActiveSession(null);
+    }
+  }
 
   async function loadAssignedLessons() {
     try {
@@ -98,6 +147,16 @@ export default function StudentDashboard() {
           <p className="text-gray-600">Cargando lecciones...</p>
         </div>
       </div>
+    );
+  }
+
+  // Si hay una sesión activa, mostrar el visor de presentación
+  if (activeSession) {
+    return (
+      <PresentationViewer
+        session={activeSession}
+        onSessionEnd={() => setActiveSession(null)}
+      />
     );
   }
 
