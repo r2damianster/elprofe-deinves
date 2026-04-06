@@ -3,13 +3,22 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Users, Plus, Trash2, BookOpen, ChevronDown, ChevronUp,
-  Loader2, UserPlus, Shuffle, ToggleLeft, ToggleRight, MoveRight, Heart,
+  Loader2, UserPlus, Shuffle, ToggleLeft, ToggleRight, MoveRight,
+  Heart, FolderOpen, Layers,
 } from 'lucide-react';
+
+interface GroupSet {
+  id: string;
+  name: string;
+  course_id: string;
+  created_at: string;
+}
 
 interface Group {
   id: string;
   name: string;
   course_id: string;
+  group_set_id: string | null;
   created_at: string;
   enrollment_open: boolean;
   max_members: number | null;
@@ -21,8 +30,7 @@ interface GroupMember {
   email: string;
 }
 
-interface GroupLesson {
-  id: string;
+interface SetLesson {
   lesson_id: string;
   lesson_title: string;
 }
@@ -38,80 +46,102 @@ interface Lesson {
   title: string;
 }
 
-interface Props {
-  courseId: string;
-}
+interface Props { courseId: string; }
+
+type CreateMode = 'random' | 'affinity' | 'manual';
 
 export default function GroupManager({ courseId }: Props) {
   const { profile } = useAuth();
 
-  const [groups, setGroups]                 = useState<Group[]>([]);
-  const [expanded, setExpanded]             = useState<string | null>(null);
+  const [groupSets, setGroupSets]           = useState<GroupSet[]>([]);
+  const [groupsBySet, setGroupsBySet]       = useState<Record<string, Group[]>>({});
+  const [ungrouped, setUngrouped]           = useState<Group[]>([]);
   const [membersByGroup, setMembersByGroup] = useState<Record<string, GroupMember[]>>({});
-  const [lessonsByGroup, setLessonsByGroup] = useState<Record<string, GroupLesson[]>>({});
+  const [lessonsBySet, setLessonsBySet]     = useState<Record<string, SetLesson[]>>({});
   const [courseStudents, setCourseStudents] = useState<CourseStudent[]>([]);
   const [availableLessons, setAvailableLessons] = useState<Lesson[]>([]);
   const [loading, setLoading]               = useState(true);
-  const [newGroupName, setNewGroupName]     = useState('');
-  const [creating, setCreating]             = useState(false);
-  const [addingMember, setAddingMember]     = useState<Record<string, string>>({});
-  const [addingLesson, setAddingLesson]     = useState<Record<string, string>>({});
 
-  // Random grouping
+  // Expanded state
+  const [expandedSet, setExpandedSet]       = useState<string | null>(null);
+  const [expandedGroup, setExpandedGroup]   = useState<string | null>(null);
+
+  // Create agrupación form
+  const [newSetName, setNewSetName]         = useState('');
+  const [createMode, setCreateMode]         = useState<CreateMode>('random');
   const [randomSize, setRandomSize]         = useState(4);
-  const [randomPreview, setRandomPreview]   = useState<{ name: string; members: CourseStudent[] }[] | null>(null);
-  const [confirmingRandom, setConfirmingRandom] = useState(false);
-
-  // Affinity grouping (students self-select)
   const [affinityCount, setAffinityCount]   = useState(4);
   const [affinityMax, setAffinityMax]       = useState<number | ''>('');
-  const [creatingAffinity, setCreatingAffinity] = useState(false);
+  const [randomPreview, setRandomPreview]   = useState<{ name: string; members: CourseStudent[] }[] | null>(null);
+  const [creatingSet, setCreatingSet]       = useState(false);
 
-  // Move member between groups
-  const [moveTarget, setMoveTarget]         = useState<Record<string, string>>({});  // key: `${groupId}_${studentId}`
+  // Per-set lesson assignment
+  const [addingLessonToSet, setAddingLessonToSet] = useState<Record<string, string>>({});
+
+  // Per-group manual management
+  const [addingMember, setAddingMember]     = useState<Record<string, string>>({});
+  const [addingGroupToSet, setAddingGroupToSet] = useState<Record<string, string>>({});
+  const [moveTarget, setMoveTarget]         = useState<Record<string, string>>({});
 
   useEffect(() => { loadAll(); }, [courseId]);
 
   async function loadAll() {
     setLoading(true);
-    await Promise.all([loadGroups(), loadCourseStudents(), loadAvailableLessons()]);
+    await Promise.all([loadGroupSets(), loadGroups(), loadCourseStudents(), loadAvailableLessons()]);
     setLoading(false);
   }
 
-  async function loadGroups() {
-    const { data } = await supabase
-      .from('groups')
-      .select('*')
-      .eq('course_id', courseId)
-      .order('created_at');
-    setGroups(data || []);
+  async function loadGroupSets() {
+    const { data } = await supabase.from('group_sets').select('*')
+      .eq('course_id', courseId).order('created_at');
+    setGroupSets(data || []);
   }
 
-  async function loadGroupDetail(groupId: string) {
-    const [{ data: members }, { data: lessons }] = await Promise.all([
-      supabase.from('group_members')
-        .select('student_id, profiles!student_id(full_name, email)')
-        .eq('group_id', groupId),
-      supabase.from('group_lesson_assignments')
-        .select('id, lesson_id, lessons!lesson_id(title)')
-        .eq('group_id', groupId),
-    ]);
+  async function loadGroups() {
+    const { data } = await supabase.from('groups').select('*')
+      .eq('course_id', courseId).order('created_at');
+    const bySet: Record<string, Group[]> = {};
+    const noSet: Group[] = [];
+    (data || []).forEach((g: Group) => {
+      if (g.group_set_id) {
+        bySet[g.group_set_id] = [...(bySet[g.group_set_id] || []), g];
+      } else {
+        noSet.push(g);
+      }
+    });
+    setGroupsBySet(bySet);
+    setUngrouped(noSet);
+  }
 
+  async function loadSetLessons(setId: string) {
+    const groups = groupsBySet[setId] || [];
+    if (groups.length === 0) return;
+    const { data } = await supabase
+      .from('group_lesson_assignments')
+      .select('lesson_id, lessons!lesson_id(title)')
+      .in('group_id', groups.map(g => g.id));
+    const seen = new Set<string>();
+    const unique: SetLesson[] = [];
+    (data || []).forEach((r: any) => {
+      if (!seen.has(r.lesson_id)) {
+        seen.add(r.lesson_id);
+        unique.push({ lesson_id: r.lesson_id, lesson_title: r.lessons.title });
+      }
+    });
+    setLessonsBySet(prev => ({ ...prev, [setId]: unique }));
+  }
+
+  async function loadGroupMembers(groupId: string) {
+    const { data } = await supabase
+      .from('group_members')
+      .select('student_id, profiles!student_id(full_name, email)')
+      .eq('group_id', groupId);
     setMembersByGroup(prev => ({
       ...prev,
-      [groupId]: (members || []).map((m: any) => ({
+      [groupId]: (data || []).map((m: any) => ({
         student_id: m.student_id,
         full_name: m.profiles.full_name,
         email: m.profiles.email,
-      })),
-    }));
-
-    setLessonsByGroup(prev => ({
-      ...prev,
-      [groupId]: (lessons || []).map((l: any) => ({
-        id: l.id,
-        lesson_id: l.lesson_id,
-        lesson_title: l.lessons.title,
       })),
     }));
   }
@@ -122,9 +152,7 @@ export default function GroupManager({ courseId }: Props) {
       .select('student_id, profiles!student_id(full_name, email)')
       .eq('course_id', courseId);
     setCourseStudents((data || []).map((r: any) => ({
-      id: r.student_id,
-      full_name: r.profiles.full_name,
-      email: r.profiles.email,
+      id: r.student_id, full_name: r.profiles.full_name, email: r.profiles.email,
     })));
   }
 
@@ -132,111 +160,11 @@ export default function GroupManager({ courseId }: Props) {
     const { data } = await supabase
       .from('lesson_assignments')
       .select('lesson_id, lessons!lesson_id(id, title)')
-      .eq('course_id', courseId)
-      .is('student_id', null);
-    setAvailableLessons((data || []).map((r: any) => ({
-      id: r.lesson_id,
-      title: r.lessons.title,
-    })));
+      .eq('course_id', courseId).is('student_id', null);
+    setAvailableLessons((data || []).map((r: any) => ({ id: r.lesson_id, title: r.lessons.title })));
   }
 
-  function toggleGroup(groupId: string) {
-    if (expanded === groupId) {
-      setExpanded(null);
-    } else {
-      setExpanded(groupId);
-      if (!membersByGroup[groupId]) loadGroupDetail(groupId);
-    }
-  }
-
-  async function createGroup() {
-    if (!newGroupName.trim()) return;
-    setCreating(true);
-    try {
-      const { data, error } = await supabase
-        .from('groups')
-        .insert({ course_id: courseId, name: newGroupName.trim(), created_by: profile?.id })
-        .select().single();
-      if (error) throw error;
-      setGroups(prev => [...prev, data]);
-      setNewGroupName('');
-    } catch (err: any) { alert(err.message); }
-    finally { setCreating(false); }
-  }
-
-  async function deleteGroup(groupId: string, name: string) {
-    if (!confirm(`¿Eliminar el grupo "${name}"? Se perderá su progreso grupal.`)) return;
-    await supabase.from('groups').delete().eq('id', groupId);
-    setGroups(prev => prev.filter(g => g.id !== groupId));
-    if (expanded === groupId) setExpanded(null);
-  }
-
-  async function addMember(groupId: string) {
-    const studentId = addingMember[groupId];
-    if (!studentId) return;
-    try {
-      await supabase.from('group_members').insert({ group_id: groupId, student_id: studentId });
-      setAddingMember(prev => ({ ...prev, [groupId]: '' }));
-      await loadGroupDetail(groupId);
-    } catch (err: any) { alert(err.message); }
-  }
-
-  async function removeMember(groupId: string, studentId: string) {
-    await supabase.from('group_members').delete()
-      .eq('group_id', groupId).eq('student_id', studentId);
-    setMembersByGroup(prev => ({
-      ...prev,
-      [groupId]: prev[groupId].filter(m => m.student_id !== studentId),
-    }));
-  }
-
-  async function moveMember(fromGroupId: string, studentId: string) {
-    const key = `${fromGroupId}_${studentId}`;
-    const toGroupId = moveTarget[key];
-    if (!toGroupId) return;
-    try {
-      await supabase.from('group_members').delete()
-        .eq('group_id', fromGroupId).eq('student_id', studentId);
-      await supabase.from('group_members').insert({ group_id: toGroupId, student_id: studentId });
-      setMoveTarget(prev => ({ ...prev, [key]: '' }));
-      await Promise.all([loadGroupDetail(fromGroupId), loadGroupDetail(toGroupId)]);
-    } catch (err: any) { alert(err.message); }
-  }
-
-  async function assignLesson(groupId: string) {
-    const lessonId = addingLesson[groupId];
-    if (!lessonId) return;
-    try {
-      await supabase.from('group_lesson_assignments').insert({
-        group_id: groupId, lesson_id: lessonId, assigned_by: profile?.id,
-      });
-      setAddingLesson(prev => ({ ...prev, [groupId]: '' }));
-      await loadGroupDetail(groupId);
-    } catch (err: any) { alert(err.message); }
-  }
-
-  async function removeLesson(groupId: string, assignmentId: string) {
-    await supabase.from('group_lesson_assignments').delete().eq('id', assignmentId);
-    setLessonsByGroup(prev => ({
-      ...prev,
-      [groupId]: prev[groupId].filter(l => l.id !== assignmentId),
-    }));
-  }
-
-  async function toggleEnrollment(groupId: string, current: boolean) {
-    const { error } = await supabase.from('groups')
-      .update({ enrollment_open: !current }).eq('id', groupId);
-    if (!error) setGroups(prev => prev.map(g => g.id === groupId ? { ...g, enrollment_open: !current } : g));
-  }
-
-  async function updateMaxMembers(groupId: string, value: string) {
-    const max = value === '' ? null : parseInt(value);
-    const { error } = await supabase.from('groups')
-      .update({ max_members: max }).eq('id', groupId);
-    if (!error) setGroups(prev => prev.map(g => g.id === groupId ? { ...g, max_members: max } : g));
-  }
-
-  // ── Agrupación aleatoria ──────────────────────────────────────
+  // ── Generar preview aleatorio ──────────────────────────────
   function generatePreview() {
     if (courseStudents.length === 0) return;
     const shuffled = [...courseStudents].sort(() => Math.random() - 0.5);
@@ -245,215 +173,402 @@ export default function GroupManager({ courseId }: Props) {
     const preview: { name: string; members: CourseStudent[] }[] = [];
     let idx = 0;
     for (let i = 0; i < numGroups; i++) {
-      const remaining = n - idx;
-      const groupsLeft = numGroups - i;
-      const size = Math.ceil(remaining / groupsLeft);
-      preview.push({ name: `Grupo ${groups.length + i + 1}`, members: shuffled.slice(idx, idx + size) });
+      const size = Math.ceil((n - idx) / (numGroups - i));
+      preview.push({ name: `Grupo ${i + 1}`, members: shuffled.slice(idx, idx + size) });
       idx += size;
     }
     setRandomPreview(preview);
   }
 
-  async function confirmRandomGroups() {
-    if (!randomPreview) return;
-    setConfirmingRandom(true);
+  // ── Crear agrupación ──────────────────────────────────────
+  async function createSet() {
+    if (!newSetName.trim()) return;
+    if (createMode === 'random' && !randomPreview) { generatePreview(); return; }
+    setCreatingSet(true);
     try {
-      for (const g of randomPreview) {
-        const { data: created, error } = await supabase
-          .from('groups')
-          .insert({ course_id: courseId, name: g.name, created_by: profile?.id })
-          .select().single();
-        if (error) throw error;
-        if (g.members.length > 0) {
-          await supabase.from('group_members').insert(
-            g.members.map(m => ({ group_id: created.id, student_id: m.id }))
-          );
+      const { data: setData, error } = await supabase
+        .from('group_sets')
+        .insert({ course_id: courseId, name: newSetName.trim(), created_by: profile?.id })
+        .select().single();
+      if (error) throw error;
+
+      if (createMode === 'random' && randomPreview) {
+        for (const g of randomPreview) {
+          const { data: created } = await supabase.from('groups')
+            .insert({ course_id: courseId, name: g.name, created_by: profile?.id, group_set_id: setData.id })
+            .select().single();
+          if (created && g.members.length > 0) {
+            await supabase.from('group_members').insert(
+              g.members.map(m => ({ group_id: created.id, student_id: m.id }))
+            );
+          }
+        }
+        setRandomPreview(null);
+      } else if (createMode === 'affinity') {
+        const max = affinityMax === '' ? null : Number(affinityMax);
+        for (let i = 1; i <= affinityCount; i++) {
+          await supabase.from('groups').insert({
+            course_id: courseId, name: `Grupo ${i}`,
+            created_by: profile?.id, group_set_id: setData.id,
+            enrollment_open: true, max_members: max,
+          });
         }
       }
-      setRandomPreview(null);
-      await loadGroups();
+      // manual: empty set, professor adds groups inside
+
+      setNewSetName('');
+      await loadAll();
+      setExpandedSet(setData.id);
     } catch (err: any) { alert(err.message); }
-    finally { setConfirmingRandom(false); }
+    finally { setCreatingSet(false); }
   }
 
-  async function createAffinityGroups() {
-    if (affinityCount < 1) return;
-    setCreatingAffinity(true);
-    try {
-      const max = affinityMax === '' ? null : Number(affinityMax);
-      for (let i = 1; i <= affinityCount; i++) {
-        await supabase.from('groups').insert({
-          course_id: courseId,
-          name: `Grupo ${groups.length + i}`,
-          created_by: profile?.id,
-          enrollment_open: true,
-          max_members: max,
-        });
+  async function deleteSet(setId: string, name: string) {
+    if (!confirm(`¿Eliminar la agrupación "${name}" y todos sus grupos?`)) return;
+    await supabase.from('group_sets').delete().eq('id', setId);
+    setGroupSets(prev => prev.filter(s => s.id !== setId));
+    if (expandedSet === setId) setExpandedSet(null);
+    await loadGroups();
+  }
+
+  // ── Lección a toda una agrupación ─────────────────────────
+  async function assignLessonToSet(setId: string) {
+    const lessonId = addingLessonToSet[setId];
+    if (!lessonId) return;
+    const groups = groupsBySet[setId] || [];
+    await supabase.from('group_lesson_assignments').upsert(
+      groups.map(g => ({ group_id: g.id, lesson_id: lessonId, assigned_by: profile?.id })),
+      { onConflict: 'group_id,lesson_id' }
+    );
+    setAddingLessonToSet(prev => ({ ...prev, [setId]: '' }));
+    await loadSetLessons(setId);
+  }
+
+  async function removeLessonFromSet(setId: string, lessonId: string) {
+    const groups = groupsBySet[setId] || [];
+    await supabase.from('group_lesson_assignments')
+      .delete().in('group_id', groups.map(g => g.id)).eq('lesson_id', lessonId);
+    setLessonsBySet(prev => ({
+      ...prev, [setId]: (prev[setId] || []).filter(l => l.lesson_id !== lessonId),
+    }));
+  }
+
+  // ── Gestión de grupos dentro de un set ────────────────────
+  async function addGroupToSet(setId: string) {
+    const name = addingGroupToSet[setId]?.trim();
+    if (!name) return;
+    const { data } = await supabase.from('groups')
+      .insert({ course_id: courseId, name, created_by: profile?.id, group_set_id: setId })
+      .select().single();
+    if (data) {
+      setGroupsBySet(prev => ({ ...prev, [setId]: [...(prev[setId] || []), data] }));
+      setAddingGroupToSet(prev => ({ ...prev, [setId]: '' }));
+    }
+  }
+
+  async function deleteGroup(groupId: string, setId: string | null) {
+    await supabase.from('groups').delete().eq('id', groupId);
+    if (setId) {
+      setGroupsBySet(prev => ({ ...prev, [setId]: (prev[setId] || []).filter(g => g.id !== groupId) }));
+    } else {
+      setUngrouped(prev => prev.filter(g => g.id !== groupId));
+    }
+    if (expandedGroup === groupId) setExpandedGroup(null);
+  }
+
+  async function toggleGroupExpand(groupId: string) {
+    if (expandedGroup === groupId) { setExpandedGroup(null); return; }
+    setExpandedGroup(groupId);
+    if (!membersByGroup[groupId]) await loadGroupMembers(groupId);
+  }
+
+  async function addMember(groupId: string) {
+    const studentId = addingMember[groupId];
+    if (!studentId) return;
+    await supabase.from('group_members').insert({ group_id: groupId, student_id: studentId });
+    setAddingMember(prev => ({ ...prev, [groupId]: '' }));
+    await loadGroupMembers(groupId);
+  }
+
+  async function removeMember(groupId: string, studentId: string) {
+    await supabase.from('group_members').delete()
+      .eq('group_id', groupId).eq('student_id', studentId);
+    setMembersByGroup(prev => ({
+      ...prev, [groupId]: (prev[groupId] || []).filter(m => m.student_id !== studentId),
+    }));
+  }
+
+  async function moveMember(fromGroupId: string, studentId: string) {
+    const key = `${fromGroupId}_${studentId}`;
+    const toGroupId = moveTarget[key];
+    if (!toGroupId) return;
+    await supabase.from('group_members').delete()
+      .eq('group_id', fromGroupId).eq('student_id', studentId);
+    await supabase.from('group_members').insert({ group_id: toGroupId, student_id: studentId });
+    setMoveTarget(prev => ({ ...prev, [key]: '' }));
+    await Promise.all([loadGroupMembers(fromGroupId), loadGroupMembers(toGroupId)]);
+  }
+
+  async function toggleEnrollment(group: Group) {
+    await supabase.from('groups').update({ enrollment_open: !group.enrollment_open }).eq('id', group.id);
+    const update = (prev: Record<string, Group[]>) => {
+      const updated = { ...prev };
+      if (group.group_set_id && updated[group.group_set_id]) {
+        updated[group.group_set_id] = updated[group.group_set_id].map(
+          g => g.id === group.id ? { ...g, enrollment_open: !g.enrollment_open } : g
+        );
       }
-      await loadGroups();
-    } catch (err: any) { alert(err.message); }
-    finally { setCreatingAffinity(false); }
+      return updated;
+    };
+    setGroupsBySet(update);
+    setUngrouped(prev => prev.map(g => g.id === group.id ? { ...g, enrollment_open: !g.enrollment_open } : g));
+  }
+
+  // ── Componente de grupo individual ────────────────────────
+  function GroupCard({ group, allGroups }: { group: Group; allGroups: Group[] }) {
+    const members   = membersByGroup[group.id] || [];
+    const isOpen    = expandedGroup === group.id;
+    const available = courseStudents.filter(s => !members.some(m => m.student_id === s.id));
+    const otherGroups = allGroups.filter(g => g.id !== group.id);
+
+    return (
+      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+        <button className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition"
+          onClick={() => toggleGroupExpand(group.id)}>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+              <Users className="w-3.5 h-3.5" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-gray-800 text-sm">{group.name}</p>
+              <p className="text-xs text-gray-500">
+                {membersByGroup[group.id] ? `${members.length} miembro(s)` : 'ver miembros'}
+                {group.enrollment_open && <span className="ml-1 text-green-600">· abierto</span>}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button onClick={e => { e.stopPropagation(); toggleEnrollment(group); }}
+              className={`p-1 rounded transition text-xs ${group.enrollment_open ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
+              title={group.enrollment_open ? 'Cerrar inscripción' : 'Abrir inscripción'}>
+              {group.enrollment_open ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+            </button>
+            <button onClick={e => { e.stopPropagation(); deleteGroup(group.id, group.group_set_id); }}
+              className="p-1 text-gray-400 hover:text-red-500 transition">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+            {isOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </div>
+        </button>
+
+        {isOpen && (
+          <div className="border-t border-gray-100 p-3 space-y-2">
+            {members.length === 0
+              ? <p className="text-xs text-gray-400 italic">Sin miembros.</p>
+              : members.map(m => {
+                  const key = `${group.id}_${m.student_id}`;
+                  return (
+                    <div key={m.student_id} className="bg-gray-50 rounded-lg px-2.5 py-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">{m.full_name}</span>
+                        <button onClick={() => removeMember(group.id, m.student_id)}
+                          className="text-gray-400 hover:text-red-500 transition">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                      {otherGroups.length > 0 && (
+                        <div className="flex gap-1 mt-1">
+                          <select value={moveTarget[key] || ''}
+                            onChange={e => setMoveTarget(prev => ({ ...prev, [key]: e.target.value }))}
+                            className="flex-1 border border-gray-200 rounded px-1 py-0.5 text-xs bg-white focus:outline-none">
+                            <option value="">Mover a...</option>
+                            {otherGroups.map(og => <option key={og.id} value={og.id}>{og.name}</option>)}
+                          </select>
+                          <button onClick={() => moveMember(group.id, m.student_id)}
+                            disabled={!moveTarget[key]}
+                            className="p-0.5 bg-blue-600 text-white rounded disabled:opacity-40">
+                            <MoveRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+            {available.length > 0 && (
+              <div className="flex gap-1.5 pt-1">
+                <select value={addingMember[group.id] || ''}
+                  onChange={e => setAddingMember(prev => ({ ...prev, [group.id]: e.target.value }))}
+                  className="flex-1 border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
+                  <option value="">Agregar estudiante...</option>
+                  {available.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+                </select>
+                <button onClick={() => addMember(group.id)} disabled={!addingMember[group.id]}
+                  className="px-2 py-1 bg-blue-600 text-white rounded-lg text-xs disabled:opacity-50">
+                  <UserPlus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
   }
 
   if (loading) return (
     <div className="flex items-center justify-center py-12 text-gray-400">
-      <Loader2 className="w-6 h-6 animate-spin mr-2" /> Cargando grupos...
+      <Loader2 className="w-6 h-6 animate-spin mr-2" /> Cargando agrupaciones...
     </div>
   );
+
+  const unassignedLessonsForSet = (setId: string) =>
+    availableLessons.filter(l => !(lessonsBySet[setId] || []).some(sl => sl.lesson_id === l.id));
 
   return (
     <div className="space-y-6">
 
-      {/* ── Agrupación aleatoria ── */}
-      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-        <h3 className="text-sm font-bold text-purple-800 flex items-center gap-2 mb-3">
-          <Shuffle className="w-4 h-4" /> Agrupación aleatoria
+      {/* ── Crear nueva agrupación ── */}
+      <div className="border-2 border-dashed border-blue-200 rounded-xl p-5 bg-blue-50">
+        <h3 className="font-bold text-blue-800 flex items-center gap-2 mb-4">
+          <Layers className="w-4 h-4" /> Nueva agrupación
         </h3>
-        <div className="flex items-center gap-3 flex-wrap">
-          <label className="text-sm text-purple-700 font-medium">Estudiantes por grupo:</label>
-          <input
-            type="number" min={2} max={20} value={randomSize}
-            onChange={e => { setRandomSize(Number(e.target.value)); setRandomPreview(null); }}
-            className="w-20 border border-purple-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-          />
-          <span className="text-xs text-purple-500">
-            {courseStudents.length} estudiantes → {Math.ceil(courseStudents.length / randomSize)} grupos
-            {courseStudents.length % randomSize !== 0 && ` (con distribución uniforme)`}
-          </span>
-          <button onClick={generatePreview}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition">
-            <Shuffle className="w-3.5 h-3.5" /> Generar preview
-          </button>
-        </div>
 
-        {randomPreview && (
-          <div className="mt-4 space-y-3">
+        <div className="space-y-4">
+          <input
+            value={newSetName}
+            onChange={e => { setNewSetName(e.target.value); setRandomPreview(null); }}
+            placeholder="Nombre de la agrupación (ej: Dinámica Grupal 1)..."
+            className="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+          />
+
+          {/* Modo */}
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { key: 'random',   label: 'Aleatoria',     icon: Shuffle, color: 'purple' },
+              { key: 'affinity', label: 'Por afinidad',  icon: Heart,   color: 'pink' },
+              { key: 'manual',   label: 'Manual',        icon: UserPlus, color: 'gray' },
+            ].map(({ key, label, icon: Icon, color }) => (
+              <button key={key} onClick={() => { setCreateMode(key as CreateMode); setRandomPreview(null); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition ${
+                  createMode === key
+                    ? `bg-${color}-600 text-white border-${color}-600`
+                    : `bg-white text-gray-600 border-gray-300 hover:bg-gray-50`
+                }`}>
+                <Icon className="w-3.5 h-3.5" /> {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Opciones según modo */}
+          {createMode === 'random' && (
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 text-sm">
+                <label className="text-gray-700">Estudiantes por grupo:</label>
+                <input type="number" min={2} max={20} value={randomSize}
+                  onChange={e => { setRandomSize(Number(e.target.value)); setRandomPreview(null); }}
+                  className="w-16 border border-gray-300 rounded px-2 py-1 text-sm" />
+              </div>
+              <span className="text-xs text-gray-500">
+                {courseStudents.length} estudiantes → ~{Math.ceil(courseStudents.length / randomSize)} grupos
+              </span>
+              <button onClick={generatePreview}
+                className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition">
+                <Shuffle className="w-3.5 h-3.5" /> Preview
+              </button>
+            </div>
+          )}
+
+          {createMode === 'affinity' && (
+            <div className="flex items-center gap-3 flex-wrap text-sm">
+              <div className="flex items-center gap-2">
+                <label className="text-gray-700">Grupos:</label>
+                <input type="number" min={1} max={30} value={affinityCount}
+                  onChange={e => setAffinityCount(Number(e.target.value))}
+                  className="w-16 border border-gray-300 rounded px-2 py-1 text-sm" />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-gray-700">Máx. miembros:</label>
+                <input type="number" min={1} placeholder="∞" value={affinityMax}
+                  onChange={e => setAffinityMax(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-16 border border-gray-300 rounded px-2 py-1 text-sm" />
+              </div>
+              <p className="text-xs text-pink-600">Los estudiantes elegirán su grupo</p>
+            </div>
+          )}
+
+          {createMode === 'manual' && (
+            <p className="text-xs text-gray-500">Se creará la agrupación vacía. Luego agregas grupos y miembros manualmente.</p>
+          )}
+
+          {/* Preview aleatoria */}
+          {randomPreview && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
               {randomPreview.map((g, i) => (
                 <div key={i} className="bg-white border border-purple-200 rounded-lg p-2.5">
-                  <p className="font-bold text-purple-800 text-xs mb-1.5">{g.name} ({g.members.length})</p>
-                  <ul className="space-y-0.5">
-                    {g.members.map(m => (
-                      <li key={m.id} className="text-xs text-gray-600 truncate">{m.full_name}</li>
-                    ))}
-                  </ul>
+                  <p className="font-bold text-purple-800 text-xs mb-1">{g.name} ({g.members.length})</p>
+                  {g.members.map(m => (
+                    <p key={m.id} className="text-xs text-gray-600 truncate">{m.full_name}</p>
+                  ))}
                 </div>
               ))}
             </div>
-            <div className="flex gap-2">
-              <button onClick={confirmRandomGroups} disabled={confirmingRandom}
-                className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition">
-                {confirmingRandom ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Confirmar y crear grupos
-              </button>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              onClick={createSet}
+              disabled={creatingSet || !newSetName.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition">
+              {creatingSet ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {createMode === 'random' && !randomPreview ? 'Generar preview' : 'Crear agrupación'}
+            </button>
+            {randomPreview && (
               <button onClick={generatePreview}
-                className="px-4 py-2 border border-purple-300 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-100 transition">
+                className="px-3 py-2 border border-purple-300 text-purple-700 rounded-lg text-sm hover:bg-purple-50 transition">
                 Regenerar
               </button>
-              <button onClick={() => setRandomPreview(null)}
-                className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-100 transition">
-                Cancelar
-              </button>
-            </div>
+            )}
           </div>
-        )}
-      </div>
-
-      {/* ── Grupos por afinidad ── */}
-      <div className="bg-pink-50 border border-pink-200 rounded-xl p-4">
-        <h3 className="text-sm font-bold text-pink-800 flex items-center gap-2 mb-3">
-          <Heart className="w-4 h-4" /> Grupos por afinidad
-        </h3>
-        <p className="text-xs text-pink-600 mb-3">
-          Crea grupos vacíos con inscripción abierta. Los estudiantes eligen en cuál unirse.
-        </p>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-pink-700 font-medium">Número de grupos:</label>
-            <input
-              type="number" min={1} max={30} value={affinityCount}
-              onChange={e => setAffinityCount(Number(e.target.value))}
-              className="w-20 border border-pink-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-pink-700 font-medium">Máx. por grupo:</label>
-            <input
-              type="number" min={1} placeholder="∞" value={affinityMax}
-              onChange={e => setAffinityMax(e.target.value === '' ? '' : Number(e.target.value))}
-              className="w-20 border border-pink-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
-            />
-          </div>
-          <button
-            onClick={createAffinityGroups}
-            disabled={creatingAffinity || affinityCount < 1}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-600 text-white rounded-lg text-sm font-medium hover:bg-pink-700 disabled:opacity-50 transition">
-            {creatingAffinity ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Heart className="w-3.5 h-3.5" />}
-            Crear grupos abiertos
-          </button>
         </div>
       </div>
 
-      {/* ── Crear grupo manual ── */}
-      <div className="flex gap-2">
-        <input
-          value={newGroupName}
-          onChange={e => setNewGroupName(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && createGroup()}
-          placeholder="Nombre del nuevo grupo..."
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-        />
-        <button onClick={createGroup} disabled={creating || !newGroupName.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition">
-          <Plus className="w-4 h-4" /> Crear grupo
-        </button>
-      </div>
-
-      {/* ── Lista de grupos ── */}
-      {groups.length === 0 ? (
-        <div className="text-center py-12 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-          <Users className="w-10 h-10 mx-auto mb-2 opacity-40" />
-          <p className="font-medium">No hay grupos en este curso.</p>
-          <p className="text-sm mt-1">Crea el primero arriba o genera grupos aleatorios.</p>
+      {/* ── Lista de agrupaciones ── */}
+      {groupSets.length === 0 && ungrouped.length === 0 ? (
+        <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+          <FolderOpen className="w-10 h-10 mx-auto mb-2 opacity-40" />
+          <p className="font-medium">No hay agrupaciones aún.</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {groups.map(group => {
-            const members  = membersByGroup[group.id] || [];
-            const lessons  = lessonsByGroup[group.id] || [];
-            const isOpen   = expanded === group.id;
-            const available = courseStudents.filter(s => !members.some(m => m.student_id === s.id));
-            const unassignedLessons = availableLessons.filter(l => !lessons.some(gl => gl.lesson_id === l.id));
-            const otherGroups = groups.filter(g => g.id !== group.id);
+        <div className="space-y-3">
+          {groupSets.map(set => {
+            const groups = groupsBySet[set.id] || [];
+            const isOpen = expandedSet === set.id;
+            const setLessons = lessonsBySet[set.id] || [];
+            const unassigned = unassignedLessonsForSet(set.id);
 
             return (
-              <div key={group.id} className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+              <div key={set.id} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
 
-                {/* Header */}
+                {/* Header del set */}
                 <button className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition"
-                  onClick={() => toggleGroup(group.id)}>
+                  onClick={() => {
+                    const opening = expandedSet !== set.id;
+                    setExpandedSet(opening ? set.id : null);
+                    if (opening && !lessonsBySet[set.id]) loadSetLessons(set.id);
+                  }}>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center">
-                      <Users className="w-4 h-4" />
+                    <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                      <Layers className="w-4 h-4" />
                     </div>
                     <div className="text-left">
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-gray-800">{group.name}</p>
-                        {group.enrollment_open && (
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                            Inscripción abierta{group.max_members ? ` · máx. ${group.max_members}` : ''}
-                          </span>
-                        )}
-                      </div>
+                      <p className="font-bold text-gray-800">{set.name}</p>
                       <p className="text-xs text-gray-500">
-                        {membersByGroup[group.id]
-                          ? `${members.length} miembro(s) · ${lessons.length} lección(es) grupal(es)`
-                          : 'Click para ver detalles'}
+                        {groups.length} grupo(s) · {new Date(set.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={e => { e.stopPropagation(); deleteGroup(group.id, group.name); }}
+                    <button onClick={e => { e.stopPropagation(); deleteSet(set.id, set.name); }}
                       className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -461,154 +576,93 @@ export default function GroupManager({ courseId }: Props) {
                   </div>
                 </button>
 
-                {/* Detalle expandido */}
+                {/* Detalle del set */}
                 {isOpen && (
                   <div className="border-t border-gray-100 p-4 space-y-5">
 
-                    {/* Configuración de inscripción */}
-                    <div className="flex flex-wrap items-center gap-4 bg-gray-50 rounded-lg p-3">
-                      <button
-                        onClick={() => toggleEnrollment(group.id, group.enrollment_open)}
-                        className={`flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-lg border transition ${
-                          group.enrollment_open
-                            ? 'bg-green-100 border-green-300 text-green-700 hover:bg-green-200'
-                            : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100'
-                        }`}>
-                        {group.enrollment_open
-                          ? <ToggleRight className="w-4 h-4" />
-                          : <ToggleLeft className="w-4 h-4" />}
-                        Inscripción {group.enrollment_open ? 'abierta' : 'cerrada'}
-                      </button>
+                    {/* Lecciones de esta agrupación */}
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
+                      <h4 className="text-sm font-bold text-green-800 flex items-center gap-1.5">
+                        <BookOpen className="w-4 h-4" /> Lecciones grupales de esta agrupación
+                      </h4>
+                      <p className="text-xs text-green-600">Al asignar una lección aquí, todos los grupos la reciben automáticamente.</p>
 
-                      {group.enrollment_open && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <label className="text-gray-600">Máx. miembros:</label>
-                          <input
-                            type="number" min={1} placeholder="∞"
-                            defaultValue={group.max_members ?? ''}
-                            onBlur={e => updateMaxMembers(group.id, e.target.value)}
-                            className="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                          />
+                      {setLessons.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {setLessons.map(l => (
+                            <span key={l.lesson_id} className="flex items-center gap-1 bg-white border border-green-200 text-green-800 text-xs px-2 py-1 rounded-full">
+                              {l.lesson_title}
+                              <button onClick={() => removeLessonFromSet(set.id, l.lesson_id)}
+                                className="hover:text-red-500 transition ml-0.5">
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
                         </div>
+                      )}
+
+                      {unassigned.length > 0 && groups.length > 0 && (
+                        <div className="flex gap-2">
+                          <select value={addingLessonToSet[set.id] || ''}
+                            onChange={e => setAddingLessonToSet(prev => ({ ...prev, [set.id]: e.target.value }))}
+                            className="flex-1 border border-green-300 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-400">
+                            <option value="">Asignar lección a todos los grupos...</option>
+                            {unassigned.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+                          </select>
+                          <button onClick={() => assignLessonToSet(set.id)}
+                            disabled={!addingLessonToSet[set.id]}
+                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition">
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                      {groups.length === 0 && (
+                        <p className="text-xs text-gray-400 italic">Agrega grupos primero para asignar lecciones.</p>
                       )}
                     </div>
 
-                    <div className="grid md:grid-cols-2 gap-6">
-
-                      {/* Miembros */}
-                      <div className="space-y-3">
-                        <h4 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                          <Users className="w-4 h-4 text-blue-500" /> Miembros
-                        </h4>
-
-                        {members.length === 0 ? (
-                          <p className="text-xs text-gray-400 italic">Sin miembros aún.</p>
-                        ) : (
-                          <div className="space-y-1.5">
-                            {members.map(m => {
-                              const key = `${group.id}_${m.student_id}`;
-                              return (
-                                <div key={m.student_id} className="bg-gray-50 rounded-lg px-3 py-2">
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-medium text-gray-700 text-sm">{m.full_name}</span>
-                                    <button onClick={() => removeMember(group.id, m.student_id)}
-                                      className="text-gray-400 hover:text-red-500 transition ml-2">
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                  {otherGroups.length > 0 && (
-                                    <div className="flex items-center gap-1.5 mt-1.5">
-                                      <select
-                                        value={moveTarget[key] || ''}
-                                        onChange={e => setMoveTarget(prev => ({ ...prev, [key]: e.target.value }))}
-                                        className="flex-1 border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white">
-                                        <option value="">Mover a grupo...</option>
-                                        {otherGroups.map(og => (
-                                          <option key={og.id} value={og.id}>{og.name}</option>
-                                        ))}
-                                      </select>
-                                      <button
-                                        onClick={() => moveMember(group.id, m.student_id)}
-                                        disabled={!moveTarget[key]}
-                                        className="p-0.5 bg-blue-600 text-white rounded disabled:opacity-40 hover:bg-blue-700 transition">
-                                        <MoveRight className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
+                    {/* Grupos del set */}
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-bold text-gray-700">Grupos</h4>
+                      {groups.length === 0
+                        ? <p className="text-xs text-gray-400 italic">Esta agrupación no tiene grupos aún.</p>
+                        : <div className="grid sm:grid-cols-2 gap-2">
+                            {groups.map(g => <GroupCard key={g.id} group={g} allGroups={groups} />)}
                           </div>
-                        )}
+                      }
 
-                        {available.length > 0 && (
-                          <div className="flex gap-2 mt-2">
-                            <select
-                              value={addingMember[group.id] || ''}
-                              onChange={e => setAddingMember(prev => ({ ...prev, [group.id]: e.target.value }))}
-                              className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
-                              <option value="">Agregar estudiante...</option>
-                              {available.map(s => (
-                                <option key={s.id} value={s.id}>{s.full_name}</option>
-                              ))}
-                            </select>
-                            <button onClick={() => addMember(group.id)}
-                              disabled={!addingMember[group.id]}
-                              className="px-2 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 transition">
-                              <UserPlus className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
+                      {/* Agregar grupo manual dentro del set */}
+                      <div className="flex gap-2 pt-1">
+                        <input
+                          value={addingGroupToSet[set.id] || ''}
+                          onChange={e => setAddingGroupToSet(prev => ({ ...prev, [set.id]: e.target.value }))}
+                          onKeyDown={e => e.key === 'Enter' && addGroupToSet(set.id)}
+                          placeholder="Nombre del nuevo grupo..."
+                          className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                        <button onClick={() => addGroupToSet(set.id)}
+                          disabled={!addingGroupToSet[set.id]?.trim()}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 transition">
+                          <Plus className="w-3.5 h-3.5" /> Grupo
+                        </button>
                       </div>
-
-                      {/* Lecciones grupales */}
-                      <div className="space-y-3">
-                        <h4 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                          <BookOpen className="w-4 h-4 text-green-500" /> Lecciones grupales
-                        </h4>
-
-                        {lessons.length === 0 ? (
-                          <p className="text-xs text-gray-400 italic">Sin lecciones grupales asignadas.</p>
-                        ) : (
-                          <div className="space-y-1.5">
-                            {lessons.map(l => (
-                              <div key={l.id} className="flex items-center justify-between px-3 py-1.5 bg-green-50 border border-green-100 rounded-lg text-sm">
-                                <span className="font-medium text-green-800 truncate">{l.lesson_title}</span>
-                                <button onClick={() => removeLesson(group.id, l.id)}
-                                  className="text-gray-400 hover:text-red-500 transition ml-2 shrink-0">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {unassignedLessons.length > 0 && (
-                          <div className="flex gap-2 mt-2">
-                            <select
-                              value={addingLesson[group.id] || ''}
-                              onChange={e => setAddingLesson(prev => ({ ...prev, [group.id]: e.target.value }))}
-                              className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
-                              <option value="">Asignar lección grupal...</option>
-                              {unassignedLessons.map(l => (
-                                <option key={l.id} value={l.id}>{l.title}</option>
-                              ))}
-                            </select>
-                            <button onClick={() => assignLesson(group.id)}
-                              disabled={!addingLesson[group.id]}
-                              className="px-2 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition">
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
                     </div>
+
                   </div>
                 )}
               </div>
             );
           })}
+
+          {/* Grupos sin agrupación (legado) */}
+          {ungrouped.length > 0 && (
+            <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+              <h4 className="text-sm font-semibold text-gray-500 mb-3">Grupos sin agrupación</h4>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {ungrouped.map(g => <GroupCard key={g.id} group={g} allGroups={ungrouped} />)}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
