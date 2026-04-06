@@ -34,22 +34,41 @@ export default function PresentationViewer({ session, onSessionEnd }: Props) {
         .from('lessons').select('content').eq('id', session.lesson_id).maybeSingle();
 
       const extracted: MediaSlide[] = [];
-      const steps: any[] = lesson?.content?.steps ?? [];
+      const raw = lesson?.content;
+      const steps: any[] = Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.steps)
+        ? raw.steps
+        : [];
+
+      function toEmbedUrl(url: string): string {
+        if (url.includes('docs.google.com/presentation')) {
+          return url
+            .replace(/\/edit.*$/, '/embed?start=false&loop=false&delayms=3000')
+            .replace(/\/pub.*$/, '/embed?start=false&loop=false&delayms=3000');
+        }
+        return url;
+      }
 
       steps.forEach((step: any) => {
-        if (step.url) {
-          const isSlides = step.url.includes('docs.google.com/presentation');
-          const isVideo  = step.url.includes('youtube') || step.url.includes('youtu.be') || step.url.includes('vimeo');
-          extracted.push({
-            label: step.title || (isSlides ? 'Presentación' : 'Video'),
-            type:  isSlides ? 'slides' : isVideo ? 'video' : 'content',
-            url:   step.url,
-            text:  step.text,
-          });
-        } else if (step.pdf_url) {
-          extracted.push({ label: step.title || 'PDF', type: 'pdf', url: step.pdf_url });
-        } else if (step.text) {
-          extracted.push({ label: step.title || 'Contenido', type: 'content', text: step.text });
+        const rawUrl: string | undefined = step.url || step.media_url || step.pdf_url;
+
+        if (rawUrl) {
+          const isSlides = rawUrl.includes('docs.google.com/presentation');
+          const isPdf    = rawUrl.includes('.pdf') || rawUrl.includes('supabase.co/storage');
+          const isVideo  = rawUrl.includes('youtube') || rawUrl.includes('youtu.be') || rawUrl.includes('vimeo');
+
+          if (isSlides) {
+            extracted.push({ label: step.title || 'Presentación', type: 'slides', url: toEmbedUrl(rawUrl), text: step.text || step.content });
+          } else if (isPdf) {
+            extracted.push({ label: step.title || 'PDF', type: 'pdf', url: rawUrl });
+          } else if (isVideo) {
+            extracted.push({ label: step.title || 'Video', type: 'video', url: rawUrl });
+          } else {
+            extracted.push({ label: step.title || 'Contenido', type: 'content', url: rawUrl, text: step.text || step.content });
+          }
+        } else if (step.text || step.content) {
+          extracted.push({ label: step.title || 'Contenido', type: 'content', text: step.text || step.content });
         }
       });
 

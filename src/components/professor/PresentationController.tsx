@@ -45,33 +45,71 @@ export default function PresentationController({ lessonId, courseId, onEnd }: Pr
     const extracted: MediaSlide[] = [];
     let idx = 0;
 
-    // Extraer de lesson_steps (content steps con url = slides/video, text = content)
-    const steps: any[] = lesson?.content?.steps ?? [];
+    // content puede ser {steps: [...]} o directamente un array [...]
+    const raw = lesson?.content;
+    const steps: any[] = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.steps)
+      ? raw.steps
+      : [];
+
+    // Convierte URL de Google Slides /edit a /embed
+    function toEmbedUrl(url: string): string {
+      if (url.includes('docs.google.com/presentation')) {
+        return url
+          .replace(/\/edit.*$/, '/embed?start=false&loop=false&delayms=3000')
+          .replace(/\/pub.*$/, '/embed?start=false&loop=false&delayms=3000');
+      }
+      return url;
+    }
+
     steps.forEach((step: any) => {
-      if (step.url) {
-        // Detectar tipo por URL
-        const isSlides = step.url.includes('docs.google.com/presentation');
-        const isVideo  = step.url.includes('youtube') || step.url.includes('youtu.be') || step.url.includes('vimeo');
-        extracted.push({
-          index: idx,
-          label: step.title || (isSlides ? 'Presentación' : isVideo ? 'Video' : 'Contenido'),
-          type:  isSlides ? 'slides' : isVideo ? 'video' : 'content',
-          url:   step.url,
-          text:  step.text,
-        });
-      } else if (step.pdf_url) {
-        extracted.push({
-          index: idx,
-          label: step.title || 'Documento PDF',
-          type:  'pdf',
-          url:   step.pdf_url,
-        });
-      } else if (step.text) {
+      // Soporta tanto step.url, step.pdf_url como step.media_url
+      const rawUrl: string | undefined = step.url || step.media_url || step.pdf_url;
+
+      if (rawUrl) {
+        const isSlides = rawUrl.includes('docs.google.com/presentation');
+        const isPdf    = rawUrl.includes('.pdf') || rawUrl.includes('supabase.co/storage');
+        const isVideo  = rawUrl.includes('youtube') || rawUrl.includes('youtu.be') || rawUrl.includes('vimeo');
+
+        if (isSlides) {
+          extracted.push({
+            index: idx,
+            label: step.title || 'Presentación',
+            type:  'slides',
+            url:   toEmbedUrl(rawUrl),
+            text:  step.text || step.content,
+          });
+        } else if (isPdf) {
+          extracted.push({
+            index: idx,
+            label: step.title || 'Documento PDF',
+            type:  'pdf',
+            url:   rawUrl,
+          });
+        } else if (isVideo) {
+          extracted.push({
+            index: idx,
+            label: step.title || 'Video',
+            type:  'video',
+            url:   rawUrl,
+            text:  step.text || step.content,
+          });
+        } else {
+          extracted.push({
+            index: idx,
+            label: step.title || 'Contenido',
+            type:  'content',
+            url:   rawUrl,
+            text:  step.text || step.content,
+          });
+        }
+      } else if (step.text || step.content) {
         extracted.push({
           index: idx,
           label: step.title || 'Contenido',
           type:  'content',
-          text:  step.text,
+          text:  step.text || step.content,
         });
       }
       idx++;
