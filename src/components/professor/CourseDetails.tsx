@@ -4,12 +4,13 @@ import { Plus, Users, BookOpen, Clock, Loader2, Trash2, UsersRound, Monitor } fr
 import StudentManager from './StudentManager';
 import GroupManager from './GroupManager';
 import ProfessorLessonView from './ProfessorLessonView';
+import { resolveField } from '../../lib/i18n';
 
 interface AssignedLesson {
   id: string;
   lesson_assignments_id: string;
-  title: string;
-  description: string | null;
+  title: any;
+  description: any;
   assigned_at: string;
 }
 
@@ -176,9 +177,9 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
                   {idx + 1}
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-gray-800">{lesson.title}</h4>
-                  {lesson.description && (
-                    <p className="text-sm text-gray-600 mt-1">{lesson.description}</p>
+                  <h4 className="font-bold text-gray-800">{resolveField(lesson.title, 'es')}</h4>
+                  {resolveField(lesson.description, 'es') && (
+                    <p className="text-sm text-gray-600 mt-1">{resolveField(lesson.description, 'es')}</p>
                   )}
                   <div className="flex items-center text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
                     <Clock className="w-3.5 h-3.5 mr-1" />
@@ -186,7 +187,7 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
                   </div>
                 </div>
                 <button
-                  onClick={() => removeLesson(lesson.lesson_assignments_id, lesson.title)}
+                  onClick={() => removeLesson(lesson.lesson_assignments_id, resolveField(lesson.title, 'es'))}
                   disabled={removingId === lesson.lesson_assignments_id}
                   className="ml-3 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100"
                   title="Desasignar lección"

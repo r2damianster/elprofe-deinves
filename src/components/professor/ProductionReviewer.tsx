@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { resolveField } from '../../lib/i18n';
 import {
   ShieldAlert, BarChart, Clock, ChevronDown, ChevronUp,
   CheckCircle, AlertCircle, Loader2, Send
@@ -166,7 +167,7 @@ export default function ProductionReviewer() {
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-800 truncate">{p.student?.full_name}</p>
-                    <p className="text-xs text-gray-500 truncate">{p.lesson?.title}</p>
+                    <p className="text-xs text-gray-500 truncate">{resolveField(p.lesson?.title, 'es')}</p>
                   </div>
 
                   {/* Métricas rápidas */}
