@@ -185,6 +185,46 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
   const [presentationBlocked, setPresentationBlocked] = useState(false);
   const [productionActivities, setProductionActivities] = useState<Activity[]>([]);
 
+  // ── Sync en tiempo real de completaciones grupales ────────────────────────
+
+  useEffect(() => {
+    if (!groupInfo?.groupId) return;
+
+    async function refreshGroupCompletions() {
+      const { data } = await supabase
+        .from('group_activity_completions')
+        .select('activity_id, completed_by, profiles!completed_by(full_name)')
+        .eq('group_id', groupInfo!.groupId);
+
+      if (!data) return;
+      const completedIds = new Set<string>();
+      const completedByMap: Record<string, string> = {};
+      data.forEach((c: any) => {
+        completedIds.add(c.activity_id);
+        completedByMap[c.activity_id] = c.profiles?.full_name ?? '';
+      });
+      setCompletedActivities(completedIds);
+      setGroupInfo(prev => prev ? { ...prev, completedBy: completedByMap } : prev);
+    }
+
+    // Polling cada 5s
+    const interval = setInterval(refreshGroupCompletions, 5000);
+
+    // Realtime
+    const channel = supabase
+      .channel(`group_completions_${groupInfo.groupId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'group_activity_completions',
+        filter: `group_id=eq.${groupInfo.groupId}`,
+      }, () => { refreshGroupCompletions(); })
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, [groupInfo?.groupId]);
+
   // ── Detectar presentación activa del profesor (bloquea actividades) ───────
 
   useEffect(() => {
