@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { ClipboardList, Check, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { resolveField } from '../../lib/i18n';
 
 interface Course {
   id: string;
@@ -10,8 +11,8 @@ interface Course {
 
 interface Lesson {
   id: string;
-  title: string;
-  description: string | null;
+  title: any;
+  description: any;
   has_production: boolean;
 }
 
@@ -245,9 +246,9 @@ export default function LessonAssignment({ courses, initialCourseId }: LessonAss
                       )}
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-bold text-gray-800 text-sm">{lesson.title}</h4>
-                      {lesson.description && (
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-1">{lesson.description}</p>
+                      <h4 className="font-bold text-gray-800 text-sm">{resolveField(lesson.title, 'es')}</h4>
+                      {resolveField(lesson.description, 'es') && (
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-1">{resolveField(lesson.description, 'es')}</p>
                       )}
                       {lesson.has_production && (
                         <span className="inline-flex items-center mt-2 text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full border border-green-200">

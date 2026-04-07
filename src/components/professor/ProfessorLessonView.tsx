@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { BookOpen, Eye, Monitor, Loader2, Clock } from 'lucide-react';
+import { resolveField } from '../../lib/i18n';
 import LessonViewer from '../student/LessonViewer';
 import PresentationController from './PresentationController';
 
 interface AssignedLesson {
   id: string;
-  title: string;
-  description: string | null;
+  title: any;
+  description: any;
   assigned_at: string;
 }
 
@@ -102,9 +103,9 @@ export default function ProfessorLessonView({ courseId, courseName, onBack }: Pr
                   {idx + 1}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-bold text-gray-800 truncate">{lesson.title}</p>
-                  {lesson.description && (
-                    <p className="text-sm text-gray-500 truncate">{lesson.description}</p>
+                  <p className="font-bold text-gray-800 truncate">{resolveField(lesson.title, 'es')}</p>
+                  {resolveField(lesson.description, 'es') && (
+                    <p className="text-sm text-gray-500 truncate">{resolveField(lesson.description, 'es')}</p>
                   )}
                   <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                     <Clock className="w-3 h-3" />

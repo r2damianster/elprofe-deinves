@@ -118,3 +118,16 @@ export const translations = {
 export function useTranslations(lang: Lang = 'es') {
   return translations[lang];
 }
+
+/**
+ * Resuelve un campo que puede ser string (formato antiguo) o
+ * {es: string, en: string} (formato multilingüe).
+ * Fallback automático al otro idioma si la traducción está vacía.
+ */
+export function resolveField(field: any, lang: Lang): string {
+  if (!field) return '';
+  if (typeof field === 'string') return field;
+  const primary  = field[lang];
+  const fallback = field[lang === 'en' ? 'es' : 'en'];
+  return (primary && primary.trim()) ? primary : (fallback ?? '');
+}

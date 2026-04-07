@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { BookOpen, CheckCircle, Lock, Users } from 'lucide-react';
+import { resolveField } from '../../lib/i18n';
 import { useAuth } from '../../contexts/AuthContext';
 import LessonViewer from './LessonViewer';
 import GroupEnrollment from './GroupEnrollment';
@@ -8,8 +9,8 @@ import PresentationViewer from './PresentationViewer';
 
 interface Lesson {
   id: string;
-  title: string;
-  description: string | null;
+  title: any; // string | {es: string, en: string}
+  description: any;
   has_production: boolean;
   production_unlock_percentage: number;
 }
@@ -254,7 +255,7 @@ export default function StudentDashboard() {
                 >
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-3">
-                      <h3 className="font-bold text-lg text-gray-800">{lesson.title}</h3>
+                      <h3 className="font-bold text-lg text-gray-800">{resolveField(lesson.title, lessonLang[lesson.id] ?? 'es')}</h3>
                       {completed ? (
                         <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
                       ) : progressPct > 0 ? (
@@ -264,8 +265,8 @@ export default function StudentDashboard() {
                       ) : null}
                     </div>
 
-                    {lesson.description && (
-                      <p className="text-gray-600 text-sm mb-4">{lesson.description}</p>
+                    {resolveField(lesson.description, lessonLang[lesson.id] ?? 'es') && (
+                      <p className="text-gray-600 text-sm mb-4">{resolveField(lesson.description, lessonLang[lesson.id] ?? 'es')}</p>
                     )}
 
                     {lesson.has_production && (

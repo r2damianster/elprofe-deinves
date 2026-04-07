@@ -5,14 +5,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import ActivityRenderer from './ActivityRenderer';
 import ProductionEditor from './ProductionEditor';
 import ContentRenderer from './ContentRenderer';
-import { type Lang, useTranslations } from '../../lib/i18n';
+import { type Lang, useTranslations, resolveField } from '../../lib/i18n';
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
 interface Lesson {
   id: string;
-  title: string;
-  description: string | null;
+  title: any; // string | {es: string, en: string}
+  description: any; // string | {es: string, en: string} | null
   content: any; // array of ContentStep[] OR { steps: ContentStep[] }
   has_production: boolean;
   production_unlock_percentage: number;
@@ -544,9 +544,9 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
 
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">{lesson?.title}</h1>
-              {lesson?.description && (
-                <p className="text-sm text-gray-500 mt-0.5">{lesson.description}</p>
+              <h1 className="text-xl font-bold text-gray-800">{resolveField(lesson?.title, lang)}</h1>
+              {lesson?.description && resolveField(lesson.description, lang) && (
+                <p className="text-sm text-gray-500 mt-0.5">{resolveField(lesson.description, lang)}</p>
               )}
               {previewMode && (
                 <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">
