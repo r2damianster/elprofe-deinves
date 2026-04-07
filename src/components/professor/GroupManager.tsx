@@ -114,18 +114,22 @@ export default function GroupManager({ courseId }: Props) {
   }
 
   async function loadSetLessons(setId: string) {
-    const groups = groupsBySet[setId] || [];
-    if (groups.length === 0) return;
+    // Consultar grupos directamente desde BD para no depender del estado
+    const { data: groupsData } = await supabase.from('groups')
+      .select('id').eq('group_set_id', setId);
+    const groupIds = (groupsData || []).map((g: any) => g.id);
+    if (groupIds.length === 0) return;
     const { data } = await supabase
       .from('group_lesson_assignments')
       .select('lesson_id, lessons!lesson_id(title)')
-      .in('group_id', groups.map(g => g.id));
+      .in('group_id', groupIds);
     const seen = new Set<string>();
     const unique: SetLesson[] = [];
     (data || []).forEach((r: any) => {
       if (!seen.has(r.lesson_id)) {
         seen.add(r.lesson_id);
-        unique.push({ lesson_id: r.lesson_id, lesson_title: r.lessons.title });
+        const t = r.lessons.title;
+        unique.push({ lesson_id: r.lesson_id, lesson_title: typeof t === 'string' ? t : (t?.es || t?.en || '') });
       }
     });
     setLessonsBySet(prev => ({ ...prev, [setId]: unique }));
@@ -161,7 +165,10 @@ export default function GroupManager({ courseId }: Props) {
       .from('lesson_assignments')
       .select('lesson_id, lessons!lesson_id(id, title)')
       .eq('course_id', courseId).is('student_id', null);
-    setAvailableLessons((data || []).map((r: any) => ({ id: r.lesson_id, title: r.lessons.title })));
+    setAvailableLessons((data || []).map((r: any) => {
+      const t = r.lessons.title;
+      return { id: r.lesson_id, title: typeof t === 'string' ? t : (t?.es || t?.en || '') };
+    }));
   }
 
   // ── Generar preview aleatorio ──────────────────────────────
@@ -235,9 +242,12 @@ export default function GroupManager({ courseId }: Props) {
   async function assignLessonToSet(setId: string) {
     const lessonId = addingLessonToSet[setId];
     if (!lessonId) return;
-    const groups = groupsBySet[setId] || [];
+    const { data: groupsData } = await supabase.from('groups')
+      .select('id').eq('group_set_id', setId);
+    const groups = groupsData || [];
+    if (groups.length === 0) { alert('Esta agrupación no tiene grupos.'); return; }
     await supabase.from('group_lesson_assignments').upsert(
-      groups.map(g => ({ group_id: g.id, lesson_id: lessonId, assigned_by: profile?.id })),
+      groups.map((g: any) => ({ group_id: g.id, lesson_id: lessonId, assigned_by: profile?.id })),
       { onConflict: 'group_id,lesson_id' }
     );
     setAddingLessonToSet(prev => ({ ...prev, [setId]: '' }));
@@ -245,9 +255,11 @@ export default function GroupManager({ courseId }: Props) {
   }
 
   async function removeLessonFromSet(setId: string, lessonId: string) {
-    const groups = groupsBySet[setId] || [];
+    const { data: groupsData } = await supabase.from('groups')
+      .select('id').eq('group_set_id', setId);
+    const groups = groupsData || [];
     await supabase.from('group_lesson_assignments')
-      .delete().in('group_id', groups.map(g => g.id)).eq('lesson_id', lessonId);
+      .delete().in('group_id', (groups as any[]).map(g => g.id)).eq('lesson_id', lessonId);
     setLessonsBySet(prev => ({
       ...prev, [setId]: (prev[setId] || []).filter(l => l.lesson_id !== lessonId),
     }));
