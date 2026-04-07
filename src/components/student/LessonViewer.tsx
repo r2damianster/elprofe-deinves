@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import ActivityRenderer from './ActivityRenderer';
 import ProductionEditor from './ProductionEditor';
 import ContentRenderer from './ContentRenderer';
+import { type Lang, useTranslations } from '../../lib/i18n';
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ interface LessonViewerProps {
   lessonId: string;
   onBack: () => void;
   previewMode?: boolean; // profesor viendo la lección — sin guardar progreso
+  lang?: Lang;
 }
 
 // ─── Íconos por tipo de paso ─────────────────────────────────────────────────
@@ -77,7 +79,7 @@ function toEmbedUrl(url: string): string {
   return url;
 }
 
-function ContentStepRenderer({ step }: { step: ContentStep }) {
+function ContentStepRenderer({ step, readingTaskLabel }: { step: ContentStep; readingTaskLabel: string }) {
   // Normalise: media_url is the primary field in DB; url is fallback
   const effectiveUrl = step.media_url || step.url;
   const effectivePdfUrl = step.pdf_url || (effectiveUrl?.includes('.pdf') || effectiveUrl?.includes('supabase.co/storage') ? effectiveUrl : undefined);
@@ -113,7 +115,7 @@ function ContentStepRenderer({ step }: { step: ContentStep }) {
             />
             <div className="p-5 bg-blue-50 rounded-lg border border-blue-100 overflow-auto">
               <p className="text-sm font-semibold text-blue-700 uppercase tracking-wide mb-3">
-                Tarea de lectura
+                {readingTaskLabel}
               </p>
               <p className="text-gray-700 leading-relaxed">{step.task}</p>
             </div>
@@ -165,8 +167,9 @@ function ContentStepRenderer({ step }: { step: ContentStep }) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function LessonViewer({ lessonId, onBack, previewMode = false }: LessonViewerProps) {
+export default function LessonViewer({ lessonId, onBack, previewMode = false, lang = 'es' }: LessonViewerProps) {
   const { profile } = useAuth();
+  const ui = useTranslations(lang);
 
   const [lesson, setLesson]                         = useState<Lesson | null>(null);
   const [combinedSteps, setCombinedSteps]           = useState<CombinedStep[]>([]);
@@ -416,7 +419,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
   // ── Reintentar Lección ─────────────────────────────────────────────────────
 
   async function handleRetryLesson() {
-    if (!confirm('¿Estás seguro de reintentar la lección? Se borrarán tus notas de todas las actividades. Esta acción no se puede deshacer.')) {
+    if (!confirm(ui.retryConfirm)) {
       return;
     }
     
@@ -536,7 +539,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
             className="flex items-center text-gray-500 hover:text-gray-800 mb-3 transition text-sm"
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
-            Volver a lecciones
+            {ui.backToLessons}
           </button>
 
           <div className="flex items-start justify-between gap-4">
@@ -547,22 +550,22 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
               )}
               {previewMode && (
                 <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">
-                  <Layers className="w-3 h-3" /> Vista Previa — el progreso no se guarda
+                  <Layers className="w-3 h-3" /> {ui.previewMode}
                 </span>
               )}
               {presentationBlocked && (
                 <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
-                  <Monitor className="w-3 h-3" /> Clase en directo — actividades bloqueadas
+                  <Monitor className="w-3 h-3" /> {ui.liveClassBadge}
                 </span>
               )}
               {groupInfo && (
                 <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
-                  <Users className="w-3 h-3" /> Grupo: {groupInfo.groupName}
+                  <Users className="w-3 h-3" /> {ui.group}: {groupInfo.groupName}
                 </span>
               )}
             </div>
             <span className="text-sm font-semibold text-blue-600 whitespace-nowrap mt-1">
-              {progress}% completado
+              {progress}% {ui.completed}
             </span>
           </div>
 
@@ -630,15 +633,15 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
               `}>
                 {stepIcon(currentStep)}
                 {currentStep.isActivity
-                  ? 'Actividad'
+                  ? ui.activity
                   : (currentStep as ContentStep).type === 'VIDEO'
-                  ? 'Video'
+                  ? ui.video
                   : (currentStep as ContentStep).type === 'READING_FOCUS'
-                  ? 'Lectura guiada'
-                  : 'Contenido'}
+                  ? ui.guidedReading
+                  : ui.content}
               </span>
               <span className="text-xs text-gray-400">
-                Paso {currentStepIndex + 1} de {combinedSteps.length}
+                {ui.step} {currentStepIndex + 1} {ui.of} {combinedSteps.length}
               </span>
             </div>
 
@@ -648,7 +651,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
               groupInfo.completedBy[(currentStep as Activity).id] !== profile?.full_name && (
               <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-purple-50 border border-purple-200 rounded-xl text-sm text-purple-800">
                 <Users className="w-4 h-4 text-purple-500 shrink-0" />
-                Completado por <strong>{groupInfo.completedBy[(currentStep as Activity).id]}</strong> — ya cuenta para tu grupo.
+                {ui.completedByPrefix} <strong className="mx-1">{groupInfo.completedBy[(currentStep as Activity).id]}</strong> {ui.completedBySuffix}
               </div>
             )}
 
@@ -656,9 +659,9 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
             {presentationBlocked && currentStep.isActivity ? (
               <div className="flex flex-col items-center justify-center py-14 px-6 bg-blue-50 border-2 border-blue-200 rounded-xl text-center">
                 <Monitor className="w-12 h-12 text-blue-500 mb-4" />
-                <h3 className="text-lg font-bold text-blue-800 mb-2">Clase en directo</h3>
+                <h3 className="text-lg font-bold text-blue-800 mb-2">{ui.liveClassTitle}</h3>
                 <p className="text-blue-600 text-sm max-w-sm">
-                  Tu profesor está presentando. Las actividades estarán disponibles cuando termine la presentación.
+                  {ui.liveClassMessage}
                 </p>
               </div>
             ) : currentStep.isActivity ? (
@@ -668,7 +671,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
                 onComplete={() => handleActivityComplete((currentStep as Activity).id)}
               />
             ) : (
-              <ContentStepRenderer step={currentStep as ContentStep} />
+              <ContentStepRenderer step={currentStep as ContentStep} readingTaskLabel={ui.readingTask} />
             )}
           </div>
         )}
@@ -683,7 +686,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
               disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <ArrowLeft className="w-4 h-4" />
-            Anterior
+            {ui.previous}
           </button>
 
           {/* Botón de Producción y Reintentos: aparece solo en el último paso */}
@@ -692,7 +695,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
               {/* Intentos y Reintentar */}
               <div className="flex flex-col items-center">
                 <span className="text-xs text-gray-500 font-medium mb-1">
-                  Intento {attempts} de 3
+                  {ui.attemptOf} {attempts} {ui.attemptMax}
                 </span>
                 {attempts < 3 && (
                   <button
@@ -700,7 +703,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
                     disabled={loading}
                     className="text-red-600 hover:text-red-700 text-sm font-semibold underline decoration-red-200 hover:decoration-red-400 transition"
                   >
-                    Reintentar Lección
+                    {ui.retryLesson}
                   </button>
                 )}
               </div>
@@ -714,14 +717,14 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
                       text-white font-semibold text-sm hover:bg-green-700 transition shadow"
                   >
                     <Layers className="w-4 h-4" />
-                    Ir a Producción
+                    {ui.goToProduction}
                   </button>
                 ) : (
                   <div className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gray-100
                     text-gray-500 text-sm border border-gray-200"
                   >
                     <Lock className="w-4 h-4" />
-                    Necesitas {lesson.production_unlock_percentage}% para desbloquear
+                    {ui.unlockNeeded} {lesson.production_unlock_percentage}%{ui.unlockSuffix}
                   </div>
                 )
               )}
@@ -735,7 +738,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false }: 
               text-white font-medium text-sm transition hover:bg-blue-700
               disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Siguiente
+            {ui.next}
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

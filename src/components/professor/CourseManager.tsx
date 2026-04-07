@@ -8,6 +8,7 @@ interface Course {
   id: string;
   name: string;
   description: string | null;
+  language: 'es' | 'en';
   created_at: string;
 }
 
@@ -22,6 +23,7 @@ export default function CourseManager({ courses, onUpdate, onAssignLessons }: Co
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [courseName, setCourseName] = useState('');
   const [courseDescription, setCourseDescription] = useState('');
+  const [courseLanguage, setCourseLanguage] = useState<'es' | 'en'>('es');
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +35,7 @@ export default function CourseManager({ courses, onUpdate, onAssignLessons }: Co
       const { error } = await supabase.from('courses').insert({
         name: courseName,
         description: courseDescription,
+        language: courseLanguage,
         professor_id: profile?.id,
       });
 
@@ -40,6 +43,7 @@ export default function CourseManager({ courses, onUpdate, onAssignLessons }: Co
 
       setCourseName('');
       setCourseDescription('');
+      setCourseLanguage('es');
       setShowCreateForm(false);
       onUpdate();
     } catch (err: any) {
@@ -82,6 +86,25 @@ export default function CourseManager({ courses, onUpdate, onAssignLessons }: Co
               className="w-full px-4 py-2 border rounded-lg"
               rows={3}
             />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Idioma del curso</label>
+              <div className="flex gap-3">
+                {(['es', 'en'] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => setCourseLanguage(lang)}
+                    className={`flex-1 py-2 rounded-lg border-2 text-sm font-semibold transition ${
+                      courseLanguage === lang
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-300 text-gray-600 hover:border-blue-400'
+                    }`}
+                  >
+                    {lang === 'es' ? '🇪🇨 Español' : '🇺🇸 English'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <button
               type="submit"
               disabled={loading}
@@ -101,7 +124,16 @@ export default function CourseManager({ courses, onUpdate, onAssignLessons }: Co
             onClick={() => setSelectedCourseId(course.id)}
           >
             <div>
-              <h3 className="font-semibold text-lg text-gray-800">{course.name}</h3>
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-semibold text-lg text-gray-800">{course.name}</h3>
+                <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${
+                  course.language === 'en'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-green-100 text-green-700'
+                }`}>
+                  {course.language === 'en' ? 'EN' : 'ES'}
+                </span>
+              </div>
               {course.description && (
                 <p className="text-gray-600 text-sm mt-2 line-clamp-2">{course.description}</p>
               )}

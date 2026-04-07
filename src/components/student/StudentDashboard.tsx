@@ -32,6 +32,7 @@ export default function StudentDashboard() {
   const [assignedLessons, setAssignedLessons] = useState<Lesson[]>([]);
   const [progress, setProgress] = useState<Record<string, Progress>>({});
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
+  const [lessonLang, setLessonLang] = useState<Record<string, 'es' | 'en'>>({});
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'lessons' | 'groups'>('lessons');
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
@@ -90,7 +91,7 @@ export default function StudentDashboard() {
     try {
       const { data: assignments } = await supabase
         .from('lesson_assignments')
-        .select('lesson_id, lessons(*)')
+        .select('lesson_id, course_id, lessons(*), courses(language)')
         .or(`student_id.eq.${profile?.id},course_id.in.(${await getCourseIds()})`);
 
       if (assignments) {
@@ -102,6 +103,15 @@ export default function StudentDashboard() {
           ).values()
         );
         setAssignedLessons(uniqueLessons as Lesson[]);
+
+        // Construir mapa lesson_id → idioma del curso
+        const langMap: Record<string, 'es' | 'en'> = {};
+        assignments.forEach((a: any) => {
+          if (a.lessons && a.courses?.language) {
+            langMap[a.lessons.id] = a.courses.language;
+          }
+        });
+        setLessonLang(langMap);
 
         await loadProgress(uniqueLessons.map((l: any) => l.id));
       }
@@ -170,6 +180,7 @@ export default function StudentDashboard() {
     return (
       <LessonViewer
         lessonId={selectedLesson}
+        lang={lessonLang[selectedLesson] ?? 'es'}
         onBack={() => {
           setSelectedLesson(null);
           loadAssignedLessons();

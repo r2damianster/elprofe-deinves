@@ -10,6 +10,7 @@ interface Course {
   id: string;
   name: string;
   description: string | null;
+  language: 'es' | 'en';
   created_at: string;
 }
 
