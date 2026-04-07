@@ -6,6 +6,7 @@ import ActivityRenderer from './ActivityRenderer';
 import ProductionEditor from './ProductionEditor';
 import ContentRenderer from './ContentRenderer';
 import { type Lang, useTranslations, resolveField } from '../../lib/i18n';
+import { isProduction } from '../../lib/activityTypes';
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -182,6 +183,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
   const [attempts, setAttempts]                     = useState(1);
   const [groupInfo, setGroupInfo]                   = useState<GroupInfo | null>(null);
   const [presentationBlocked, setPresentationBlocked] = useState(false);
+  const [productionActivities, setProductionActivities] = useState<Activity[]>([]);
 
   // ── Detectar presentación activa del profesor (bloquea actividades) ───────
 
@@ -243,7 +245,10 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
     const activitiesData = joinData?.map((item: any) => ({ ...item.activities, order_index: item.order_index })) || [];
     const raw = lessonData?.content;
     const contentSteps: CombinedStep[] = (Array.isArray(raw) ? raw : Array.isArray(raw?.steps) ? raw.steps : []) as CombinedStep[];
-    const activitySteps: CombinedStep[] = activitiesData.map((a: Activity) => ({ ...a, isActivity: true as const }));
+    const normalActivities = activitiesData.filter((a: Activity) => !isProduction(a.type));
+    const prodActivities   = activitiesData.filter((a: Activity) => isProduction(a.type));
+    const activitySteps: CombinedStep[] = normalActivities.map((a: Activity) => ({ ...a, isActivity: true as const }));
+    setProductionActivities(prodActivities);
     setCombinedSteps([...contentSteps, ...activitySteps]);
     setLoading(false);
   }
@@ -349,14 +354,16 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
       }
     }
 
-    // 5. Construir la lista unificada de pasos
+    // 5. Construir la lista unificada de pasos (excluyendo actividades de producción)
     const raw2 = lessonData?.content;
     const contentSteps: CombinedStep[] = (Array.isArray(raw2) ? raw2 : Array.isArray(raw2?.steps) ? raw2.steps : []) as CombinedStep[];
-    const activitySteps: CombinedStep[] = (activitiesData ?? []).map((a: Activity) => ({
+    const normalActivities2 = (activitiesData ?? []).filter((a: Activity) => !isProduction(a.type));
+    const prodActivities2   = (activitiesData ?? []).filter((a: Activity) => isProduction(a.type));
+    const activitySteps: CombinedStep[] = normalActivities2.map((a: Activity) => ({
       ...a,
       isActivity: true as const,
     }));
-
+    setProductionActivities(prodActivities2);
     setCombinedSteps([...contentSteps, ...activitySteps]);
     setLoading(false);
   }
@@ -510,7 +517,8 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
   const isFirstStep     = currentStepIndex === 0;
   const isLastStep      = currentStepIndex === combinedSteps.length - 1;
   const canAccessProduction =
-    lesson?.has_production && progress >= (lesson?.production_unlock_percentage ?? 80);
+    progress >= (lesson?.production_unlock_percentage ?? 80) &&
+    (lesson?.has_production || productionActivities.length > 0);
 
   // ── Pantallas de carga / producción ───────────────────────────────────────
 
@@ -523,6 +531,40 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
   }
 
   if (showProduction && canAccessProduction) {
+    // Si hay actividades de producción definidas, mostrarlas con ActivityRenderer
+    if (productionActivities.length > 0) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+          <header className="bg-white shadow sticky top-0 z-10">
+            <div className="max-w-4xl mx-auto px-4 py-4">
+              <button onClick={() => setShowProduction(false)}
+                className="flex items-center text-gray-500 hover:text-gray-800 mb-3 transition text-sm">
+                <ArrowLeft className="w-4 h-4 mr-1" /> {ui.backToLessons}
+              </button>
+              <h1 className="text-xl font-bold text-gray-800">{resolveField(lesson?.title, lang)}</h1>
+              <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                <Layers className="w-3 h-3" /> {ui.goToProduction}
+              </span>
+            </div>
+          </header>
+          <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
+            {productionActivities.map((activity) => (
+              <div key={activity.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+                <ActivityRenderer
+                  activity={activity}
+                  isCompleted={completedActivities.has(activity.id)}
+                  onComplete={() => {
+                    setCompletedActivities(prev => new Set([...prev, activity.id]));
+                  }}
+                  lang={lang}
+                />
+              </div>
+            ))}
+          </main>
+        </div>
+      );
+    }
+    // Fallback: ProductionEditor clásico (production_rules)
     return <ProductionEditor lessonId={lessonId} onBack={() => setShowProduction(false)} />;
   }
 
@@ -710,7 +752,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
               </div>
 
               {/* Botón de Producción */}
-              {lesson?.has_production && (
+              {(lesson?.has_production || productionActivities.length > 0) && (
                 canAccessProduction ? (
                   <button
                     onClick={() => setShowProduction(true)}
