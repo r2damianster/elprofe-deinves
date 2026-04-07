@@ -160,9 +160,10 @@ export default function CourseManager({ courses, onUpdate, onAssignLessons }: Co
             >
               <X className="w-5 h-5" />
             </button>
-            <CourseDetails 
-              courseId={selectedCourse.id} 
+            <CourseDetails
+              courseId={selectedCourse.id}
               courseName={selectedCourse.name}
+              courseLanguage={selectedCourse.language}
               onClose={() => setSelectedCourseId(null)}
               onAssignLessons={() => {
                 setSelectedCourseId(null);

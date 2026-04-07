@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { BookOpen, Eye, Monitor, Loader2, Clock } from 'lucide-react';
-import { resolveField } from '../../lib/i18n';
+import { resolveField, type Lang } from '../../lib/i18n';
 import LessonViewer from '../student/LessonViewer';
 import PresentationController from './PresentationController';
 
@@ -15,10 +15,11 @@ interface AssignedLesson {
 interface Props {
   courseId: string;
   courseName: string;
+  courseLanguage?: Lang;
   onBack: () => void;
 }
 
-export default function ProfessorLessonView({ courseId, courseName, onBack }: Props) {
+export default function ProfessorLessonView({ courseId, courseName, courseLanguage = 'es', onBack }: Props) {
   const [lessons, setLessons]     = useState<AssignedLesson[]>([]);
   const [loading, setLoading]     = useState(true);
   const [preview, setPreview]     = useState<string | null>(null);       // lessonId en vista previa
@@ -103,9 +104,9 @@ export default function ProfessorLessonView({ courseId, courseName, onBack }: Pr
                   {idx + 1}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-bold text-gray-800 truncate">{resolveField(lesson.title, 'es')}</p>
-                  {resolveField(lesson.description, 'es') && (
-                    <p className="text-sm text-gray-500 truncate">{resolveField(lesson.description, 'es')}</p>
+                  <p className="font-bold text-gray-800 truncate">{resolveField(lesson.title, courseLanguage)}</p>
+                  {resolveField(lesson.description, courseLanguage) && (
+                    <p className="text-sm text-gray-500 truncate">{resolveField(lesson.description, courseLanguage)}</p>
                   )}
                   <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                     <Clock className="w-3 h-3" />

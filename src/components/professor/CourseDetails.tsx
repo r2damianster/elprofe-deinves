@@ -4,7 +4,7 @@ import { Plus, Users, BookOpen, Clock, Loader2, Trash2, UsersRound, Monitor } fr
 import StudentManager from './StudentManager';
 import GroupManager from './GroupManager';
 import ProfessorLessonView from './ProfessorLessonView';
-import { resolveField } from '../../lib/i18n';
+import { resolveField, type Lang } from '../../lib/i18n';
 
 interface AssignedLesson {
   id: string;
@@ -17,11 +17,12 @@ interface AssignedLesson {
 interface CourseDetailsProps {
   courseId: string;
   courseName: string;
+  courseLanguage?: Lang;
   onAssignLessons: () => void;
   onClose: () => void;
 }
 
-export default function CourseDetails({ courseId, courseName, onAssignLessons, onClose }: CourseDetailsProps) {
+export default function CourseDetails({ courseId, courseName, courseLanguage = 'es', onAssignLessons, onClose }: CourseDetailsProps) {
   const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'lessons' | 'students' | 'groups' | 'present'>('lessons');
@@ -134,6 +135,7 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
           <ProfessorLessonView
             courseId={courseId}
             courseName={courseName}
+            courseLanguage={courseLanguage}
             onBack={() => setView('lessons')}
           />
         )}
@@ -177,9 +179,9 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
                   {idx + 1}
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-gray-800">{resolveField(lesson.title, 'es')}</h4>
-                  {resolveField(lesson.description, 'es') && (
-                    <p className="text-sm text-gray-600 mt-1">{resolveField(lesson.description, 'es')}</p>
+                  <h4 className="font-bold text-gray-800">{resolveField(lesson.title, courseLanguage)}</h4>
+                  {resolveField(lesson.description, courseLanguage) && (
+                    <p className="text-sm text-gray-600 mt-1">{resolveField(lesson.description, courseLanguage)}</p>
                   )}
                   <div className="flex items-center text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
                     <Clock className="w-3.5 h-3.5 mr-1" />
@@ -187,7 +189,7 @@ export default function CourseDetails({ courseId, courseName, onAssignLessons, o
                   </div>
                 </div>
                 <button
-                  onClick={() => removeLesson(lesson.lesson_assignments_id, resolveField(lesson.title, 'es'))}
+                  onClick={() => removeLesson(lesson.lesson_assignments_id, resolveField(lesson.title, courseLanguage))}
                   disabled={removingId === lesson.lesson_assignments_id}
                   className="ml-3 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100"
                   title="Desasignar lección"
