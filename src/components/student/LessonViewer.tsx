@@ -245,10 +245,8 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
     const activitiesData = joinData?.map((item: any) => ({ ...item.activities, order_index: item.order_index })) || [];
     const raw = lessonData?.content;
     const contentSteps: CombinedStep[] = (Array.isArray(raw) ? raw : Array.isArray(raw?.steps) ? raw.steps : []) as CombinedStep[];
-    const normalActivities = activitiesData.filter((a: Activity) => !isProduction(a.type));
-    const prodActivities   = activitiesData.filter((a: Activity) => isProduction(a.type));
-    const activitySteps: CombinedStep[] = normalActivities.map((a: Activity) => ({ ...a, isActivity: true as const }));
-    setProductionActivities(prodActivities);
+    const activitySteps: CombinedStep[] = activitiesData.map((a: Activity) => ({ ...a, isActivity: true as const }));
+    setProductionActivities([]);
     setCombinedSteps([...contentSteps, ...activitySteps]);
     setLoading(false);
   }
@@ -354,16 +352,14 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
       }
     }
 
-    // 5. Construir la lista unificada de pasos (excluyendo actividades de producción)
+    // 5. Construir la lista unificada de pasos (todas las actividades en el flujo normal)
     const raw2 = lessonData?.content;
     const contentSteps: CombinedStep[] = (Array.isArray(raw2) ? raw2 : Array.isArray(raw2?.steps) ? raw2.steps : []) as CombinedStep[];
-    const normalActivities2 = (activitiesData ?? []).filter((a: Activity) => !isProduction(a.type));
-    const prodActivities2   = (activitiesData ?? []).filter((a: Activity) => isProduction(a.type));
-    const activitySteps: CombinedStep[] = normalActivities2.map((a: Activity) => ({
+    const activitySteps: CombinedStep[] = (activitiesData ?? []).map((a: Activity) => ({
       ...a,
       isActivity: true as const,
     }));
-    setProductionActivities(prodActivities2);
+    setProductionActivities([]);
     setCombinedSteps([...contentSteps, ...activitySteps]);
     setLoading(false);
   }
@@ -506,8 +502,10 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
     }
 
     setCompletedActivities((prev) => new Set([...prev, activityId]));
-    if (currentStepIndex < combinedSteps.length - 1) {
-      setTimeout(() => navigate('next'), 600);
+    // No auto-avanzar en actividades de producción — el estudiante necesita ver su respuesta
+    const currentActivity = combinedSteps[currentStepIndex] as Activity;
+    if (!isProduction(currentActivity?.type) && currentStepIndex < combinedSteps.length - 1) {
+      setTimeout(() => navigate('next'), 1200);
     }
   }
 
@@ -665,7 +663,9 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
             <div className="flex items-center gap-2 mb-5">
               <span className={`
                 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide
-                ${currentStep.isActivity
+                ${currentStep.isActivity && isProduction((currentStep as Activity).type)
+                  ? 'bg-green-100 text-green-700'
+                  : currentStep.isActivity
                   ? 'bg-purple-100 text-purple-700'
                   : (currentStep as ContentStep).type === 'VIDEO'
                   ? 'bg-red-100 text-red-700'
@@ -674,7 +674,9 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
                   : 'bg-blue-100 text-blue-700'}
               `}>
                 {stepIcon(currentStep)}
-                {currentStep.isActivity
+                {currentStep.isActivity && isProduction((currentStep as Activity).type)
+                  ? ui.goToProduction
+                  : currentStep.isActivity
                   ? ui.activity
                   : (currentStep as ContentStep).type === 'VIDEO'
                   ? ui.video
