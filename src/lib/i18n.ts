@@ -50,6 +50,12 @@ export const translations = {
     myClassroom:        'Mi Aula',
     myLessons:          'Mis Lecciones',
     myGroups:           'Mis Grupos',
+    // ActivityRenderer
+    points:             'Puntos',
+    completed_badge:    'COMPLETADA',
+    responseRecorded:   'Respuesta registrada',
+    reviewResponse:     'Revisar respuesta',
+    score:              'Puntuación',
   },
   en: {
     // Navigation
@@ -100,6 +106,12 @@ export const translations = {
     myClassroom:        'My Classroom',
     myLessons:          'My Lessons',
     myGroups:           'My Groups',
+    // ActivityRenderer
+    points:             'Points',
+    completed_badge:    'COMPLETED',
+    responseRecorded:   'Response recorded',
+    reviewResponse:     'Review response',
+    score:              'Score',
   },
 } satisfies Record<Lang, Record<string, string>>;
 

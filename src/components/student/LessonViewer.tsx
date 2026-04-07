@@ -669,6 +669,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
                 activity={currentStep as Activity}
                 isCompleted={completedActivities.has((currentStep as Activity).id)}
                 onComplete={() => handleActivityComplete((currentStep as Activity).id)}
+                lang={lang}
               />
             ) : (
               <ContentStepRenderer step={currentStep as ContentStep} readingTaskLabel={ui.readingTask} />

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { type Lang, useTranslations } from '../../lib/i18n';
 
 // Importación de todos los tipos de actividades
 import MultipleChoice from './activities/MultipleChoice';
@@ -33,14 +34,32 @@ interface ActivityRendererProps {
   activity: Activity;
   isCompleted: boolean;
   onComplete: () => void;
+  lang?: Lang;
 }
 
 export default function ActivityRenderer({
   activity,
   isCompleted,
   onComplete,
+  lang = 'es',
 }: ActivityRendererProps) {
   const { profile } = useAuth();
+  const ui = useTranslations(lang);
+
+  // Resolver contenido multilingüe: {es: {...}, en: {...}} → tomar el idioma correcto
+  // con fallback al otro idioma si la traducción está vacía o no existe
+  const resolveContent = (raw: any): any => {
+    if (!raw || typeof raw !== 'object') return raw;
+    if (raw.es !== undefined || raw.en !== undefined) {
+      const primary   = raw[lang];
+      const fallback  = raw[lang === 'en' ? 'es' : 'en'];
+      const resolved  = (primary && Object.keys(primary).length > 0) ? primary : fallback;
+      return resolved ?? raw;
+    }
+    return raw; // formato antiguo sin multilingual
+  };
+
+  const content = resolveContent(activity.content);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ correct: boolean; score: number } | null>(null);
 
@@ -72,11 +91,11 @@ export default function ActivityRenderer({
       <div className="border-b pb-4 flex justify-between items-start">
         <div>
           <h3 className="text-lg font-bold text-gray-800">{activity.title}</h3>
-          <p className="text-sm text-gray-600 mt-1">Puntos: {activity.points}</p>
+          <p className="text-sm text-gray-600 mt-1">{ui.points}: {activity.points}</p>
         </div>
         {isCompleted && (
           <div className="flex items-center bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
-            <CheckCircle className="w-3 h-3 mr-1" /> COMPLETADA
+            <CheckCircle className="w-3 h-3 mr-1" /> {ui.completed_badge}
           </div>
         )}
       </div>
@@ -98,10 +117,10 @@ export default function ActivityRenderer({
             )}
             <div>
               <p className="font-semibold">
-                {(result?.correct || isCompleted) ? 'Respuesta registrada' : 'Revisar respuesta'}
+                {(result?.correct || isCompleted) ? ui.responseRecorded : ui.reviewResponse}
               </p>
               <p className="text-sm">
-                Puntuación: {result ? result.score : activity.points} / {activity.points}
+                {ui.score}: {result ? result.score : activity.points} / {activity.points}
               </p>
             </div>
           </div>
@@ -112,7 +131,7 @@ export default function ActivityRenderer({
       <div className={isCompleted ? "opacity-75 pointer-events-none" : ""}>
         {activity.type === 'multiple_choice' && (
           <MultipleChoice
-            content={activity.content}
+            content={content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
             points={activity.points}
@@ -121,7 +140,7 @@ export default function ActivityRenderer({
 
         {activity.type === 'fill_blank' && (
           <FillBlank
-            content={activity.content}
+            content={content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
             points={activity.points}
@@ -130,7 +149,7 @@ export default function ActivityRenderer({
 
         {(activity.type === 'drag_drop' || activity.type === 'ordering') && (
           <Ordering
-            content={activity.content}
+            content={content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
             points={activity.points}
@@ -139,7 +158,7 @@ export default function ActivityRenderer({
 
         {activity.type === 'matching' && (
           <Matching
-            content={activity.content}
+            content={content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
             points={activity.points}
@@ -148,7 +167,7 @@ export default function ActivityRenderer({
 
         {(activity.type === 'essay' || activity.type === 'open_writing') && (
           <Essay
-            content={activity.content}
+            content={content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
             points={activity.points}
@@ -157,7 +176,7 @@ export default function ActivityRenderer({
 
         {activity.type === 'short_answer' && (
           <ShortAnswer
-            content={activity.content}
+            content={content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
             points={activity.points}
@@ -166,7 +185,7 @@ export default function ActivityRenderer({
 
         {activity.type === 'listening' && (
           <Listening
-            content={activity.content}
+            content={content}
             mediaUrl={activity.media_url}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
@@ -176,7 +195,7 @@ export default function ActivityRenderer({
 
         {activity.type === 'image_question' && (
           <ImageQuestion
-            content={activity.content}
+            content={content}
             mediaUrl={activity.media_url}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
@@ -186,7 +205,7 @@ export default function ActivityRenderer({
 
         {activity.type === 'true_false' && (
           <MultipleChoice
-            content={activity.content}
+            content={content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
             points={activity.points}
@@ -195,7 +214,7 @@ export default function ActivityRenderer({
 
         {activity.type === 'error_spotting' && (
           <ErrorSpotting
-            content={activity.content}
+            content={content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
             points={activity.points}
@@ -204,7 +223,7 @@ export default function ActivityRenderer({
 
         {activity.type === 'category_sorting' && (
           <CategorySorting
-            content={activity.content}
+            content={content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
             points={activity.points}
@@ -213,7 +232,7 @@ export default function ActivityRenderer({
 
         {activity.type === 'matrix_grid' && (
           <MatrixGrid
-            content={activity.content}
+            content={content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
             points={activity.points}
@@ -222,7 +241,7 @@ export default function ActivityRenderer({
 
         {activity.type === 'long_response' && (
           <LongResponse
-            content={activity.content}
+            content={content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
             points={activity.points}
@@ -231,7 +250,7 @@ export default function ActivityRenderer({
 
         {activity.type === 'structured_essay' && (
           <StructuredEssay
-            content={activity.content}
+            content={content}
             onSubmit={handleSubmit}
             disabled={submitting || isCompleted}
             points={activity.points}
