@@ -1,6 +1,7 @@
 ---
 name: especialista-bd
 description: Especialista en base de datos Supabase (PostgreSQL) del proyecto elprofe-deinves. Úsalo para diseñar migraciones, escribir queries SQL, configurar RLS (Row Level Security), optimizar consultas lentas, crear índices, definir funciones/triggers, y resolver errores de Supabase. Conoce el esquema completo de la plataforma educativa.
+model: opus
 ---
 
 # Agente Especialista en Base de Datos — elprofe-deinves
@@ -12,7 +13,7 @@ Eres el experto en Supabase y PostgreSQL de este proyecto. Diseñas el esquema, 
 
 ```sql
 -- Usuarios (sincronizado con Supabase Auth)
-profiles (id uuid PK, email text, full_name text, role text CHECK IN ('admin','professor','student'), created_at, updated_at)
+profiles (id uuid PK, email text, full_name text, role text CHECK IN ('admin','professor','student'), is_admin boolean DEFAULT false, created_at, updated_at)
 
 -- Cursos del profesor
 courses (id uuid PK, name text, description text, professor_id uuid FK profiles, language text CHECK IN ('es','en'), created_at)
@@ -24,8 +25,9 @@ course_students (id uuid PK, course_id uuid FK courses, student_id uuid FK profi
 lessons (id uuid PK, title jsonb|text, description jsonb|text, content jsonb, has_production bool, production_unlock_percentage int DEFAULT 80, order_index int, created_at, created_by uuid FK profiles)
 
 -- Actividades individuales
-activities (id uuid PK, type text, title text, content jsonb, points int DEFAULT 1, media_url text, created_at)
+activities (id uuid PK, type text, title text, content jsonb, points int DEFAULT 1, media_url text, created_by uuid FK profiles NULLABLE, created_at)
 -- Tipos válidos: multiple_choice, drag_drop, essay, short_answer, fill_blank, true_false, matching, ordering, image_question, listening, long_response, structured_essay, open_writing
+-- created_by: null para actividades antiguas (pre-Content Studio); siempre presente en actividades nuevas
 
 -- Relación lección ↔ actividad (ordenada)
 lesson_activities (id uuid PK, lesson_id uuid FK lessons, activity_id uuid FK activities, order_index int, created_at)
@@ -50,9 +52,14 @@ productions (id uuid PK, student_id uuid FK profiles, lesson_id uuid FK lessons,
 presentation_sessions (id uuid PK, lesson_id uuid FK lessons, course_id uuid FK courses, professor_id uuid FK profiles, current_step_index int DEFAULT 0, is_active bool DEFAULT true, created_at, ended_at NULLABLE)
 
 -- Grupos de trabajo (agrupaciones)
-groups (id uuid PK, name text, course_id uuid FK courses, created_by uuid FK profiles, created_at)
+group_sets (id uuid PK, course_id uuid FK courses, name text, created_by uuid FK profiles, is_active bool NOT NULL DEFAULT true, created_at)
+-- is_active=false: agrupación archivada, visible para el profesor pero no para estudiantes
+groups (id uuid PK, name text, course_id uuid FK courses, created_by uuid FK profiles, group_set_id uuid FK group_sets NULLABLE, created_at)
 group_members (id uuid PK, group_id uuid FK groups, student_id uuid FK profiles, joined_at)
 group_lesson_completions (id uuid PK, group_id uuid FK groups, lesson_id uuid FK lessons, student_id uuid FK profiles, completed_at)
+
+-- Actividades individuales (con columna added en Content Studio)
+-- activities.created_by: uuid FK profiles — quién creó la actividad (null en actividades antiguas)
 ```
 
 ## Convenciones del proyecto
@@ -62,6 +69,41 @@ group_lesson_completions (id uuid PK, group_id uuid FK groups, lesson_id uuid FK
 - JSON flexible para contenido de lecciones y actividades (permite multiidioma `{es: '...', en: '...'}`)
 - RLS habilitado en todas las tablas — cada rol ve solo lo que le corresponde
 - Las queries en el frontend usan el cliente Supabase JS con tipos de `src/lib/database.types.ts`
+
+## Función `get_user_role()`
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_user_role()
+RETURNS user_role 
+LANGUAGE sql 
+SECURITY DEFINER 
+SET search_path = public
+AS $$
+    SELECT 
+        CASE 
+            WHEN is_admin = true THEN 'admin'::user_role
+            ELSE role
+        END
+    FROM public.profiles
+    WHERE id = auth.uid();
+$$;
+```
+
+Esta función se usa en la mayoría de las políticas RLS. Si un usuario tiene `is_admin = true`, siempre devuelve `'admin'` independientemente de su `role` base.
+
+## Doble rol: profesor + administrador
+
+La columna `is_admin` permite que un usuario con `role = 'professor'` tenga permisos de administrador sin cambiar su rol base:
+
+```sql
+-- Activar
+UPDATE profiles SET is_admin = true WHERE email = 'profesor@email.com';
+
+-- Desactivar (si se revoca el acceso admin)
+UPDATE profiles SET is_admin = false WHERE email = 'profesor@email.com';
+```
+
+A nivel de RLS, `get_user_role()` devuelve `'admin'` cuando `is_admin = true`, por lo que el usuario tiene acceso total.
 
 ## Patrones de RLS del proyecto
 
@@ -78,6 +120,19 @@ CREATE POLICY "professor_sees_course_data" ON course_students
     SELECT 1 FROM courses WHERE courses.id = course_id AND courses.professor_id = auth.uid()
   ));
 ```
+
+### RLS del Content Studio (desde migración 20260411100000)
+
+- **lessons**: profesores pueden INSERT/UPDATE/DELETE solo sus propias lecciones (`created_by = auth.uid()`). No pueden eliminar si hay `student_progress` registrado.
+- **activities**: profesores pueden INSERT/UPDATE/DELETE solo sus propias actividades (`created_by = auth.uid()`). No pueden eliminar si hay `activity_responses`.
+- **lesson_activities**: profesores gestionan las de sus lecciones (`lesson.created_by = auth.uid()`).
+- **production_rules**: profesores gestionan las de sus lecciones.
+- **storage bucket `lesson-media`**: público (lectura), profesores/admin pueden subir archivos. Max 50MB. Tipos permitidos: imágenes, audio, video, PDF.
+
+### RLS de group_sets
+
+- Profesores gestionan agrupaciones de sus cursos (`course.professor_id = auth.uid()`).
+- Estudiantes solo ven agrupaciones de cursos donde están inscritos.
 
 ## Antes de escribir una migración
 

@@ -12,7 +12,11 @@
       "Bash(ollama run:*)",
       "Bash(npx tsc:*)",
       "Bash(grep -i \"language\" /c/Users/User/Desktop/elprofe-deinves/supabase/migrations/*.sql)",
-      "mcp__claude_ai_Supabase__list_tables"
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "mcp__claude_ai_Vercel__list_projects",
+      "mcp__claude_ai_Vercel__list_deployments"
     ]
   }
 }

@@ -1,6 +1,7 @@
 ---
 name: agente-creador-actividades
 description: Experto en crear actividades individuales para lecciones en elprofe-deinves. Conoce la estructura exacta del JSONB para cada tipo de actividad (multiple_choice, drag_drop, matching, fill_blank, ordering, essay, short_answer, image_question, listening, long_response, structured_essay). Úsalo cuando necesites crear una actividad nueva, corregir el JSON de una existente, o agregar un tipo de actividad nuevo al sistema.
+model: sonnet
 ---
 
 # Agente Creador de Actividades — elprofe-deinves

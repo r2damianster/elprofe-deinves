@@ -1,6 +1,7 @@
 ---
 name: agente-frontend
 description: Especialista en frontend React/TypeScript/Tailwind del proyecto elprofe-deinves. Úsalo para crear o modificar componentes UI, resolver errores de TypeScript, mejorar diseño con Tailwind, manejar estado con hooks, implementar lógica de Supabase Realtime en el cliente, y optimizar rendimiento de componentes. Conoce la arquitectura de componentes del proyecto.
+model: sonnet
 ---
 
 # Agente Frontend — elprofe-deinves
@@ -21,7 +22,7 @@ Eres el especialista en React + TypeScript + Tailwind CSS de este proyecto. Escr
 
 ```
 src/
-├── App.tsx                          # Raíz: AuthProvider + switch por rol
+├── App.tsx                          # Raíz: AuthProvider + switch por rol (+ doble rol)
 ├── contexts/
 │   └── AuthContext.tsx              # useAuth() → {user, profile, loading, signIn, signUp, signOut}
 ├── lib/
@@ -32,25 +33,34 @@ src/
 ├── components/
 │   ├── Login.tsx
 │   ├── admin/
-│   │   └── AdminDashboard.tsx
+│   │   ├── AdminDashboard.tsx       # Panel admin: profesores + diagnóstico de estudiantes
+│   │   └── StudentDiagnosticPage.tsx # Diagnóstico completo del estado de estudiantes
 │   ├── professor/
 │   │   ├── ProfessorDashboard.tsx   # tabs: cursos | asignaciones | producciones
 │   │   ├── CourseManager.tsx        # CRUD cursos + CourseDetails
 │   │   ├── CourseDetails.tsx        # estudiantes, grupos, selector de lecciones
-│   │   ├── GroupManager.tsx         # gestión de grupos dentro de un curso
+│   │   ├── GroupManager.tsx         # gestión de grupos dentro de un curso (con group_sets)
 │   │   ├── LessonAssignment.tsx     # asignar lecciones a cursos/estudiantes
 │   │   ├── ProfessorLessonView.tsx  # vista previa de lección para el profesor
 │   │   ├── PresentationController.tsx # control de sesión en tiempo real
 │   │   ├── ProductionReviewer.tsx   # revisar producciones escritas
-│   │   └── StudentManager.tsx       # gestión de estudiantes del curso
+│   │   ├── StudentManager.tsx       # gestión de estudiantes del curso
+│   │   └── studio/                  # Content Studio — creación de contenido por el profesor
+│   │       ├── ContentStudio.tsx    # punto de entrada, navegación banco/editor
+│   │       ├── LessonEditor.tsx     # crear/editar lecciones con pasos y actividades
+│   │       ├── ActivityBank.tsx     # banco de actividades propias del profesor
+│   │       ├── ActivityEditor.tsx   # crear/editar actividades (todos los tipos)
+│   │       └── MediaUploader.tsx    # subir archivos a bucket lesson-media (Storage)
 │   └── student/
-│       ├── StudentDashboard.tsx     # tabs: lecciones | grupos
+│       ├── StudentDashboard.tsx     # tabs: lecciones | grupos | mis resultados
 │       ├── LessonViewer.tsx         # flujo paso a paso de la lección
 │       ├── ActivityRenderer.tsx     # switch por tipo de actividad
 │       ├── ContentRenderer.tsx      # renderiza contenido expositivo JSON
-│       ├── GroupEnrollment.tsx      # unirse a grupos
+│       ├── GroupEnrollment.tsx      # unirse a grupos (con group_sets)
 │       ├── PresentationViewer.tsx   # seguir presentación en tiempo real
 │       ├── ProductionEditor.tsx     # escribir producción libre
+│       ├── StudentResults.tsx       # panel "Mis Resultados" — historial de actividades
+│       ├── LessonResults.tsx        # resultados detallados por lección
 │       └── activities/
 │           ├── CategorySorting.tsx
 │           ├── DragDrop.tsx
@@ -115,6 +125,14 @@ const title = resolveField(lesson.title, 'es'); // → string
 ```tsx
 const { user, profile, loading, signOut } = useAuth();
 // profile.role es 'admin' | 'professor' | 'student'
+// profile.is_admin es boolean — true = tiene permisos de admin además de su rol base
+```
+
+### Doble rol (professor + admin)
+```tsx
+// En App.tsx: si role='professor' && is_admin=true → DashboardSelector
+// El usuario elige entre Vista Admin y Vista Profesor
+// Cada dashboard tiene botón para cambiar de vista sin logout
 ```
 
 ## Convenciones de estilo Tailwind

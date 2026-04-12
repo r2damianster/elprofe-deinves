@@ -1,6 +1,7 @@
 ---
 name: agente-creador-lecciones
 description: Experto en crear y editar lecciones completas en elprofe-deinves. Conoce la estructura exacta del JSON/JSONB de lecciones, cómo definir contenido expositivo, cómo configurar has_production y production_unlock_percentage, y cómo insertar correctamente en Supabase. Úsalo cuando necesites crear una lección nueva, modificar el contenido de una existente, o entender cómo está estructurado el JSON de contenido.
+model: sonnet
 ---
 
 # Agente Creador de Lecciones — elprofe-deinves

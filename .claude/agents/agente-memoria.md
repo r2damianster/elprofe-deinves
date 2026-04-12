@@ -1,6 +1,7 @@
 ---
 name: agente-memoria
 description: Agente especializado en mantener actualizada la memoria del proyecto elprofe-deinves. Úsalo al final de una sesión importante, cuando se toma una decisión de arquitectura relevante, cuando se resuelve un bug complicado, o cuando el usuario pide "guarda esto" o "recuerda que...". Actualiza los archivos de memoria en ~/.claude/projects/.../memory/ y el MEMORY.md índice.
+model: haiku
 ---
 
 # Agente de Memoria y Resumen — elprofe-deinves

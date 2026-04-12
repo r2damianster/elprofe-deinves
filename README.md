@@ -13,6 +13,21 @@ Plataforma web para la Universidad Laica Eloy Alfaro de Manabí (ULEAM), diseña
 
 Roles: `admin`, `professor`, `student`
 
+### Doble rol: profesor + administrador
+
+Un usuario puede tener **rol de profesor y permisos de administrador simultáneamente**. Esto se logra mediante la columna `is_admin` en la tabla `profiles`:
+
+```sql
+-- Dar permisos de admin a un profesor existente
+UPDATE profiles SET is_admin = true WHERE email = 'tu@email.com';
+```
+
+Cuando un usuario con `role = 'professor'` e `is_admin = true` inicia sesión, ve un **selector de vistas** que le permite alternar entre:
+- **Vista Administrador**: gestionar profesores, diagnósticos de estudiantes, plataforma completa
+- **Vista Profesor**: gestionar sus cursos, estudiantes, lecciones y producciones
+
+Cada dashboard incluye un botón para cambiar de vista sin necesidad de cerrar sesión.
+
 ---
 
 ## Instalación
@@ -40,7 +55,7 @@ npm run dev
 ### Panel del Profesor
 
 **Cursos**
-- Crear y gestionar cursos con descripción, horario y carrera
+- Crear y gestionar cursos con descripción, idioma, horario y carrera
 - Inscribir estudiantes al curso (búsqueda por nombre/email o SQL bulk)
 - Asignar lecciones al curso completo o a grupos específicos
 
@@ -62,6 +77,22 @@ npm run dev
 - Panel de revisión con filtros (pendiente / revisado / todos)
 - Log forense de eventos de integridad (pegado, cambio de pestaña, etc.)
 - Calificación 0-100 con feedback y opción de reintento
+
+### Panel del Administrador
+
+**Gestión de Profesores**
+- Invitar nuevos profesores (crear cuenta con email + contraseña)
+- Listar y eliminar profesores
+
+**Diagnóstico de Estudiantes**
+- Vista completa del estado de todos los estudiantes
+- Detección automática de problemas:
+  - Estudiante sin perfil en `profiles`
+  - Estudiante sin inscripción en ningún curso
+  - Curso sin lecciones asignadas
+  - Estudiante sin lecciones asignadas (ni directo ni vía curso)
+- Filtros por nombre/email y opción "solo con problemas"
+- Resumen con contadores: total, sin problemas, con problemas, cursos con lecciones
 
 ### Panel del Estudiante
 
@@ -123,7 +154,7 @@ productions                  (ensayos finales)
   └── production_rules       (reglas de compliance por lección)
 
 student_progress             (progreso individual por lección)
-profiles                     (usuarios: admin, professor, student)
+profiles                     (usuarios: admin, professor, student, is_admin boolean)
 ```
 
 ### Migraciones aplicadas (en orden)
@@ -138,6 +169,10 @@ profiles                     (usuarios: admin, professor, student)
 | `20260405200000_add_group_lessons.sql` | Tablas de grupos y progreso grupal |
 | `20260405210000_add_group_enrollment.sql` | `enrollment_open`, `max_members`, RLS auto-inscripción |
 | `20260405220000_add_group_sets.sql` | Tabla `group_sets`, columna `group_set_id` en `groups` |
+| `20260406100000_add_presentation_sessions.sql` | Sesiones de presentación en tiempo real |
+| `20260407100000_add_course_language.sql` | Idioma en cursos (`language`) |
+| `20260411100000_content_studio_professor_access.sql` | Content Studio: acceso de profesores a contenido |
+| `20260412120000_add_admin_flag_to_profiles.sql` | Doble rol: `is_admin` en profiles + función `get_user_role()` |
 
 ---
 
@@ -147,6 +182,7 @@ profiles                     (usuarios: admin, professor, student)
 |---------|-----------|
 | [`docs/actividades-json.md`](./docs/actividades-json.md) | Referencia técnica de todos los tipos de actividad con ejemplos JSON y SQL |
 | [`docs/gemini-gem-prompt.md`](./docs/gemini-gem-prompt.md) | Prompt para la Gem de Google Gemini que genera actividades automáticamente desde materiales de clase |
+| [`docs/database-schema.sql`](./docs/database-schema.sql) | Esquema SQL completo con 18 tablas y 9 consultas de diagnóstico |
 
 ---
 

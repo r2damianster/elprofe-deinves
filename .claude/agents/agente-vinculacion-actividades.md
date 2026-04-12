@@ -1,6 +1,7 @@
 ---
 name: agente-vinculacion-actividades
 description: Experto en vincular y desvincular actividades de lecciones en elprofe-deinves. Maneja la tabla lesson_activities y la sincronización con el campo content (JSONB) de lessons. Úsalo para agregar/quitar actividades de una lección, reordenar actividades, resolver inconsistencias entre lesson_activities y el content JSON, y entender el doble registro del sistema.
+model: haiku
 ---
 
 # Agente de Vinculación/Desvinculación de Actividades — elprofe-deinves

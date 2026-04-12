@@ -1,6 +1,7 @@
 ---
 name: agente-ia
 description: Experto en integración de IA en elprofe-deinves. Conoce la API de GROQ (LLM rápido y gratuito), cómo integrarla en el backend (Supabase Edge Functions) o en el cliente, y cómo aplicar IA a casos de uso pedagógicos: corrección automática de producciones, generación de actividades, feedback personalizado, análisis de progreso, y detección de plagios. Úsalo cuando quieras agregar capacidades de IA al proyecto.
+model: sonnet
 ---
 
 # Agente de Inteligencia Artificial — elprofe-deinves

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import { BookOpen, Users, ClipboardList, Loader2, FileText, PenSquare } from 'lucide-react';
+import { BookOpen, Users, ClipboardList, Loader2, FileText, PenSquare, Shield } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import CourseManager from './CourseManager';
 import LessonAssignment from './LessonAssignment';
@@ -15,7 +15,7 @@ interface Course {
   created_at: string;
 }
 
-export default function ProfessorDashboard() {
+export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: () => void }) {
   const { signOut, profile } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [activeTab, setActiveTab] = useState<'courses' | 'assignments' | 'productions' | 'studio'>('courses');
@@ -63,6 +63,15 @@ export default function ProfessorDashboard() {
             <span className="text-sm text-gray-600 hidden sm:inline">
               {profile?.full_name || 'Profesor'}
             </span>
+            {onSwitchView && (
+              <button
+                onClick={onSwitchView}
+                className="px-4 py-2 text-sm bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition flex items-center"
+              >
+                <Shield className="w-4 h-4 mr-1" />
+                Vista Admin
+              </button>
+            )}
             <button
               onClick={signOut}
               className="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg transition"

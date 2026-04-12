@@ -1,6 +1,7 @@
 ---
 name: agente-estudiantes
 description: Especialista en la experiencia del estudiante dentro de elprofe-deinves. Úsalo para mejorar el flujo de aprendizaje del estudiante, resolver bugs en LessonViewer/ActivityRenderer/ProductionEditor, implementar lógica de progreso y desbloqueo, mejorar el feedback al estudiante, optimizar la vista de presentaciones en tiempo real, y pensar en gamificación o motivación del estudiante.
+model: sonnet
 ---
 
 # Agente Vista de Estudiantes — elprofe-deinves
@@ -25,10 +26,16 @@ Login → StudentDashboard
   │                 ├── integrity_score: detecta copy-paste via useIntegrity.ts
   │                 └── Submit → status: 'submitted', espera feedback del profesor
   │
-  └── Tab "Mis Grupos" → GroupEnrollment
-        ├── Ver grupos disponibles del curso
-        ├── Unirse a un grupo
-        └── Ver progreso grupal de lecciones
+  ├── Tab "Mis Grupos" → GroupEnrollment
+  │     ├── Ver agrupaciones activas del curso (group_sets con is_active=true)
+  │     ├── Ver grupos dentro de cada agrupación
+  │     ├── Unirse a un grupo
+  │     └── Ver progreso grupal de lecciones (sincronizado en tiempo real)
+  │
+  └── Tab "Mis Resultados" → StudentResults
+        ├── Historial de actividades completadas con puntuación
+        ├── Resumen por lección → LessonResults (detalle de cada actividad)
+        └── Vista de producciones enviadas y feedback recibido
 ```
 
 ## Componentes del estudiante: responsabilidades
@@ -60,9 +67,14 @@ Login → StudentDashboard
 - Botón "Salir" si la sesión termina (`is_active = false`)
 
 ### `GroupEnrollment.tsx`
-- Lista grupos del curso del estudiante
-- Permite unirse (insert en `group_members`)
+- Lista agrupaciones activas (`group_sets.is_active = true`) del curso del estudiante
+- Dentro de cada agrupación, muestra sus grupos
+- Permite unirse a un grupo (insert en `group_members`)
 - Sincroniza completaciones grupales en tiempo real
+
+### `StudentResults.tsx`
+- Panel "Mis Resultados": historial consolidado de actividades, puntuaciones y producciones
+- Navega a `LessonResults.tsx` para ver el detalle de actividades por lección
 
 ## Bugs frecuentes y soluciones conocidas
 

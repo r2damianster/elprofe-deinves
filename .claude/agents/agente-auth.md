@@ -1,6 +1,7 @@
 ---
 name: agente-auth
 description: Experto en autenticación y gestión de sesiones de elprofe-deinves. Úsalo para resolver problemas de login/logout de estudiantes y profesores, entender el flujo de Supabase Auth, depurar errores de sesión, gestionar perfiles y roles, implementar protección de rutas por rol, y manejar el estado de autenticación en el contexto de React.
+model: sonnet
 ---
 
 # Agente de Autenticación — elprofe-deinves
@@ -19,7 +20,7 @@ Supabase Auth (auth.users)
         ↕  consumida por
   useAuth() hook → { user, profile, loading, signIn, signUp, signOut }
         ↕  usado en
-  App.tsx → switch por profile.role → dashboard correcto
+  App.tsx → switch por profile.role (+ is_admin) → dashboard correcto
 ```
 
 ## Flujo de inicialización de sesión
@@ -41,12 +42,68 @@ profiles (
   email     text NOT NULL,
   full_name text NOT NULL,
   role      text DEFAULT 'student' CHECK (role IN ('admin', 'professor', 'student')),
+  is_admin  boolean NOT NULL DEFAULT false,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 )
 ```
 
 > La tabla `profiles` NO se crea automáticamente — se inserta manualmente en `signUp()`.
+
+## Función `get_user_role()`
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_user_role()
+RETURNS user_role 
+LANGUAGE sql 
+SECURITY DEFINER 
+SET search_path = public
+AS $$
+    SELECT 
+        CASE 
+            WHEN is_admin = true THEN 'admin'::user_role
+            ELSE role
+        END
+    FROM public.profiles
+    WHERE id = auth.uid();
+$$;
+```
+
+Esta función se usa en las políticas RLS. Si `is_admin = true`, siempre devuelve `'admin'` independientemente del `role`.
+
+## Doble rol: profesor + administrador
+
+Un usuario puede tener `role = 'professor'` e `is_admin = true` simultáneamente. Esto permite:
+
+- **RLS policies**: La función `get_user_role()` devuelve `'admin'`, por lo que tiene acceso total a nivel de base de datos.
+- **Frontend**: `App.tsx` detecta `profile.role === 'professor' && profile.is_admin === true` y muestra un selector de vistas.
+- **Vista Admin**: acceso al panel de administración completo (gestionar profesores, diagnóstico de estudiantes).
+- **Vista Profesor**: acceso al panel de profesor normal (gestionar cursos, lecciones, estudiantes, producciones).
+
+### Activar doble rol
+
+```sql
+UPDATE profiles SET is_admin = true WHERE email = 'tu@email.com';
+```
+
+### Protección por rol en App.tsx (actualizado)
+
+```typescript
+// Doble rol: profesor + admin
+if (profile.role === 'professor' && profile.is_admin) {
+  if (!currentView) return <DashboardSelector onSelect={setCurrentView} />;
+  if (currentView === 'admin') return <AdminDashboard />;
+  return <ProfessorDashboard />;
+}
+
+// Single role routing
+switch (profile.role) {
+  case 'admin':     return <AdminDashboard />;
+  case 'professor': return <ProfessorDashboard />;
+  case 'student':   return <StudentDashboard />;
+  default:          return <Login />;
+}
+```
 
 ## Flujos de autenticación
 
@@ -118,6 +175,8 @@ async function loadProfile(userId: string) {
 | "Email not confirmed" al hacer login | Confirmación de email habilitada en Supabase | Deshabilitar en Supabase Dashboard: Auth > Settings > Confirm email |
 | Error al registrar: violación de FK | El INSERT en `profiles` falla porque `auth.users` no existe aún | Asegurarse de insertar `profiles` DESPUÉS de que `signUp` devuelva `data.user` |
 | Profesor ve dashboard de estudiante | `role` incorrecto en `profiles` | Actualizar manualmente: `UPDATE profiles SET role='professor' WHERE id='...'` |
+| Usuario admin no puede gestionar | `is_admin` es `false` | `UPDATE profiles SET is_admin = true WHERE id='...'` |
+| Profesor-admin no ve selector de vistas | `is_admin` no se lee en AuthContext | Verificar que `Profile` interface incluye `is_admin: boolean` |
 
 ## RLS y autenticación
 
@@ -160,14 +219,23 @@ function MiComponente() {
 }
 ```
 
-## Crear un usuario admin (solo desde Supabase Dashboard)
+## Crear un usuario admin
 
+### Admin puro (solo admin)
 No hay flujo de registro de admin en la app. Para crear un admin:
 1. Ir a Supabase Dashboard → Authentication → Users → Add user
 2. O hacer signup normal y luego ejecutar:
 ```sql
 UPDATE profiles SET role = 'admin' WHERE email = 'admin@ejemplo.com';
 ```
+
+### Profesor con permisos de administrador (doble rol)
+1. Crear el profesor normalmente (desde AdminDashboard o signup)
+2. Asignar permisos de admin:
+```sql
+UPDATE profiles SET is_admin = true WHERE email = 'profesor@ejemplo.com';
+```
+3. Al hacer login, el usuario verá un selector para elegir entre Vista Admin y Vista Profesor.
 
 ## Variables de entorno necesarias
 

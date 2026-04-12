@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { UserPlus, Trash2, BookOpen, Users } from 'lucide-react';
+import { UserPlus, Trash2, BookOpen, Users, Activity } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import StudentDiagnosticPage from './StudentDiagnosticPage';
 
 interface Professor {
   id: string;
@@ -10,14 +11,19 @@ interface Professor {
   created_at: string;
 }
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ onSwitchView }: { onSwitchView?: () => void }) {
   const { signOut } = useAuth();
   const [professors, setProfessors] = useState<Professor[]>([]);
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [showDiagnostic, setShowDiagnostic] = useState(false);
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  if (showDiagnostic) {
+    return <StudentDiagnosticPage onBack={() => setShowDiagnostic(false)} />;
+  }
 
   useEffect(() => {
     loadProfessors();
@@ -84,12 +90,26 @@ export default function AdminDashboard() {
             <BookOpen className="w-8 h-8 text-blue-600 mr-3" />
             <h1 className="text-2xl font-bold text-gray-800">Panel Administrador</h1>
           </div>
-          <button
-            onClick={signOut}
-            className="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg transition"
-          >
-            Cerrar Sesión
-          </button>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600 hidden sm:inline">
+              Admin
+            </span>
+            {onSwitchView && (
+              <button
+                onClick={onSwitchView}
+                className="px-4 py-2 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition flex items-center"
+              >
+                <BookOpen className="w-4 h-4 mr-1" />
+                Vista Profesor
+              </button>
+            )}
+            <button
+              onClick={signOut}
+              className="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg transition"
+            >
+              Cerrar Sesión
+            </button>
+          </div>
         </div>
       </header>
 
@@ -100,13 +120,22 @@ export default function AdminDashboard() {
               <Users className="w-6 h-6 mr-2" />
               Profesores
             </h2>
-            <button
-              onClick={() => setShowInviteForm(!showInviteForm)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center"
-            >
-              <UserPlus className="w-5 h-5 mr-2" />
-              Invitar Profesor
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDiagnostic(true)}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center"
+              >
+                <Activity className="w-5 h-5 mr-2" />
+                Diagnosticar Estudiantes
+              </button>
+              <button
+                onClick={() => setShowInviteForm(!showInviteForm)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center"
+              >
+                <UserPlus className="w-5 h-5 mr-2" />
+                Invitar Profesor
+              </button>
+            </div>
           </div>
 
           {showInviteForm && (

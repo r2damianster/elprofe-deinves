@@ -24,6 +24,7 @@ export interface Database {
           email: string;
           full_name: string;
           role: UserRole;
+          is_admin: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -32,6 +33,7 @@ export interface Database {
           email: string;
           full_name: string;
           role?: UserRole;
+          is_admin?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -40,6 +42,7 @@ export interface Database {
           email?: string;
           full_name?: string;
           role?: UserRole;
+          is_admin?: boolean;
           updated_at?: string;
         };
       };
