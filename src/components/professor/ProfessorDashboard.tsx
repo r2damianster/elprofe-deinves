@@ -74,7 +74,7 @@ export default function ProfessorDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex space-x-4 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           <button
             onClick={() => setActiveTab('courses')}
             className={`flex items-center px-4 py-2 rounded-lg transition ${
