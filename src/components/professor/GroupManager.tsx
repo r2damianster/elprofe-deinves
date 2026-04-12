@@ -161,13 +161,14 @@ export default function GroupManager({ courseId }: Props) {
   }
 
   async function loadAvailableLessons() {
+    // Cargar TODAS las lecciones, no solo las asignadas al curso
     const { data } = await supabase
-      .from('lesson_assignments')
-      .select('lesson_id, lessons!lesson_id(id, title)')
-      .eq('course_id', courseId).is('student_id', null);
-    setAvailableLessons((data || []).map((r: any) => {
-      const t = r.lessons.title;
-      return { id: r.lesson_id, title: typeof t === 'string' ? t : (t?.es || t?.en || '') };
+      .from('lessons')
+      .select('id, title')
+      .order('order_index', { ascending: true });
+    setAvailableLessons((data || []).map((l: any) => {
+      const t = l.title;
+      return { id: l.id, title: typeof t === 'string' ? t : (t?.es || t?.en || 'Sin título') };
     }));
   }
 
@@ -613,7 +614,13 @@ export default function GroupManager({ courseId }: Props) {
                         </div>
                       )}
 
-                      {unassigned.length > 0 && groups.length > 0 && (
+                      {groups.length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">Agrega grupos primero para asignar lecciones.</p>
+                      ) : availableLessons.length === 0 ? (
+                        <p className="text-xs text-amber-600 italic">No hay lecciones creadas aún. Crea lecciones en "Crear Contenido".</p>
+                      ) : unassigned.length === 0 ? (
+                        <p className="text-xs text-green-700 italic">✓ Todas las lecciones ya están asignadas a esta agrupación.</p>
+                      ) : (
                         <div className="flex gap-2">
                           <select value={addingLessonToSet[set.id] || ''}
                             onChange={e => setAddingLessonToSet(prev => ({ ...prev, [set.id]: e.target.value }))}
@@ -627,9 +634,6 @@ export default function GroupManager({ courseId }: Props) {
                             <Plus className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                      )}
-                      {groups.length === 0 && (
-                        <p className="text-xs text-gray-400 italic">Agrega grupos primero para asignar lecciones.</p>
                       )}
                     </div>
 
