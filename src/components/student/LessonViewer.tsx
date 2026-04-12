@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, ArrowRight, CheckCircle, Lock, BookOpen, Video, FileText, Layers, Users, Monitor } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Lock, BookOpen, Video, FileText, Layers, Users, Monitor, BarChart2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import ActivityRenderer from './ActivityRenderer';
 import ProductionEditor from './ProductionEditor';
 import ContentRenderer from './ContentRenderer';
+import LessonResults from './LessonResults';
 import { type Lang, useTranslations, resolveField } from '../../lib/i18n';
 import { isProduction } from '../../lib/activityTypes';
 
@@ -184,6 +185,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
   const [groupInfo, setGroupInfo]                   = useState<GroupInfo | null>(null);
   const [presentationBlocked, setPresentationBlocked] = useState(false);
   const [productionActivities, setProductionActivities] = useState<Activity[]>([]);
+  const [showResults, setShowResults]               = useState(false);
 
   // ── Sync en tiempo real de completaciones grupales ────────────────────────
 
@@ -568,6 +570,19 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
     );
   }
 
+  if (showResults) {
+    return (
+      <LessonResults
+        lessonId={lessonId}
+        lessonTitle={lesson?.title}
+        lang={lang}
+        attemptsLesson={attempts}
+        onBack={onBack}
+        onRetry={attempts < 3 && !previewMode ? handleRetryLesson : undefined}
+      />
+    );
+  }
+
   if (showProduction && canAccessProduction) {
     // Si hay actividades de producción definidas, mostrarlas con ActivityRenderer
     if (productionActivities.length > 0) {
@@ -777,6 +792,16 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
           {/* Botón de Producción y Reintentos: aparece solo en el último paso */}
           {isLastStep && (
             <div className="flex flex-col items-center gap-3">
+              {/* Ver resultados */}
+              {!previewMode && progress > 0 && (
+                <button
+                  onClick={() => setShowResults(true)}
+                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition"
+                >
+                  <BarChart2 className="w-4 h-4" /> Ver mis resultados
+                </button>
+              )}
+
               {/* Intentos y Reintentar */}
               <div className="flex flex-col items-center">
                 <span className="text-xs text-gray-500 font-medium mb-1">

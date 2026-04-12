@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { BookOpen, CheckCircle, Lock, Users } from 'lucide-react';
+import { BookOpen, CheckCircle, Lock, Users, BarChart2 } from 'lucide-react';
 import { resolveField } from '../../lib/i18n';
 import { useAuth } from '../../contexts/AuthContext';
 import LessonViewer from './LessonViewer';
 import GroupEnrollment from './GroupEnrollment';
 import PresentationViewer from './PresentationViewer';
+import StudentResults from './StudentResults';
 
 interface Lesson {
   id: string;
@@ -35,7 +36,7 @@ export default function StudentDashboard() {
   const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
   const [lessonLang, setLessonLang] = useState<Record<string, 'es' | 'en'>>({});
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'lessons' | 'groups'>('lessons');
+  const [tab, setTab] = useState<'lessons' | 'groups' | 'results'>('lessons');
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
 
   useEffect(() => {
@@ -214,6 +215,7 @@ export default function StudentDashboard() {
           {[
             { key: 'lessons', label: 'Mis Lecciones', icon: BookOpen },
             { key: 'groups',  label: 'Mis Grupos',    icon: Users },
+            { key: 'results', label: 'Mis Resultados', icon: BarChart2 },
           ].map(({ key, label, icon: Icon }) => (
             <button key={key}
               onClick={() => setTab(key as any)}
@@ -230,6 +232,8 @@ export default function StudentDashboard() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {tab === 'groups' && <GroupEnrollment />}
+
+        {tab === 'results' && <StudentResults />}
 
         {tab === 'lessons' && (assignedLessons.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
