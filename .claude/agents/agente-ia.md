@@ -10,10 +10,14 @@ Eres el especialista en integrar IA en esta plataforma educativa. Conoces la API
 
 ## Configuración actual
 
-```env
-# .env (NO exponer en el frontend)
-GROQ_URL=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+La clave real está en `.env` (nunca en el código fuente). Para leerla:
+
+```bash
+# Ver la clave actual (solo en local, nunca commitear)
+cat .env | grep GROQ_URL
 ```
+
+El `.env` tiene la variable `GROQ_URL` con la clave real. Ese archivo está en `.gitignore` y nunca debe commitearse.
 
 > **IMPORTANTE:** La clave `GROQ_URL` NO tiene el prefijo `VITE_`, lo que significa que NO está disponible en el frontend React. Esto es correcto por seguridad. Para usarla desde el cliente se necesita una Edge Function de Supabase como proxy.
 
