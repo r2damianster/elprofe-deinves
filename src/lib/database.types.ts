@@ -1,15 +1,18 @@
 export type UserRole = 'admin' | 'professor' | 'student';
-export type ActivityType = 
-  | 'multiple_choice' 
-  | 'drag_drop' 
-  | 'essay' 
+export type ActivityType =
+  | 'multiple_choice'
+  | 'drag_drop'
+  | 'essay'
   | 'short_answer'
   | 'fill_blank'
   | 'true_false'
   | 'matching'
   | 'ordering'
   | 'image_question'
-  | 'listening';
+  | 'listening'
+  | 'long_response'
+  | 'structured_essay'
+  | 'open_writing';
 export type ProductionStatus = 'draft' | 'submitted' | 'reviewed';
 
 export interface Database {
@@ -143,6 +146,7 @@ export interface Database {
           content: any;
           points: number;
           media_url: string | null;
+          created_by: string | null;
           created_at: string;
         };
         Insert: {
@@ -152,6 +156,7 @@ export interface Database {
           content?: any;
           points?: number;
           media_url?: string | null;
+          created_by?: string | null;
           created_at?: string;
         };
         Update: {
@@ -161,6 +166,7 @@ export interface Database {
           content?: any;
           points?: number;
           media_url?: string | null;
+          created_by?: string | null;
         };
       };
       lesson_assignments: {

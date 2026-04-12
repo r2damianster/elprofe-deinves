@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import { BookOpen, Users, ClipboardList, Loader2, FileText } from 'lucide-react';
+import { BookOpen, Users, ClipboardList, Loader2, FileText, PenSquare } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import CourseManager from './CourseManager';
 import LessonAssignment from './LessonAssignment';
 import ProductionReviewer from './ProductionReviewer';
+import ContentStudio from './studio/ContentStudio';
 
 interface Course {
   id: string;
@@ -17,7 +18,7 @@ interface Course {
 export default function ProfessorDashboard() {
   const { signOut, profile } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
-  const [activeTab, setActiveTab] = useState<'courses' | 'assignments' | 'productions'>('courses');
+  const [activeTab, setActiveTab] = useState<'courses' | 'assignments' | 'productions' | 'studio'>('courses');
   const [preselectedCourseId, setPreselectedCourseId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
 
@@ -107,6 +108,17 @@ export default function ProfessorDashboard() {
             <FileText className="w-5 h-5 mr-2" />
             Producciones
           </button>
+          <button
+            onClick={() => setActiveTab('studio')}
+            className={`flex items-center px-4 py-2 rounded-lg transition ${
+              activeTab === 'studio'
+                ? 'bg-purple-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+            }`}
+          >
+            <PenSquare className="w-5 h-5 mr-2" />
+            Crear Contenido
+          </button>
         </div>
 
         {loading ? (
@@ -130,8 +142,10 @@ export default function ProfessorDashboard() {
                 courses={courses}
                 initialCourseId={preselectedCourseId}
               />
-            ) : (
+            ) : activeTab === 'productions' ? (
               <ProductionReviewer />
+            ) : (
+              <ContentStudio />
             )}
           </>
         )}
