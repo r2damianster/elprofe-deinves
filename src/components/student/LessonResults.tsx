@@ -244,7 +244,7 @@ export default function LessonResults({
 
                         {/* Título y repeticiones */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{act.title}</p>
+                          <p className="text-sm font-medium text-gray-800 truncate">{resolveField(act.title, lang)}</p>
                           <p className="text-xs text-gray-400 mt-0.5">
                             {act.attempts_count > 0
                               ? `Respondida ${act.attempts_count} vez${act.attempts_count !== 1 ? '' : ''}`

@@ -317,7 +317,7 @@ export default function StudentResults() {
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm text-gray-700 truncate">{act.title}</p>
+                              <p className="text-sm text-gray-700 truncate">{resolveField(act.title, 'es')}</p>
                               {act.response_count > 0 && (
                                 <p className="text-xs text-gray-400">
                                   {act.response_count} respuesta{act.response_count !== 1 ? 's' : ''}

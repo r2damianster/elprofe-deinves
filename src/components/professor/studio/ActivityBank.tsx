@@ -4,6 +4,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { Search, Plus, Edit2, Trash2, Loader2, Filter, BookOpen, AlertCircle } from 'lucide-react';
 import ActivityEditor from './ActivityEditor';
 import type { ActivityType } from '../../../lib/database.types';
+import { resolveField } from '../../../lib/i18n';
 
 interface Activity {
   id: string;
@@ -81,7 +82,8 @@ export default function ActivityBank({ onSelectForLesson, linkedIds }: Props) {
   const filtered = activities.filter(a => {
     if (filterType && a.type !== filterType) return false;
     if (filterOwn && a.created_by !== profile?.id) return false;
-    if (search && !a.title.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !resolveField(a.title, 'es').toLowerCase().includes(search.toLowerCase()) &&
+        !resolveField(a.title, 'en').toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
@@ -199,7 +201,7 @@ export default function ActivityBank({ onSelectForLesson, linkedIds }: Props) {
                     <span className="text-xs text-gray-400">{activity.points} pt{activity.points !== 1 ? 's' : ''}</span>
                     {isOwn && <span className="text-xs text-blue-500">✎ mía</span>}
                   </div>
-                  <p className="text-sm font-medium text-gray-800 truncate">{activity.title}</p>
+                  <p className="text-sm font-medium text-gray-800 truncate">{resolveField(activity.title, 'es')}</p>
                 </div>
 
                 <div className="flex items-center gap-1 flex-shrink-0">

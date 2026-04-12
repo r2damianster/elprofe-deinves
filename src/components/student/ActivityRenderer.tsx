@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { type Lang, useTranslations } from '../../lib/i18n';
+import { type Lang, useTranslations, resolveField } from '../../lib/i18n';
 
 // Importación de todos los tipos de actividades
 import MultipleChoice from './activities/MultipleChoice';
@@ -90,7 +90,7 @@ export default function ActivityRenderer({
       {/* Encabezado de la actividad */}
       <div className="border-b pb-4 flex justify-between items-start">
         <div>
-          <h3 className="text-lg font-bold text-gray-800">{activity.title}</h3>
+          <h3 className="text-lg font-bold text-gray-800">{resolveField(activity.title, lang)}</h3>
           <p className="text-sm text-gray-600 mt-1">{ui.points}: {activity.points}</p>
         </div>
         {isCompleted && (
