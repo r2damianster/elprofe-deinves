@@ -21,10 +21,6 @@ export default function AdminDashboard({ onSwitchView }: { onSwitchView?: () => 
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (showDiagnostic) {
-    return <StudentDiagnosticPage onBack={() => setShowDiagnostic(false)} />;
-  }
-
   useEffect(() => {
     loadProfessors();
   }, []);
@@ -80,6 +76,10 @@ export default function AdminDashboard({ onSwitchView }: { onSwitchView?: () => 
     if (!error) {
       loadProfessors();
     }
+  }
+
+  if (showDiagnostic) {
+    return <StudentDiagnosticPage onBack={() => setShowDiagnostic(false)} />;
   }
 
   return (
