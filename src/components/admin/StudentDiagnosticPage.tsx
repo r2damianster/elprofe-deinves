@@ -7,27 +7,6 @@ interface StudentDiagnosticPageProps {
   onBack: () => void;
 }
 
-interface Professor {
-  id: string;
-  email: string;
-  full_name: string;
-  role: string;
-  is_admin: boolean;
-  created_at: string;
-}
-
-interface StudentDiagnostic {
-  id: string;
-  email: string;
-  full_name: string;
-  created_at: string;
-  has_profile: boolean;
-  enrolled_courses: CourseEnrollment[];
-  has_lesson_assignments: boolean;
-  has_progress: boolean;
-  issues: string[];
-}
-
 interface CourseEnrollment {
   course_id: string;
   course_name: string;
@@ -38,13 +17,17 @@ interface CourseLessons {
   course_id: string;
   course_name: string;
   lesson_count: number;
-  lessons: LessonInfo[];
 }
 
-interface LessonInfo {
+interface StudentDiagnostic {
   id: string;
-  title: string;
-  has_assignments: boolean;
+  email: string;
+  full_name: string;
+  created_at: string;
+  enrolled_courses: CourseEnrollment[];
+  has_lesson_assignments: boolean;
+  has_progress: boolean;
+  issues: string[];
 }
 
 export default function StudentDiagnosticPage({ onBack }: StudentDiagnosticPageProps) {
@@ -52,6 +35,7 @@ export default function StudentDiagnosticPage({ onBack }: StudentDiagnosticPageP
   const [students, setStudents] = useState<StudentDiagnostic[]>([]);
   const [coursesWithLessons, setCoursesWithLessons] = useState<CourseLessons[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [onlyWithIssues, setOnlyWithIssues] = useState(false);
 
@@ -61,39 +45,53 @@ export default function StudentDiagnosticPage({ onBack }: StudentDiagnosticPageP
 
   async function loadDiagnostic() {
     setLoading(true);
+    setError(null);
+
     try {
       // 1. Get all students
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, email, full_name, role, created_at')
         .eq('role', 'student')
         .order('created_at', { ascending: false });
 
-      if (!profiles) {
+      if (profilesError) throw new Error(`Error loading profiles: ${profilesError.message}`);
+      if (!profiles || profiles.length === 0) {
+        setStudents([]);
+        setCoursesWithLessons([]);
         setLoading(false);
         return;
       }
 
-      // 2. Get all course enrollments
-      const { data: enrollments } = await supabase
+      // 2. Get all course enrollments with course names
+      const { data: enrollments, error: enrollError } = await supabase
         .from('course_students')
         .select('student_id, course_id, enrolled_at, courses(name)');
 
-      // 3. Get all lesson assignments (course-based and student-based)
-      const { data: assignments } = await supabase
+      if (enrollError) console.warn('Warning loading enrollments:', enrollError.message);
+
+      // 3. Get all lesson assignments
+      const { data: assignments, error: assignError } = await supabase
         .from('lesson_assignments')
         .select('lesson_id, course_id, student_id');
 
+      if (assignError) console.warn('Warning loading assignments:', assignError.message);
+
       // 4. Get all student progress
-      const { data: progress } = await supabase
+      const { data: progress, error: progressError } = await supabase
         .from('student_progress')
         .select('student_id, lesson_id');
 
-      // 5. Get courses and their lessons
-      const { data: courses } = await supabase
+      if (progressError) console.warn('Warning loading progress:', progressError.message);
+
+      // 5. Get courses and their lesson counts
+      const { data: courses, error: coursesError } = await supabase
         .from('courses')
         .select('id, name');
 
+      if (coursesError) console.warn('Warning loading courses:', coursesError.message);
+
+      // 6. Get lesson assignments per course
       const { data: lessonAssignments } = await supabase
         .from('lesson_assignments')
         .select('lesson_id, course_id');
@@ -101,77 +99,70 @@ export default function StudentDiagnosticPage({ onBack }: StudentDiagnosticPageP
       // Build course -> lessons map
       const courseLessonsMap = new Map<string, Set<string>>();
       if (lessonAssignments) {
-        lessonAssignments.forEach(la => {
+        for (const la of lessonAssignments) {
           if (la.course_id) {
             if (!courseLessonsMap.has(la.course_id)) {
               courseLessonsMap.set(la.course_id, new Set());
             }
             courseLessonsMap.get(la.course_id)!.add(la.lesson_id);
           }
-        });
+        }
       }
 
       const coursesWithLessonsData: CourseLessons[] = (courses || []).map(c => ({
         course_id: c.id,
         course_name: c.name,
         lesson_count: courseLessonsMap.get(c.id)?.size || 0,
-        lessons: []
       }));
       setCoursesWithLessons(coursesWithLessonsData);
 
       // Build enrollment map
       const enrollmentMap = new Map<string, CourseEnrollment[]>();
       if (enrollments) {
-        enrollments.forEach(e => {
+        for (const e of enrollments) {
           if (!enrollmentMap.has(e.student_id)) {
             enrollmentMap.set(e.student_id, []);
           }
           enrollmentMap.get(e.student_id)!.push({
             course_id: e.course_id,
-            course_name: e.courses?.name || 'Unknown',
-            enrolled_at: e.enrolled_at
+            course_name: e.courses?.name || 'Desconocido',
+            enrolled_at: e.enrolled_at,
           });
-        });
+        }
       }
 
       // Build assignment map
       const assignmentMap = new Map<string, boolean>();
       if (assignments) {
-        assignments.forEach(a => {
-          if (a.course_id) {
-            assignmentMap.set(`course_${a.course_id}`, true);
-          }
-          if (a.student_id) {
-            assignmentMap.set(`student_${a.student_id}`, true);
-          }
-        });
+        for (const a of assignments) {
+          if (a.course_id) assignmentMap.set(`course_${a.course_id}`, true);
+          if (a.student_id) assignmentMap.set(`student_${a.student_id}`, true);
+        }
       }
 
       // Build progress map
       const progressMap = new Map<string, boolean>();
       if (progress) {
-        progress.forEach(p => {
+        for (const p of progress) {
           progressMap.set(p.student_id, true);
-        });
+        }
       }
 
       // Build diagnostic for each student
       const diagnostics: StudentDiagnostic[] = profiles.map(p => {
         const issues: string[] = [];
         const enrolledCourses = enrollmentMap.get(p.id) || [];
-        const hasAssignments = assignmentMap.has(`student_${p.id}`) || 
+        const hasAssignments = assignmentMap.has(`student_${p.id}`) ||
           enrolledCourses.some(ec => assignmentMap.has(`course_${ec.course_id}`));
         const hasProgress = progressMap.has(p.id);
 
-        // Check for issues
-        if (!enrolledCourses.length) {
+        if (enrolledCourses.length === 0) {
           issues.push('No está inscrito en ningún curso');
         }
         if (!hasAssignments) {
           issues.push('No tiene lecciones asignadas (ni directo ni vía curso)');
         }
 
-        // Check if enrolled courses have lessons
         if (enrolledCourses.length > 0) {
           const coursesWithoutLessons = enrolledCourses.filter(
             ec => !courseLessonsMap.has(ec.course_id) || courseLessonsMap.get(ec.course_id)!.size === 0
@@ -186,24 +177,24 @@ export default function StudentDiagnosticPage({ onBack }: StudentDiagnosticPageP
           email: p.email,
           full_name: p.full_name,
           created_at: p.created_at,
-          has_profile: true,
           enrolled_courses: enrolledCourses,
           has_lesson_assignments: hasAssignments,
           has_progress: hasProgress,
-          issues
+          issues,
         };
       });
 
       setStudents(diagnostics);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading diagnostic:', err);
+      setError(err.message || 'Error desconocido al cargar los datos');
     } finally {
       setLoading(false);
     }
   }
 
   const filteredStudents = students.filter(s => {
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesIssues = !onlyWithIssues || s.issues.length > 0;
@@ -246,62 +237,88 @@ export default function StudentDiagnosticPage({ onBack }: StudentDiagnosticPageP
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+            <div className="flex items-start gap-3">
+              <XCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-red-800 mb-1">Error al cargar los datos</h3>
+                <p className="text-sm text-red-700 mb-3">{error}</p>
+                <button
+                  onClick={loadDiagnostic}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm"
+                >
+                  Intentar de nuevo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-sm text-gray-500">Total Estudiantes</p>
-            <p className="text-3xl font-bold text-gray-800">{students.length}</p>
+        {students.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white rounded-lg shadow p-6">
+              <p className="text-sm text-gray-500">Total Estudiantes</p>
+              <p className="text-3xl font-bold text-gray-800">{students.length}</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <p className="text-sm text-gray-500">Sin Problemas</p>
+              <p className="text-3xl font-bold text-green-600">
+                {students.filter(s => s.issues.length === 0).length}
+              </p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <p className="text-sm text-gray-500">Con Problemas</p>
+              <p className="text-3xl font-bold text-orange-600">
+                {students.filter(s => s.issues.length > 0).length}
+              </p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <p className="text-sm text-gray-500">Cursos con Lecciones</p>
+              <p className="text-3xl font-bold text-blue-600">
+                {coursesWithLessons.filter(c => c.lesson_count > 0).length} / {coursesWithLessons.length}
+              </p>
+            </div>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-sm text-gray-500">Sin Problemas</p>
-            <p className="text-3xl font-bold text-green-600">
-              {students.filter(s => s.issues.length === 0).length}
-            </p>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-sm text-gray-500">Con Problemas</p>
-            <p className="text-3xl font-bold text-orange-600">
-              {students.filter(s => s.issues.length > 0).length}
-            </p>
-          </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-sm text-gray-500">Cursos con Lecciones</p>
-            <p className="text-3xl font-bold text-blue-600">
-              {coursesWithLessons.filter(c => c.lesson_count > 0).length} / {coursesWithLessons.length}
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6 flex gap-4 items-center">
-          <div className="flex-1 relative">
-            <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar por nombre o email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg"
-            />
+        {students.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-4 mb-6 flex gap-4 items-center">
+            <div className="flex-1 relative">
+              <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre o email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border rounded-lg"
+              />
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={onlyWithIssues}
+                onChange={(e) => setOnlyWithIssues(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm text-gray-700">Solo con problemas</span>
+            </label>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={onlyWithIssues}
-              onChange={(e) => setOnlyWithIssues(e.target.checked)}
-              className="rounded border-gray-300"
-            />
-            <span className="text-sm text-gray-700">Solo con problemas</span>
-          </label>
-        </div>
+        )}
 
-        {/* Student List */}
-        {loading ? (
+        {/* Loading State */}
+        {loading && (
           <div className="text-center py-16">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Cargando diagnóstico...</p>
           </div>
-        ) : (
+        )}
+
+        {/* Student List */}
+        {!loading && !error && (
           <div className="space-y-4">
             {filteredStudents.map(student => (
               <div key={student.id} className="bg-white rounded-lg shadow overflow-hidden">
@@ -332,11 +349,7 @@ export default function StudentDiagnosticPage({ onBack }: StudentDiagnosticPageP
                   {/* Status Indicators */}
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex items-center gap-2">
-                      {student.has_profile ? (
-                        <CheckCircle className="w-5 h-5 text-green-500" />
-                      ) : (
-                        <XCircle className="w-5 h-5 text-red-500" />
-                      )}
+                      <CheckCircle className="w-5 h-5 text-green-500" />
                       <span className="text-sm text-gray-700">Perfil OK</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -391,10 +404,17 @@ export default function StudentDiagnosticPage({ onBack }: StudentDiagnosticPageP
               </div>
             ))}
 
-            {filteredStudents.length === 0 && (
+            {filteredStudents.length === 0 && students.length > 0 && (
               <div className="text-center py-16 bg-white rounded-lg shadow">
                 <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">No se encontraron estudiantes</p>
+                <p className="text-gray-600">No se encontraron estudiantes con esos filtros</p>
+              </div>
+            )}
+
+            {students.length === 0 && !error && (
+              <div className="text-center py-16 bg-white rounded-lg shadow">
+                <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
+                <p className="text-gray-600">No hay estudiantes registrados en la plataforma</p>
               </div>
             )}
           </div>
