@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   Users, Plus, Trash2, BookOpen, ChevronDown, ChevronUp,
   Loader2, UserPlus, Shuffle, ToggleLeft, ToggleRight, MoveRight,
-  Heart, FolderOpen, Layers,
+  Heart, FolderOpen, Layers, Power,
 } from 'lucide-react';
 
 interface GroupSet {
@@ -12,6 +12,7 @@ interface GroupSet {
   name: string;
   course_id: string;
   created_at: string;
+  is_active: boolean;
 }
 
 interface Group {
@@ -161,11 +162,13 @@ export default function GroupManager({ courseId }: Props) {
   }
 
   async function loadAvailableLessons() {
-    // Cargar TODAS las lecciones, no solo las asignadas al curso
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('lessons')
       .select('id, title')
-      .order('order_index', { ascending: true });
+      .order('created_at', { ascending: true });
+    if (error) {
+      console.error('[GroupManager] Error cargando lecciones:', error);
+    }
     setAvailableLessons((data || []).map((l: any) => {
       const t = l.title;
       return { id: l.id, title: typeof t === 'string' ? t : (t?.es || t?.en || 'Sin título') };
@@ -237,6 +240,12 @@ export default function GroupManager({ courseId }: Props) {
     setGroupSets(prev => prev.filter(s => s.id !== setId));
     if (expandedSet === setId) setExpandedSet(null);
     await loadGroups();
+  }
+
+  async function toggleSetActive(set: GroupSet) {
+    const next = !set.is_active;
+    await supabase.from('group_sets').update({ is_active: next }).eq('id', set.id);
+    setGroupSets(prev => prev.map(s => s.id === set.id ? { ...s, is_active: next } : s));
   }
 
   // ── Lección a toda una agrupación ─────────────────────────
@@ -581,6 +590,17 @@ export default function GroupManager({ courseId }: Props) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={e => { e.stopPropagation(); toggleSetActive(set); }}
+                      title={set.is_active ? 'Agrupación activa — clic para desactivar' : 'Agrupación inactiva — clic para activar'}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition ${
+                        set.is_active
+                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}>
+                      <Power className="w-3.5 h-3.5" />
+                      {set.is_active ? 'Activa' : 'Inactiva'}
+                    </button>
                     <button onClick={e => { e.stopPropagation(); deleteSet(set.id, set.name); }}
                       className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
                       <Trash2 className="w-4 h-4" />
@@ -614,25 +634,29 @@ export default function GroupManager({ courseId }: Props) {
                         </div>
                       )}
 
-                      {groups.length === 0 ? (
-                        <p className="text-xs text-gray-400 italic">Agrega grupos primero para asignar lecciones.</p>
-                      ) : availableLessons.length === 0 ? (
+                      {availableLessons.length === 0 ? (
                         <p className="text-xs text-amber-600 italic">No hay lecciones creadas aún. Crea lecciones en "Crear Contenido".</p>
                       ) : unassigned.length === 0 ? (
                         <p className="text-xs text-green-700 italic">✓ Todas las lecciones ya están asignadas a esta agrupación.</p>
                       ) : (
-                        <div className="flex gap-2">
-                          <select value={addingLessonToSet[set.id] || ''}
-                            onChange={e => setAddingLessonToSet(prev => ({ ...prev, [set.id]: e.target.value }))}
-                            className="flex-1 border border-green-300 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-400">
-                            <option value="">Asignar lección a todos los grupos...</option>
-                            {unassigned.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
-                          </select>
-                          <button onClick={() => assignLessonToSet(set.id)}
-                            disabled={!addingLessonToSet[set.id]}
-                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition">
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
+                        <div className="space-y-1">
+                          <div className="flex gap-2">
+                            <select value={addingLessonToSet[set.id] || ''}
+                              onChange={e => setAddingLessonToSet(prev => ({ ...prev, [set.id]: e.target.value }))}
+                              className="flex-1 border border-green-300 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-400">
+                              <option value="">Asignar lección a todos los grupos...</option>
+                              {unassigned.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+                            </select>
+                            <button onClick={() => assignLessonToSet(set.id)}
+                              disabled={!addingLessonToSet[set.id] || groups.length === 0}
+                              title={groups.length === 0 ? 'Agrega al menos un grupo primero' : 'Asignar a todos los grupos'}
+                              className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition">
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          {groups.length === 0 && (
+                            <p className="text-xs text-amber-600">Agrega al menos un grupo para poder asignar la lección.</p>
+                          )}
                         </div>
                       )}
                     </div>
