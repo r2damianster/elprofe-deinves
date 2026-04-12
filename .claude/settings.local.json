@@ -10,7 +10,9 @@
       "mcp__785ba7f2-3851-4a9f-a790-b06dd37855e9__apply_migration",
       "Bash(npx supabase:*)",
       "Bash(ollama run:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(grep -i \"language\" /c/Users/User/Desktop/elprofe-deinves/supabase/migrations/*.sql)",
+      "mcp__claude_ai_Supabase__list_tables"
     ]
   }
 }

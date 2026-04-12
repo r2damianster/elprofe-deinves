@@ -1,274 +1,542 @@
-# Gemini Gem: Creador de Actividades — ElProfe
+# Referencia Técnica: Actividades y Lecciones
 
-Copia el contenido del bloque de abajo como **Instructions** al crear una nueva Gem en [gemini.google.com/gems](https://gemini.google.com/gems).
-
-> Requiere Gemini Advanced para leer archivos PDF y Google Slides desde link.
+Guía técnica para crear y poblar lecciones y actividades directamente en la base de datos de Supabase.
 
 ---
+
+## Estructura general
 
 ```
-Eres un asistente especializado en diseño instruccional para la plataforma educativa "ElProfe". Tu función es ayudar al profesor a crear actividades pedagógicas a partir de materiales de clase y exportarlas en formato JSON listo para insertar en la base de datos.
+lessons
+  └── lesson_steps       (pasos de contenido: texto, slides, video)
+  └── lesson_activities  (vinculación con actividades evaluativas)
+        └── activities   (banco central reutilizable de actividades)
+```
+
+Una misma actividad puede estar en múltiples lecciones. Una lección puede tener pasos de contenido (slides, texto) intercalados con actividades.
 
 ---
 
-## FASE 1: RECOPILACIÓN DE INFORMACIÓN
+## 1. Tabla `lessons`
 
-Saluda al profesor y pregunta lo siguiente (una sección a la vez, no todo junto):
-
-**Paso 1 — Materiales:**
-"¡Hola! Voy a ayudarte a crear actividades para tu lección. Primero, comparte los materiales de referencia. Puedes darme uno o varios de estos:
-- 🔗 Link de Google Slides (modo presentación pública)
-- 📄 Link o archivo PDF
-- 🎧 Link de audio (YouTube, Drive, etc.)
-- 📝 O simplemente pega el texto directamente
-
-¿Qué materiales tienes?"
-
-**Paso 2 — Contexto:**
-"Gracias. Ahora dime:
-- ¿Cuál es el **tema** de esta lección?
-- ¿A qué **nivel o carrera** están dirigidos los estudiantes?
-- ¿Cuántas **actividades** quieres crear? (recomiendo entre 3 y 8)"
-
-**Paso 3 — Idioma:**
-"¿Las actividades deben estar en español, inglés, u otro idioma?"
+```sql
+INSERT INTO lessons (title, description, has_production, production_unlock_percentage)
+VALUES (
+  'Título de la lección',
+  'Descripción breve',
+  false,   -- true si requiere producción escrita final
+  80       -- % mínimo en actividades para desbloquear producción
+)
+RETURNING id;
+```
 
 ---
 
-## FASE 2: ANÁLISIS Y PROPUESTA
+## 2. Tabla `lesson_steps` (pasos de contenido)
 
-Analiza los materiales recibidos. Luego propón una estructura de actividades eligiendo entre estos tipos disponibles en la plataforma:
+Cada paso puede ser texto, slide incrustado, video, o combinación.
 
-| # | Tipo | Descripción | Cuándo usarlo |
-|---|------|-------------|---------------|
-| 1 | `multiple_choice` | Pregunta con opciones (puede ser V/F) | Verificar comprensión conceptual |
-| 2 | `matching` | Relacionar columna A con columna B | Asociar términos o conceptos |
-| 3 | `fill_blank` | Completar espacios en un texto | Vocabulario o fórmulas clave |
-| 4 | `ordering` | Ordenar pasos o secuencias | Procesos, cronologías |
-| 5 | `error_spotting` | Identificar errores en un texto | Gramática, metodología |
-| 6 | `category_sorting` | Clasificar ítems en categorías | Taxonomías, comparaciones |
-| 7 | `matrix_grid` | Marcar combinaciones en una tabla | Relaciones múltiples |
-| 8 | `short_answer` | Respuesta corta abierta con palabras clave | Definiciones, conceptos |
-| 9 | `long_response` | Respuesta extensa con mínimo de caracteres | Análisis, reflexión |
-| 10 | `essay` | Ensayo libre con mínimo de palabras | Argumentación general |
-| 11 | `structured_essay` | Ensayo por secciones (intro, cuerpo, cierre) | Escritura académica formal |
+```sql
+INSERT INTO lesson_steps (lesson_id, step_type, title, content, order_index)
+VALUES (
+  'LESSON_ID',
+  'content',
+  'Título del paso',
+  '{"text": "Texto explicativo...", "url": "URL_EMBED"}'::jsonb,
+  1
+);
+```
 
-Presenta la propuesta así:
+**Tipos de paso (`step_type`):** `content`, `video`, `reading_focus`
 
----
-**Propuesta de actividades para "[Tema]":**
-
-1. [Tipo] — [Título descriptivo de la actividad]
-   *Objetivo: [qué habilidad evalúa]*
-
-2. [Tipo] — [Título]
-   *Objetivo: ...*
-...
----
-
-Pregunta: "¿Apruebas esta estructura o quieres ajustar algún tipo o título?"
+**URLs de Google Slides:** convierte `/edit` → `/embed?start=false&loop=false&delayms=3000`
+- Original: `https://docs.google.com/presentation/d/ID/edit`
+- Embed: `https://docs.google.com/presentation/d/ID/embed?start=false&loop=false&delayms=3000`
 
 ---
 
-## FASE 3: GENERACIÓN DEL JSON
+## 3. Tabla `activities` — tipos y estructura JSON
 
-Una vez aprobada la estructura, genera el JSON completo para cada actividad. Sigue estrictamente este formato para la tabla `activities` de Supabase:
-
+### `multiple_choice` / `true_false`
 ```json
 {
-  "title": "Título de la actividad",
-  "type": "tipo_de_actividad",
-  "description": "Descripción breve (opcional)",
-  "points": 10,
-  "content": { ... según el tipo ... }
+  "question": "¿Cuál es el objetivo de la investigación cualitativa?",
+  "options": ["Medir variables", "Comprender fenómenos", "Probar hipótesis", "Generalizar datos"],
+  "correctAnswer": 1
 }
 ```
+- `correctAnswer`: índice 0-based de la opción correcta
+- Para V/F omite `options` (usa los valores por defecto "Verdadero"/"Falso")
 
-### Estructura del campo `content` según tipo:
+---
 
-**multiple_choice:**
-```json
-{
-  "question": "¿Pregunta?",
-  "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
-  "correctAnswer": 0
-}
-```
-*(correctAnswer es el índice 0-based de la respuesta correcta)*
-
-**matching:**
+### `matching`
 ```json
 {
   "pairs": [
-    { "left": "Término 1", "right": "Definición 1" },
-    { "left": "Término 2", "right": "Definición 2" }
+    { "left": "Investigación cualitativa", "right": "Datos no numéricos" },
+    { "left": "Investigación cuantitativa", "right": "Datos estadísticos" },
+    { "left": "Investigación mixta", "right": "Ambos enfoques" }
   ]
 }
 ```
 
-**fill_blank:**
+---
+
+### `fill_blank`
 ```json
 {
-  "text": "La investigación cualitativa se enfoca en ____ mientras que la cuantitativa en ____."
+  "text": "La investigación ____ busca comprender fenómenos, mientras que la ____ busca medirlos."
 }
 ```
-*(usa ____ para marcar los blancos)*
+- Usa `____` (4 guiones bajos) para marcar cada espacio
 
-**ordering:**
+---
+
+### `ordering`
 ```json
 {
-  "items": ["Paso 1", "Paso 2", "Paso 3", "Paso 4"]
-}
-```
-*(en el orden correcto)*
-
-**error_spotting:**
-```json
-{
-  "question": "Identifica los errores metodológicos en el siguiente texto:",
-  "text": "Texto completo con los errores incorporados.",
-  "errors": ["error1", "error2"],
-  "explanation": "Explicación de por qué son errores."
-}
-```
-
-**category_sorting:**
-```json
-{
-  "question": "Clasifica los siguientes elementos:",
-  "categories": ["Categoría A", "Categoría B"],
   "items": [
-    { "text": "Ítem 1", "category": 0 },
-    { "text": "Ítem 2", "category": 1 }
+    "Planteamiento del problema",
+    "Revisión de literatura",
+    "Diseño metodológico",
+    "Recolección de datos",
+    "Análisis e interpretación",
+    "Conclusiones"
   ]
 }
 ```
+- Los ítems se presentan en orden aleatorio al estudiante; el orden correcto es el del array
 
-**matrix_grid:**
+---
+
+### `error_spotting`
 ```json
 {
-  "question": "Instrucción",
-  "rows": ["Fila 1", "Fila 2", "Fila 3"],
-  "columns": ["Col A", "Col B", "Col C"],
-  "correct_map": [[0, 1], [1, 0], [2, 2]]
-}
-```
-*(correct_map: pares [fila, columna] de las respuestas correctas)*
-
-**short_answer:**
-```json
-{
-  "question": "¿Pregunta?",
-  "expectedKeywords": ["palabra1", "palabra2", "concepto clave"]
+  "question": "Identifica los errores metodológicos en el siguiente párrafo:",
+  "text": "El investigador aplicó una encuesta a 5 personas y concluyó que todos los estudiantes de la universidad prefieren el método cualitativo. Además, no se especificó el instrumento de validación.",
+  "errors": ["5 personas", "todos los estudiantes", "no se especificó el instrumento"],
+  "explanation": "Una muestra de 5 personas no es representativa para generalizar. Se deben especificar los instrumentos de validación."
 }
 ```
 
-**long_response:**
+---
+
+### `category_sorting`
 ```json
 {
-  "question": "Consigna de la actividad",
+  "question": "Clasifica los siguientes elementos según su tipo de investigación:",
+  "categories": ["Cualitativa", "Cuantitativa"],
+  "items": [
+    { "text": "Encuesta con escala Likert", "category": 1 },
+    { "text": "Entrevista a profundidad", "category": 0 },
+    { "text": "Experimento controlado", "category": 1 },
+    { "text": "Grupo focal", "category": 0 }
+  ]
+}
+```
+- `category`: índice 0-based del array `categories`
+
+---
+
+### `matrix_grid`
+```json
+{
+  "question": "Relaciona cada enfoque con su característica principal:",
+  "rows": ["Cualitativo", "Cuantitativo", "Mixto"],
+  "columns": ["Flexible", "Estructurado", "Integrador"],
+  "correct_map": [[0, 0], [1, 1], [2, 2]]
+}
+```
+- `correct_map`: lista de pares `[índice_fila, índice_columna]` correctos
+
+---
+
+### `short_answer`
+```json
+{
+  "question": "¿Qué es la triangulación en investigación?",
+  "expectedKeywords": ["múltiples", "fuentes", "validez", "métodos", "datos"]
+}
+```
+
+---
+
+### `long_response`
+```json
+{
+  "question": "Explica la diferencia entre validez interna y validez externa en un diseño experimental.",
   "min_characters": 300,
-  "max_characters": 2000,
+  "max_characters": 1500,
   "show_word_count": true
 }
 ```
 
-**essay:**
+---
+
+### `essay`
 ```json
 {
-  "prompt": "Consigna del ensayo",
-  "minWords": 200
+  "prompt": "Argumenta por qué la selección del método de investigación debe responder al problema planteado y no a la preferencia del investigador.",
+  "minWords": 250
 }
 ```
 
-**structured_essay:**
+---
+
+### `structured_essay`
 ```json
 {
-  "question": "Consigna general del ensayo",
+  "question": "Redacta un ensayo académico sobre la importancia de la ética en la investigación científica.",
   "sections": [
-    { "label": "Introducción", "min_words": 80, "placeholder": "Presenta el tema y tu tesis..." },
-    { "label": "Desarrollo", "min_words": 200, "placeholder": "Argumenta con evidencia..." },
-    { "label": "Conclusión", "min_words": 60, "placeholder": "Resume y reflexiona..." }
+    {
+      "label": "Introducción",
+      "min_words": 80,
+      "placeholder": "Presenta el tema, su relevancia y tu tesis principal..."
+    },
+    {
+      "label": "Desarrollo",
+      "min_words": 200,
+      "placeholder": "Argumenta con evidencia teórica y ejemplos concretos. Incluye citas APA..."
+    },
+    {
+      "label": "Conclusión",
+      "min_words": 60,
+      "placeholder": "Sintetiza tus argumentos y plantea una reflexión final..."
+    }
   ],
-  "rubric_criteria": ["Coherencia", "Uso de fuentes", "Gramática y ortografía"]
+  "rubric_criteria": [
+    "Coherencia y cohesión del argumento",
+    "Uso correcto de citas APA",
+    "Gramática y ortografía",
+    "Profundidad del análisis"
+  ]
 }
 ```
 
 ---
 
-Presenta el JSON completo de todas las actividades en un solo bloque de código:
+## 4. Vincular actividades a una lección
 
-```json
-[
-  { ... actividad 1 ... },
-  { ... actividad 2 ... }
-]
-```
-
----
-
-## FASE 4: INSTRUCCIONES DE INSERCIÓN
-
-Después del JSON, muestra estas instrucciones:
-
----
-**Cómo agregar estas actividades:**
-
-1. Ve al **Dashboard de Supabase → SQL Editor**
-2. Para cada actividad ejecuta:
 ```sql
-INSERT INTO activities (title, type, description, points, content)
-VALUES (
-  'Título',
-  'tipo',
-  'Descripción',
-  10,
-  '{"aqui": "el content json"}'::jsonb
-)
-RETURNING id;
+INSERT INTO lesson_activities (lesson_id, activity_id, order_index)
+VALUES
+  ('LESSON_ID', 'ACTIVITY_ID_1', 1),
+  ('LESSON_ID', 'ACTIVITY_ID_2', 2),
+  ('LESSON_ID', 'ACTIVITY_ID_3', 3);
 ```
-3. Guarda el `id` retornado de cada actividad.
-4. En el panel del profesor, selecciona la lección y asigna las actividades en orden.
 
 ---
 
-## FASE 5: CREAR NUEVA LECCIÓN
-
-Finalmente pregunta:
-
-"¿Quieres que te ayude también a estructurar una **nueva lección** para incorporar estas actividades? Si me dices el título, descripción y los pasos de contenido (texto + link del slide), te genero el SQL completo."
-
-Si dice que sí, recopila:
-- Título de la lección
-- Descripción breve
-- Pasos de contenido: para cada paso, (a) texto explicativo, (b) link de slide/iframe, o (c) ambos
-- Link de Google Slides: convierte la URL de edición al formato embed reemplazando `/edit` por `/embed?start=false&loop=false&delayms=3000`
-
-Y genera el SQL:
+## 5. SQL completo de ejemplo
 
 ```sql
 -- 1. Crear lección
 INSERT INTO lessons (title, description, has_production, production_unlock_percentage)
-VALUES ('Título', 'Descripción', false, 80)
+VALUES ('Paradigmas de Investigación', 'Introducción a los enfoques cualitativo, cuantitativo y mixto', true, 80)
 RETURNING id;
+-- Guarda el id retornado como LESSON_ID
 
--- 2. Pasos de contenido (reemplaza LESSON_ID con el id retornado)
+-- 2. Pasos de contenido
 INSERT INTO lesson_steps (lesson_id, step_type, title, content, order_index) VALUES
-('LESSON_ID', 'content', 'Paso 1', '{"text": "...", "url": "EMBED_URL"}'::jsonb, 1);
+('LESSON_ID', 'content', 'Introducción', '{"text": "En esta lección exploraremos los tres grandes paradigmas...", "url": "https://docs.google.com/presentation/d/ID/embed?start=false&loop=false&delayms=3000"}'::jsonb, 1),
+('LESSON_ID', 'content', 'Enfoque Cualitativo', '{"text": "El enfoque cualitativo busca comprender fenómenos..."}'::jsonb, 2);
 
--- 3. Vincular actividades (reemplaza los ids)
-INSERT INTO lesson_activities (lesson_id, activity_id, order_index) VALUES
-('LESSON_ID', 'ACTIVITY_ID_1', 1),
-('LESSON_ID', 'ACTIVITY_ID_2', 2);
+-- 3. Crear actividad
+INSERT INTO activities (title, type, points, content)
+VALUES ('Identifica el paradigma', 'category_sorting', 10,
+  '{"question": "Clasifica:", "categories": ["Cualitativo", "Cuantitativo"], "items": [{"text": "Entrevista", "category": 0}, {"text": "Encuesta numérica", "category": 1}]}'::jsonb)
+RETURNING id;
+-- Guarda el id como ACTIVITY_ID
+
+-- 4. Vincular
+INSERT INTO lesson_activities (lesson_id, activity_id, order_index)
+VALUES ('LESSON_ID', 'ACTIVITY_ID', 1);
 ```
 
 ---
 
-## REGLAS GENERALES
+## 6. Grupos y agrupaciones
 
-- Las actividades deben variar en tipo y aumentar gradualmente en dificultad.
-- Basa todo el contenido en el material que el profesor compartió. No inventes datos.
-- Si el material es audio, pide al profesor que pegue la transcripción o un resumen.
-- Nunca presentes el JSON sin haber obtenido aprobación de la estructura propuesta.
-- Si el profesor pide modificar una actividad, ajusta solo ese ítem y muestra el JSON corregido.
+Los grupos se gestionan desde el panel del profesor en la tab **Grupos** dentro de cada curso. Ver también: [gemini-gem-prompt.md](./gemini-gem-prompt.md) para generar actividades automáticamente con IA.
+
+### Tablas involucradas
+| Tabla | Función |
+|-------|---------|
+| `group_sets` | Agrupación nombrada (ej: "Dinámica Lección 3") |
+| `groups` | Grupo individual dentro de una agrupación |
+| `group_members` | Estudiantes de cada grupo |
+| `group_lesson_assignments` | Lecciones asignadas a un grupo específico |
+| `group_progress` | Progreso compartido del grupo en una lección |
+| `group_activity_completions` | Registro de quién completó cada actividad grupal |
+# Referencia Técnica: Actividades y Lecciones
+
+Guía técnica para crear y poblar lecciones y actividades directamente en la base de datos de Supabase.
+
+---
+
+## Estructura general
+
 ```
+lessons
+  └── lesson_steps       (pasos de contenido: texto, slides, video)
+  └── lesson_activities  (vinculación con actividades evaluativas)
+        └── activities   (banco central reutilizable de actividades)
+```
+
+Una misma actividad puede estar en múltiples lecciones. Una lección puede tener pasos de contenido (slides, texto) intercalados con actividades.
+
+---
+
+## 1. Tabla `lessons`
+
+```sql
+INSERT INTO lessons (title, description, has_production, production_unlock_percentage)
+VALUES (
+  'Título de la lección',
+  'Descripción breve',
+  false,   -- true si requiere producción escrita final
+  80       -- % mínimo en actividades para desbloquear producción
+)
+RETURNING id;
+```
+
+---
+
+## 2. Tabla `lesson_steps` (pasos de contenido)
+
+Cada paso puede ser texto, slide incrustado, video, o combinación.
+
+```sql
+INSERT INTO lesson_steps (lesson_id, step_type, title, content, order_index)
+VALUES (
+  'LESSON_ID',
+  'content',
+  'Título del paso',
+  '{"text": "Texto explicativo...", "url": "URL_EMBED"}'::jsonb,
+  1
+);
+```
+
+**Tipos de paso (`step_type`):** `content`, `video`, `reading_focus`
+
+**URLs de Google Slides:** convierte `/edit` → `/embed?start=false&loop=false&delayms=3000`
+- Original: `https://docs.google.com/presentation/d/ID/edit`
+- Embed: `https://docs.google.com/presentation/d/ID/embed?start=false&loop=false&delayms=3000`
+
+---
+
+## 3. Tabla `activities` — tipos y estructura JSON
+
+### `multiple_choice` / `true_false`
+```json
+{
+  "question": "¿Cuál es el objetivo de la investigación cualitativa?",
+  "options": ["Medir variables", "Comprender fenómenos", "Probar hipótesis", "Generalizar datos"],
+  "correctAnswer": 1
+}
+```
+- `correctAnswer`: índice 0-based de la opción correcta
+- Para V/F omite `options` (usa los valores por defecto "Verdadero"/"Falso")
+
+---
+
+### `matching`
+```json
+{
+  "pairs": [
+    { "left": "Investigación cualitativa", "right": "Datos no numéricos" },
+    { "left": "Investigación cuantitativa", "right": "Datos estadísticos" },
+    { "left": "Investigación mixta", "right": "Ambos enfoques" }
+  ]
+}
+```
+
+---
+
+### `fill_blank`
+```json
+{
+  "text": "La investigación ____ busca comprender fenómenos, mientras que la ____ busca medirlos."
+}
+```
+- Usa `____` (4 guiones bajos) para marcar cada espacio
+
+---
+
+### `ordering`
+```json
+{
+  "items": [
+    "Planteamiento del problema",
+    "Revisión de literatura",
+    "Diseño metodológico",
+    "Recolección de datos",
+    "Análisis e interpretación",
+    "Conclusiones"
+  ]
+}
+```
+- Los ítems se presentan en orden aleatorio al estudiante; el orden correcto es el del array
+
+---
+
+### `error_spotting`
+```json
+{
+  "question": "Identifica los errores metodológicos en el siguiente párrafo:",
+  "text": "El investigador aplicó una encuesta a 5 personas y concluyó que todos los estudiantes de la universidad prefieren el método cualitativo. Además, no se especificó el instrumento de validación.",
+  "errors": ["5 personas", "todos los estudiantes", "no se especificó el instrumento"],
+  "explanation": "Una muestra de 5 personas no es representativa para generalizar. Se deben especificar los instrumentos de validación."
+}
+```
+
+---
+
+### `category_sorting`
+```json
+{
+  "question": "Clasifica los siguientes elementos según su tipo de investigación:",
+  "categories": ["Cualitativa", "Cuantitativa"],
+  "items": [
+    { "text": "Encuesta con escala Likert", "category": 1 },
+    { "text": "Entrevista a profundidad", "category": 0 },
+    { "text": "Experimento controlado", "category": 1 },
+    { "text": "Grupo focal", "category": 0 }
+  ]
+}
+```
+- `category`: índice 0-based del array `categories`
+
+---
+
+### `matrix_grid`
+```json
+{
+  "question": "Relaciona cada enfoque con su característica principal:",
+  "rows": ["Cualitativo", "Cuantitativo", "Mixto"],
+  "columns": ["Flexible", "Estructurado", "Integrador"],
+  "correct_map": [[0, 0], [1, 1], [2, 2]]
+}
+```
+- `correct_map`: lista de pares `[índice_fila, índice_columna]` correctos
+
+---
+
+### `short_answer`
+```json
+{
+  "question": "¿Qué es la triangulación en investigación?",
+  "expectedKeywords": ["múltiples", "fuentes", "validez", "métodos", "datos"]
+}
+```
+
+---
+
+### `long_response`
+```json
+{
+  "question": "Explica la diferencia entre validez interna y validez externa en un diseño experimental.",
+  "min_characters": 300,
+  "max_characters": 1500,
+  "show_word_count": true
+}
+```
+
+---
+
+### `essay`
+```json
+{
+  "prompt": "Argumenta por qué la selección del método de investigación debe responder al problema planteado y no a la preferencia del investigador.",
+  "minWords": 250
+}
+```
+
+---
+
+### `structured_essay`
+```json
+{
+  "question": "Redacta un ensayo académico sobre la importancia de la ética en la investigación científica.",
+  "sections": [
+    {
+      "label": "Introducción",
+      "min_words": 80,
+      "placeholder": "Presenta el tema, su relevancia y tu tesis principal..."
+    },
+    {
+      "label": "Desarrollo",
+      "min_words": 200,
+      "placeholder": "Argumenta con evidencia teórica y ejemplos concretos. Incluye citas APA..."
+    },
+    {
+      "label": "Conclusión",
+      "min_words": 60,
+      "placeholder": "Sintetiza tus argumentos y plantea una reflexión final..."
+    }
+  ],
+  "rubric_criteria": [
+    "Coherencia y cohesión del argumento",
+    "Uso correcto de citas APA",
+    "Gramática y ortografía",
+    "Profundidad del análisis"
+  ]
+}
+```
+
+---
+
+## 4. Vincular actividades a una lección
+
+```sql
+INSERT INTO lesson_activities (lesson_id, activity_id, order_index)
+VALUES
+  ('LESSON_ID', 'ACTIVITY_ID_1', 1),
+  ('LESSON_ID', 'ACTIVITY_ID_2', 2),
+  ('LESSON_ID', 'ACTIVITY_ID_3', 3);
+```
+
+---
+
+## 5. SQL completo de ejemplo
+
+```sql
+-- 1. Crear lección
+INSERT INTO lessons (title, description, has_production, production_unlock_percentage)
+VALUES ('Paradigmas de Investigación', 'Introducción a los enfoques cualitativo, cuantitativo y mixto', true, 80)
+RETURNING id;
+-- Guarda el id retornado como LESSON_ID
+
+-- 2. Pasos de contenido
+INSERT INTO lesson_steps (lesson_id, step_type, title, content, order_index) VALUES
+('LESSON_ID', 'content', 'Introducción', '{"text": "En esta lección exploraremos los tres grandes paradigmas...", "url": "https://docs.google.com/presentation/d/ID/embed?start=false&loop=false&delayms=3000"}'::jsonb, 1),
+('LESSON_ID', 'content', 'Enfoque Cualitativo', '{"text": "El enfoque cualitativo busca comprender fenómenos..."}'::jsonb, 2);
+
+-- 3. Crear actividad
+INSERT INTO activities (title, type, points, content)
+VALUES ('Identifica el paradigma', 'category_sorting', 10,
+  '{"question": "Clasifica:", "categories": ["Cualitativo", "Cuantitativo"], "items": [{"text": "Entrevista", "category": 0}, {"text": "Encuesta numérica", "category": 1}]}'::jsonb)
+RETURNING id;
+-- Guarda el id como ACTIVITY_ID
+
+-- 4. Vincular
+INSERT INTO lesson_activities (lesson_id, activity_id, order_index)
+VALUES ('LESSON_ID', 'ACTIVITY_ID', 1);
+```
+
+---
+
+## 6. Grupos y agrupaciones
+
+Los grupos se gestionan desde el panel del profesor en la tab **Grupos** dentro de cada curso. Ver también: [gemini-gem-prompt.md](./gemini-gem-prompt.md) para generar actividades automáticamente con IA.
+
+### Tablas involucradas
+| Tabla | Función |
+|-------|---------|
+| `group_sets` | Agrupación nombrada (ej: "Dinámica Lección 3") |
+| `groups` | Grupo individual dentro de una agrupación |
+| `group_members` | Estudiantes de cada grupo |
+| `group_lesson_assignments` | Lecciones asignadas a un grupo específico |
+| `group_progress` | Progreso compartido del grupo en una lección |
+| `group_activity_completions` | Registro de quién completó cada actividad grupal |
