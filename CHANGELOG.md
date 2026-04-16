@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Activity management in lessons**: Fixed display of activity titles when editing existing lessons. Now professors can properly view, add, reorder, and remove activities within lessons via the LessonEditor.
+
 ## [0.5.0] — 2026-04-12
 
 ### Added

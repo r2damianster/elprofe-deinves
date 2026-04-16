@@ -47,10 +47,10 @@ src/
 │   │   ├── StudentManager.tsx       # Manage course students
 │   │   └── studio/                  # Content Studio — professor content creation
 │   │       ├── ContentStudio.tsx
-│   │       ├── LessonEditor.tsx
-│   │       ├── ActivityEditor.tsx
-│   │       ├── ActivityBank.tsx
-│   │       └── MediaUploader.tsx
+│   │       ├── LessonEditor.tsx     # Lesson CRUD + step builder (text, video, slides, image, audio, link, activity)
+│   │       ├── ActivityEditor.tsx   # Activity CRUD
+│   │       ├── ActivityBank.tsx     # Activity library with search/filter + "Add to lesson" for LessonEditor
+│   │       └── MediaUploader.tsx    # File upload to Supabase Storage
 │   └── student/
 │       ├── StudentDashboard.tsx     # Tabs: lessons | groups | my results
 │       ├── LessonViewer.tsx         # Step-by-step lesson progression

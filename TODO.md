@@ -15,3 +15,4 @@
 - [x] Content Studio
 - [x] Presentaciones en tiempo real
 - [x] Módulo Mis Resultados
+- [x] Gestión de actividades dentro de lecciones (ver, agregar, reordenar, eliminar)

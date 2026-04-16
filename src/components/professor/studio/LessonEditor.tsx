@@ -275,6 +275,22 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
     })();
   }, [lesson?.id]);
 
+  // Cargar títulos de actividades para pasos existentes
+  useEffect(() => {
+    if (!lesson?.content) return;
+    const activityIds = lesson.content.filter((s: any) => s.type === 'activity' && s.activity_id).map((s: any) => s.activity_id);
+    if (activityIds.length === 0) return;
+    (async () => {
+      const { data } = await supabase.from('activities').select('id, title').in('id', activityIds);
+      if (data) {
+        const titleMap = new Map(data.map(a => [a.id, a.title]));
+        setSteps(prev => prev.map(step => 
+          step.type === 'activity' && step.activity_id ? { ...step, _activity_title: titleMap.get(step.activity_id) } : step
+        ));
+      }
+    })();
+  }, [lesson?.content]);
+
   // Mover paso
   function moveStep(idx: number, dir: 'up' | 'down') {
     const newSteps = [...steps];
