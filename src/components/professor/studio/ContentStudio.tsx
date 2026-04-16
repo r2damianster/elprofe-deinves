@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import LessonEditor from './LessonEditor';
 import ActivityBank from './ActivityBank';
+import LessonAssembler from './LessonAssembler';
 import { resolveField } from '../../../lib/i18n';
 
 interface Lesson {
@@ -21,7 +22,7 @@ interface Lesson {
   created_at: string;
 }
 
-type StudioView = 'lessons' | 'activities';
+type StudioView = 'lessons' | 'activities' | 'assign';
 
 export default function ContentStudio() {
   const { profile } = useAuth();
@@ -104,6 +105,14 @@ export default function ContentStudio() {
           }`}
         >
           <Library className="w-4 h-4" /> Banco de Actividades
+        </button>
+        <button
+          onClick={() => setView('assign')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+            view === 'assign' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" /> Asignar Actividades
         </button>
       </div>
 
@@ -233,6 +242,13 @@ export default function ContentStudio() {
       {view === 'activities' && (
         <div className="min-h-[500px]">
           <ActivityBank />
+        </div>
+      )}
+
+      {/* ── Vista: Asignador de lecciones ── */}
+      {view === 'assign' && (
+        <div className="-mx-2 -mt-2">
+          <LessonAssembler />
         </div>
       )}
     </div>

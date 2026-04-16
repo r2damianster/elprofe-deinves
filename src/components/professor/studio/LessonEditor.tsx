@@ -6,7 +6,6 @@ import {
   BookOpen, Video, Image, Link2, FileText, Settings, X, AlertTriangle,
 } from 'lucide-react';
 import MediaUploader from './MediaUploader';
-import ActivityBank from './ActivityBank';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -236,7 +235,6 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
 
   // Pasos
   const [steps, setSteps] = useState<ContentStep[]>(lesson?.content ?? []);
-  const [showActivityBank, setShowActivityBank] = useState(false);
 
   // Producción
   const [hasProduction, setHasProduction] = useState(lesson?.has_production ?? false);
@@ -304,11 +302,6 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
     if (type === 'text')   Object.assign(base, { content: { es: '', en: '' } });
     if (['video','slides','image','audio','link'].includes(type)) Object.assign(base, { url: '', caption: { es: '', en: '' } });
     setSteps(prev => [...prev, base]);
-  }
-
-  function addActivityStep(activity: { id: string; title: string }) {
-    setSteps(prev => [...prev, { type: 'activity', activity_id: activity.id, _activity_title: activity.title }]);
-    setShowActivityBank(false);
   }
 
   // IA
@@ -396,8 +389,6 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
       setSaving(false);
     }
   }
-
-  const linkedIds = new Set(steps.filter(s => s.type === 'activity').map(s => s.activity_id!));
 
   return (
     <div className="flex flex-col h-full">
@@ -517,10 +508,6 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
                 <Plus className="w-3.5 h-3.5" /> {STEP_LABELS[type]}
               </button>
             ))}
-            <button onClick={() => setShowActivityBank(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-blue-300 rounded-lg text-sm text-blue-700 hover:bg-blue-50 transition bg-blue-50 font-medium">
-              <Plus className="w-3.5 h-3.5" /> Actividad del banco
-            </button>
           </div>
         </section>
 
@@ -639,25 +626,6 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
         </button>
       </div>
 
-      {/* Modal banco de actividades */}
-      {showActivityBank && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h3 className="font-bold text-gray-800">Banco de actividades</h3>
-              <button onClick={() => setShowActivityBank(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <ActivityBank
-                onSelectForLesson={a => addActivityStep({ id: a.id, title: a.title })}
-                linkedIds={linkedIds}
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
