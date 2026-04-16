@@ -205,24 +205,28 @@ export default function GroupManager({ courseId }: Props) {
 
       if (createMode === 'random' && randomPreview) {
         for (const g of randomPreview) {
-          const { data: created } = await supabase.from('groups')
+          const { data: created, error: groupErr } = await supabase.from('groups')
             .insert({ course_id: courseId, name: g.name, created_by: profile?.id, group_set_id: setData.id })
             .select().single();
+          if (groupErr) throw groupErr;
+          
           if (created && g.members.length > 0) {
-            await supabase.from('group_members').insert(
+            const { error: memberErr } = await supabase.from('group_members').insert(
               g.members.map(m => ({ group_id: created.id, student_id: m.id }))
             );
+            if (memberErr) throw memberErr;
           }
         }
         setRandomPreview(null);
       } else if (createMode === 'affinity') {
         const max = affinityMax === '' ? null : Number(affinityMax);
         for (let i = 1; i <= affinityCount; i++) {
-          await supabase.from('groups').insert({
+          const { error: affErr } = await supabase.from('groups').insert({
             course_id: courseId, name: `Grupo ${i}`,
             created_by: profile?.id, group_set_id: setData.id,
             enrollment_open: true, max_members: max,
           });
+          if (affErr) throw affErr;
         }
       }
       // manual: empty set, professor adds groups inside
@@ -491,9 +495,14 @@ export default function GroupManager({ courseId }: Props) {
                   className="w-16 border border-gray-300 rounded px-2 py-1 text-sm" />
               </div>
               <span className="text-xs text-gray-500">
-                {courseStudents.length} estudiantes → ~{Math.ceil(courseStudents.length / randomSize)} grupos
+                {courseStudents.length} estudiantes matriculados → ~{Math.ceil(courseStudents.length / randomSize)} grupos
               </span>
-              <button onClick={generatePreview}
+              {courseStudents.length === 0 && (
+                <p className="text-xs text-amber-600 w-full mt-1">
+                  Requiere que los estudiantes ya estén matriculados en el curso, no importa si están conectados. Usa modo "Por afinidad" o "Manual" para crear grupos vacíos ahora.
+                </p>
+              )}
+              <button onClick={generatePreview} disabled={courseStudents.length === 0}
                 className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700 transition">
                 <Shuffle className="w-3.5 h-3.5" /> Preview
               </button>
@@ -641,17 +650,26 @@ export default function GroupManager({ courseId }: Props) {
                       ) : (
                         <div className="space-y-1">
                           <div className="flex gap-2">
-                            <select value={addingLessonToSet[set.id] || ''}
-                              onChange={e => setAddingLessonToSet(prev => ({ ...prev, [set.id]: e.target.value }))}
-                              className="flex-1 border border-green-300 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-400">
-                              <option value="">Asignar lección a todos los grupos...</option>
+                            <select value=""
+                              onChange={async e => {
+                                const val = e.target.value;
+                                if (!val) return;
+                                setAddingLessonToSet(prev => ({ ...prev, [set.id]: val }));
+                                // Wait a tick to allow state to update, then assign
+                                setTimeout(() => {
+                                  assignLessonToSet(set.id);
+                                }, 0);
+                              }}
+                              disabled={groups.length === 0}
+                              className="flex-1 border border-green-300 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-50">
+                              <option value="">{groups.length === 0 ? "Agrega grupos primero..." : "Selecciona para asignar lección a todos..."}</option>
                               {unassigned.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
                             </select>
                             <button onClick={() => assignLessonToSet(set.id)}
                               disabled={!addingLessonToSet[set.id] || groups.length === 0}
                               title={groups.length === 0 ? 'Agrega al menos un grupo primero' : 'Asignar a todos los grupos'}
-                              className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition">
-                              <Plus className="w-3.5 h-3.5" />
+                              className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50 transition flex items-center gap-1 hidden">
+                              <Plus className="w-3.5 h-3.5" /> Asignar
                             </button>
                           </div>
                           {groups.length === 0 && (
