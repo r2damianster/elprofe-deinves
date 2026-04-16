@@ -263,6 +263,7 @@ export interface Database {
           required_words?: string[];
           prohibited_words?: string[];
           instructions?: string | null;
+          extra_rules?: any;
         };
         Update: {
           id?: string;
@@ -271,6 +272,7 @@ export interface Database {
           required_words?: string[];
           prohibited_words?: string[];
           instructions?: string | null;
+          extra_rules?: any;
         };
       };
       productions: {
@@ -286,6 +288,8 @@ export interface Database {
           attempts: number;
           compliance_score: number;
           integrity_score: number;
+          integrity_events: any[];
+          time_on_task: number;
           created_at: string;
           submitted_at: string | null;
           reviewed_at: string | null;
@@ -302,6 +306,8 @@ export interface Database {
           attempts?: number;
           compliance_score?: number;
           integrity_score?: number;
+          integrity_events?: any[];
+          time_on_task?: number;
           created_at?: string;
           submitted_at?: string | null;
           reviewed_at?: string | null;
@@ -316,6 +322,8 @@ export interface Database {
           attempts?: number;
           compliance_score?: number;
           integrity_score?: number;
+          integrity_events?: any[];
+          time_on_task?: number;
           submitted_at?: string | null;
           reviewed_at?: string | null;
         };
