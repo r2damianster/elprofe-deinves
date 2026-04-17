@@ -14,7 +14,7 @@ interface Lesson {
 
 interface Activity {
   id: string;
-  title: string;
+  title: any;
   type: string;
   topic?: string;
   level?: string;
@@ -49,8 +49,7 @@ export default function LessonAssembler() {
 
         const { data: activitiesData, error: activitiesErr } = await supabase
           .from('activities')
-          .select('id, title, type, topic, level')
-          .eq('created_by', profile?.id)
+          .select('*')
           .order('created_at', { ascending: false });
           
         if (activitiesErr) throw activitiesErr;
@@ -271,7 +270,7 @@ export default function LessonAssembler() {
                             </div>
                             
                             <p className={`font-medium truncate ${isActivity ? 'text-blue-900' : 'text-gray-700'}`}>
-                              {isActivity ? getActivityTitle(step) : (step.caption?.es || step.content?.es || 'Paso multimedia')}
+                              {isActivity ? resolveField(getActivityTitle(step), 'es') : (step.caption?.es || step.content?.es || 'Paso multimedia')}
                             </p>
                           </div>
                           
@@ -325,7 +324,7 @@ export default function LessonAssembler() {
                   ) : (
                     activities.map(act => (
                       <div key={act.id} className="p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition group">
-                        <p className="font-medium text-sm text-gray-800 line-clamp-2">{act.title}</p>
+                        <p className="font-medium text-sm text-gray-800 line-clamp-2">{resolveField(act.title, 'es')}</p>
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-[10px] uppercase font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
                             {act.type}
