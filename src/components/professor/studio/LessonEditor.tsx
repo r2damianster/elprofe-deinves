@@ -93,21 +93,20 @@ const STEP_LABELS: Record<StepType, string> = {
 // ─── Editor de un paso individual ────────────────────────────────────────────
 
 function StepCard({
-  step, index, total, onChange, onRemove, onMove, activeLang
+  step, index, total, onChange, onRemove, onMove
 }: {
   step: ContentStep; index: number; total: number;
   onChange: (s: ContentStep) => void;
   onRemove: () => void;
   onMove: (dir: 'up' | 'down') => void;
-  activeLang: Lang;
 }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
-    <div className="border border-gray-200 rounded-xl bg-white overflow-hidden">
+    <div className="border border-gray-200 rounded-xl bg-white overflow-hidden shadow-sm">
       {/* Header del paso */}
       <div
-        className="flex items-center gap-2 px-3 py-2 bg-gray-50 cursor-pointer select-none"
+        className="flex items-center gap-2 px-3 py-2 bg-gray-50 cursor-pointer select-none border-b border-gray-100"
         onClick={() => setExpanded(e => !e)}
       >
         <span className="text-gray-400">{STEP_ICONS[step.type]}</span>
@@ -116,47 +115,65 @@ function StepCard({
           {step.type === 'activity' && step._activity_title && (
             <span className="ml-2 text-xs text-blue-600 font-normal">— {step._activity_title}</span>
           )}
-          {step.type === 'text' && step.content?.[activeLang] && (
+          {step.type === 'text' && step.content?.es && (
             <span className="ml-2 text-xs text-gray-400 font-normal truncate">
-              — {step.content[activeLang].slice(0, 40)}...
+              — {step.content.es.slice(0, 40)}...
             </span>
           )}
         </span>
         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
           <button onClick={() => onMove('up')} disabled={index === 0} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
           <button onClick={() => onMove('down')} disabled={index === total - 1} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
-          <button onClick={onRemove} className="p-1 text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
+          <button onClick={onRemove} className="p-1 text-red-400 hover:text-red-600 ml-2"><X className="w-4 h-4" /></button>
         </div>
       </div>
 
       {/* Contenido del paso */}
       {expanded && (
-        <div className="px-4 py-3">
+        <div className="px-4 py-4">
           {step.type === 'text' && (
-            <div>
-              <label className="label-sm">Contenido ({activeLang === 'es' ? 'Español' : 'English'})</label>
-              <textarea
-                rows={4}
-                value={step.content?.[activeLang] ?? ''}
-                onChange={e => onChange({ ...step, content: { ...step.content, [activeLang]: e.target.value } as any })}
-                className="input-field text-sm"
-                placeholder={activeLang === 'es' ? 'Escribe el contenido en español...' : 'Write the content in English...'}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="label-sm">Contenido (🇪🇸)</label>
+                <textarea
+                  rows={4}
+                  value={step.content?.es ?? ''}
+                  onChange={e => onChange({ ...step, content: { ...step.content, es: e.target.value } as any })}
+                  className="input-field text-sm"
+                  placeholder="Escribe el contenido en español..."
+                />
+              </div>
+              <div>
+                <label className="label-sm">Content (🇺🇸)</label>
+                <textarea
+                  rows={4}
+                  value={step.content?.en ?? ''}
+                  onChange={e => onChange({ ...step, content: { ...step.content, en: e.target.value } as any })}
+                  className="input-field text-sm"
+                  placeholder="Write the content in English..."
+                />
+              </div>
             </div>
           )}
 
           {step.type === 'video' && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <MediaUploader value={step.url ?? ''} onChange={url => onChange({ ...step, url })} accept="video" label="URL del video (YouTube, Vimeo, MP4...)" />
-              <div>
-                <label className="label-sm">Pie de video ({activeLang === 'es' ? 'ES' : 'EN'})</label>
-                <input type="text" value={step.caption?.[activeLang] ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, [activeLang]: e.target.value } as any })} className="input-field" placeholder="Descripción opcional..." />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label-sm">Pie de video (🇪🇸)</label>
+                  <input type="text" value={step.caption?.es ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, es: e.target.value } as any })} className="input-field" placeholder="Ver el siguiente video..." />
+                </div>
+                <div>
+                  <label className="label-sm">Caption (🇺🇸)</label>
+                  <input type="text" value={step.caption?.en ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, en: e.target.value } as any })} className="input-field" placeholder="Watch the following video..." />
+                </div>
               </div>
             </div>
           )}
 
           {step.type === 'slides' && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
                 <label className="label-sm">URL de la presentación</label>
                 <p className="text-xs text-gray-400 mb-1">Google Slides: Archivo → Publicar → Insertar (usa la URL del iframe). PowerPoint Online: Archivo → Compartir → Insertar.</p>
@@ -168,48 +185,72 @@ function StepCard({
                   placeholder="https://docs.google.com/presentation/d/..."
                 />
               </div>
-              <div>
-                <label className="label-sm">Título ({activeLang === 'es' ? 'ES' : 'EN'})</label>
-                <input type="text" value={step.caption?.[activeLang] ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, [activeLang]: e.target.value } as any })} className="input-field" placeholder="Nombre de la presentación..." />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label-sm">Título (🇪🇸)</label>
+                  <input type="text" value={step.caption?.es ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, es: e.target.value } as any })} className="input-field" placeholder="Título de la presentación" />
+                </div>
+                <div>
+                  <label className="label-sm">Title (🇺🇸)</label>
+                  <input type="text" value={step.caption?.en ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, en: e.target.value } as any })} className="input-field" placeholder="Presentation title" />
+                </div>
               </div>
             </div>
           )}
 
           {step.type === 'image' && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <MediaUploader value={step.url ?? ''} onChange={url => onChange({ ...step, url })} accept="image" label="Imagen" />
-              <div>
-                <label className="label-sm">Descripción ({activeLang === 'es' ? 'ES' : 'EN'})</label>
-                <input type="text" value={step.caption?.[activeLang] ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, [activeLang]: e.target.value } as any })} className="input-field" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label-sm">Descripción (🇪🇸)</label>
+                  <input type="text" value={step.caption?.es ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, es: e.target.value } as any })} className="input-field" />
+                </div>
+                <div>
+                  <label className="label-sm">Description (🇺🇸)</label>
+                  <input type="text" value={step.caption?.en ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, en: e.target.value } as any })} className="input-field" />
+                </div>
               </div>
             </div>
           )}
 
           {step.type === 'audio' && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <MediaUploader value={step.url ?? ''} onChange={url => onChange({ ...step, url })} accept="audio" label="Audio" />
-              <div>
-                <label className="label-sm">Descripción ({activeLang === 'es' ? 'ES' : 'EN'})</label>
-                <input type="text" value={step.caption?.[activeLang] ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, [activeLang]: e.target.value } as any })} className="input-field" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label-sm">Descripción (🇪🇸)</label>
+                  <input type="text" value={step.caption?.es ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, es: e.target.value } as any })} className="input-field" />
+                </div>
+                <div>
+                  <label className="label-sm">Description (🇺🇸)</label>
+                  <input type="text" value={step.caption?.en ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, en: e.target.value } as any })} className="input-field" />
+                </div>
               </div>
             </div>
           )}
 
           {step.type === 'link' && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
                 <label className="label-sm">URL</label>
                 <input type="url" value={step.url ?? ''} onChange={e => onChange({ ...step, url: e.target.value })} className="input-field" placeholder="https://..." />
               </div>
-              <div>
-                <label className="label-sm">Texto del enlace ({activeLang === 'es' ? 'ES' : 'EN'})</label>
-                <input type="text" value={step.caption?.[activeLang] ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, [activeLang]: e.target.value } as any })} className="input-field" placeholder="Ver recurso..." />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label-sm">Texto del enlace (🇪🇸)</label>
+                  <input type="text" value={step.caption?.es ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, es: e.target.value } as any })} className="input-field" placeholder="Ver recurso..." />
+                </div>
+                <div>
+                  <label className="label-sm">Link text (🇺🇸)</label>
+                  <input type="text" value={step.caption?.en ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, en: e.target.value } as any })} className="input-field" placeholder="View resource..." />
+                </div>
               </div>
             </div>
           )}
 
           {step.type === 'activity' && (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 bg-blue-50 p-3 rounded-lg border border-blue-100">
               Actividad vinculada: <strong className="text-blue-700">{step._activity_title ?? step.activity_id}</strong>
             </p>
           )}
@@ -231,7 +272,6 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
   const [descEs,  setDescEs]        = useState(lesson?.description?.es ?? lesson?.description ?? '');
   const [descEn,  setDescEn]        = useState(lesson?.description?.en ?? '');
   const [orderIndex, setOrderIndex] = useState(lesson?.order_index ?? 0);
-  const [activeLang, setActiveLang] = useState<Lang>('es');
 
   // Pasos
   const [steps, setSteps] = useState<ContentStep[]>(lesson?.content ?? []);
@@ -305,21 +345,21 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
   }
 
   // IA
-  async function improveTitle() {
-    const title = activeLang === 'es' ? titleEs : titleEn;
-    const improved = await enhance('improve_title', activeLang, { title });
-    if (improved) { activeLang === 'es' ? setTitleEs(improved) : setTitleEn(improved); }
+  async function improveTitle(lang: Lang) {
+    const title = lang === 'es' ? titleEs : titleEn;
+    const improved = await enhance('improve_title', lang, { title });
+    if (improved) { lang === 'es' ? setTitleEs(improved) : setTitleEn(improved); }
   }
 
-  async function generateDesc() {
-    const title = activeLang === 'es' ? titleEs : titleEn;
-    const improved = await enhance('improve_description', activeLang, { title });
-    if (improved) { activeLang === 'es' ? setDescEs(improved) : setDescEn(improved); }
+  async function generateDesc(lang: Lang) {
+    const title = lang === 'es' ? titleEs : titleEn;
+    const improved = await enhance('improve_description', lang, { title });
+    if (improved) { lang === 'es' ? setDescEs(improved) : setDescEn(improved); }
   }
 
-  async function suggestWords() {
-    const title = activeLang === 'es' ? titleEs : titleEn;
-    const result = await enhance('suggest_required_words', activeLang, { lessonTitle: title });
+  async function suggestWords(lang: Lang) {
+    const title = lang === 'es' ? titleEs : titleEn;
+    const result = await enhance('suggest_required_words', lang, { lessonTitle: title });
     if (result?.required_words) {
       setProdRules(r => ({ ...r, required_words: result.required_words.join(', ') }));
     }
@@ -327,7 +367,7 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
 
   // Guardar
   async function handleSave() {
-    if (!titleEs.trim()) { setError('El título en español es obligatorio'); return; }
+    if (!titleEs.trim() && !titleEn.trim()) { setError('Debes proveer un título en al menos un idioma.'); return; }
     setSaving(true); setError('');
 
     // Limpiar helpers internos antes de guardar
@@ -391,26 +431,18 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white relative">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-lg font-bold text-gray-800">
-          {lesson?.id ? 'Editar lección' : 'Nueva lección'}
-        </h2>
-        <div className="flex items-center gap-2">
-          {/* Selector idioma */}
-          <div className="flex border border-gray-200 rounded-lg overflow-hidden text-sm">
-            {(['es', 'en'] as Lang[]).map(lang => (
-              <button key={lang} type="button" onClick={() => setActiveLang(lang)}
-                className={`px-3 py-1.5 font-medium transition ${activeLang === lang ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
-                {lang === 'es' ? '🇪🇸' : '🇺🇸'} {lang.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          <button onClick={onCancel} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5" />
-          </button>
+      <div className="flex items-center justify-between mb-5 px-1">
+        <div>
+           <h2 className="text-xl font-bold text-gray-800">
+             {lesson?.id ? 'Editar lección bilingüe' : 'Nueva lección bilingüe'}
+           </h2>
+           <p className="text-xs text-gray-500 mt-1">Puedes completar los datos en un solo idioma o en ambos para soportar modalidad bilingüe.</p>
         </div>
+        <button onClick={onCancel} className="p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 rounded-lg transition-colors">
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {hasStudents && (
@@ -420,79 +452,108 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+      <div className="flex-1 overflow-y-auto space-y-8 pr-2 custom-scrollbar">
         {/* ── Metadatos ── */}
         <section className="space-y-4">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Metadatos</h3>
+          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide border-b border-gray-100 pb-2">Metadatos Principales</h3>
 
-          {/* Título */}
-          <div>
-            <label className="label-sm">
-              Título {activeLang === 'es' ? '(Español) *' : '(English)'}
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={activeLang === 'es' ? titleEs : titleEn}
-                onChange={e => activeLang === 'es' ? setTitleEs(e.target.value) : setTitleEn(e.target.value)}
-                className="input-field flex-1"
-                placeholder={activeLang === 'es' ? 'Ej: Saludos básicos en inglés' : 'E.g.: Basic greetings in English'}
-              />
-              <button onClick={improveTitle} disabled={aiLoading === 'improve_title' + activeLang || !(activeLang === 'es' ? titleEs : titleEn)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-sm hover:bg-purple-100 disabled:opacity-40">
-                {aiLoading === 'improve_title' + activeLang ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
-              </button>
+          {/* Títulos */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="label-sm">Título (🇪🇸)</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={titleEs}
+                  onChange={e => setTitleEs(e.target.value)}
+                  className="input-field flex-1"
+                  placeholder="Ej: Saludos básicos en inglés"
+                />
+                <button onClick={() => improveTitle('es')} disabled={aiLoading === 'improve_titlees' || !titleEs}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 disabled:opacity-40 transition">
+                  {aiLoading === 'improve_titlees' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="label-sm">Title (🇺🇸)</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={titleEn}
+                  onChange={e => setTitleEn(e.target.value)}
+                  className="input-field flex-1"
+                  placeholder="E.g.: Basic greetings in English"
+                />
+                <button onClick={() => improveTitle('en')} disabled={aiLoading === 'improve_titleen' || !titleEn}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 disabled:opacity-40 transition">
+                  {aiLoading === 'improve_titleen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Descripción */}
-          <div>
-            <label className="label-sm">
-              Descripción {activeLang === 'es' ? '(Español)' : '(English)'}
-            </label>
-            <div className="flex gap-2">
-              <textarea
-                rows={2}
-                value={activeLang === 'es' ? descEs : descEn}
-                onChange={e => activeLang === 'es' ? setDescEs(e.target.value) : setDescEn(e.target.value)}
-                className="input-field flex-1"
-                placeholder={activeLang === 'es' ? 'Breve descripción de la lección...' : 'Brief lesson description...'}
-              />
-              <button onClick={generateDesc} disabled={aiLoading === 'improve_description' + activeLang || !(activeLang === 'es' ? titleEs : titleEn)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-sm hover:bg-purple-100 disabled:opacity-40 self-start">
-                {aiLoading === 'improve_description' + activeLang ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
-              </button>
+          {/* Descripciones */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="label-sm">Descripción (🇪🇸)</label>
+              <div className="flex gap-2">
+                <textarea
+                  rows={2}
+                  value={descEs}
+                  onChange={e => setDescEs(e.target.value)}
+                  className="input-field flex-1"
+                />
+                <button onClick={() => generateDesc('es')} disabled={aiLoading === 'improve_descriptiones' || !titleEs}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 disabled:opacity-40 self-start transition">
+                  {aiLoading === 'improve_descriptiones' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="label-sm">Description (🇺🇸)</label>
+              <div className="flex gap-2">
+                <textarea
+                  rows={2}
+                  value={descEn}
+                  onChange={e => setDescEn(e.target.value)}
+                  className="input-field flex-1"
+                />
+                <button onClick={() => generateDesc('en')} disabled={aiLoading === 'improve_descriptionen' || !titleEn}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 disabled:opacity-40 self-start transition">
+                  {aiLoading === 'improve_descriptionen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="w-32">
-            <label className="label-sm">Orden</label>
-            <input type="number" min={0} value={orderIndex} onChange={e => setOrderIndex(Number(e.target.value))} className="input-field" />
+            <label className="label-sm">Orden de Lección</label>
+            <input type="number" min={0} value={orderIndex} onChange={e => setOrderIndex(Number(e.target.value))} className="input-field text-center font-bold text-gray-700" />
           </div>
         </section>
 
         {/* ── Constructor de pasos ── */}
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-              Pasos de la lección ({steps.length})
+        <section className="space-y-4">
+          <div className="flex items-center justify-between pb-2">
+            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+              Contenido de la Lección ({steps.length} pasos)
             </h3>
           </div>
 
           {steps.length === 0 && (
-            <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
-              La lección está vacía. Agrega pasos usando los botones de abajo.
+            <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm bg-gray-50/50">
+              La lección está vacía. Empecemos agregando tu primer bloque interactivo.
             </div>
           )}
 
-          <div className="space-y-2 mb-3">
+          <div className="space-y-4">
             {steps.map((step, idx) => (
               <StepCard
                 key={idx}
                 step={step}
                 index={idx}
                 total={steps.length}
-                activeLang={activeLang}
                 onChange={updated => setSteps(prev => prev.map((s, i) => i === idx ? updated : s))}
                 onRemove={() => setSteps(prev => prev.filter((_, i) => i !== idx))}
                 onMove={dir => moveStep(idx, dir)}
@@ -501,128 +562,152 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
           </div>
 
           {/* Botones agregar paso */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 pt-2">
             {(['text','video','slides','image','audio','link'] as StepType[]).map(type => (
               <button key={type} onClick={() => addStep(type)}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:border-blue-400 hover:text-blue-700 transition bg-white">
-                <Plus className="w-3.5 h-3.5" /> {STEP_LABELS[type]}
+                className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 shadow-sm rounded-lg text-sm font-medium text-gray-600 hover:border-blue-400 hover:text-blue-700 transition bg-white">
+                <Plus className="w-4 h-4" /> {STEP_LABELS[type]}
               </button>
             ))}
           </div>
         </section>
 
         {/* ── Producción ── */}
-        <section className="border border-gray-200 rounded-xl overflow-hidden">
+        <section className="border border-purple-200 rounded-xl overflow-hidden shadow-sm">
           <div
-            className="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer"
+            className="flex items-center justify-between px-5 py-4 bg-purple-50 cursor-pointer hover:bg-purple-100/50 transition-colors"
             onClick={() => setHasProduction(p => !p)}
           >
-            <div className="flex items-center gap-3">
-              <input type="checkbox" checked={hasProduction} onChange={() => {}} className="accent-blue-600 w-4 h-4" />
+            <div className="flex items-center gap-4">
+              <input type="checkbox" checked={hasProduction} onChange={() => {}} className="accent-purple-600 w-5 h-5 cursor-pointer" />
               <div>
-                <p className="text-sm font-semibold text-gray-700">Actividad de Producción</p>
-                <p className="text-xs text-gray-400">El estudiante escribe un texto libre evaluado por el profesor</p>
+                <p className="text-sm font-bold text-purple-900">Actividad de Producción Final (Requisito Integrador)</p>
+                <p className="text-xs text-purple-700/70 mt-0.5">El estudiante escribe un texto libre estructurado evaluado por el profesor como cierre de lección</p>
               </div>
             </div>
           </div>
 
           {hasProduction && (
-            <div className="px-4 py-4 space-y-4">
+            <div className="px-5 py-5 space-y-6 bg-white border-t border-purple-100">
               {loadingRules && <div className="flex items-center gap-2 text-sm text-gray-400"><Loader2 className="w-4 h-4 animate-spin" /> Cargando reglas...</div>}
 
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="label-sm">% mínimo para desbloquear</label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="label-sm">% Mínimo en Actividades</label>
                   <input type="number" min={0} max={100} value={unlockPct} onChange={e => setUnlockPct(Number(e.target.value))} className="input-field" />
-                  <p className="text-xs text-gray-400 mt-1">El estudiante debe completar este % de actividades antes de acceder a la producción</p>
+                  <p className="text-xs text-gray-400 mt-1">El estudiante debe completar este % interactivo para acceder.</p>
                 </div>
-                <div className="flex-1">
+                <div>
                   <label className="label-sm">Mínimo de palabras</label>
                   <input type="number" min={0} value={prodRules.min_words} onChange={e => setProdRules(r => ({ ...r, min_words: Number(e.target.value) }))} className="input-field" />
                 </div>
-                <div className="flex-1">
+                <div>
                   <label className="label-sm">Máximo de palabras</label>
                   <input type="number" min={0} value={prodRules.max_words ?? ''} onChange={e => setProdRules(r => ({ ...r, max_words: e.target.value ? Number(e.target.value) : null }))} className="input-field" placeholder="Sin límite" />
                 </div>
               </div>
 
-              <div>
-                <label className="label-sm">Instrucciones ({activeLang === 'es' ? 'Español' : 'English'})</label>
-                <div className="flex gap-2">
-                  <textarea
-                    rows={3}
-                    value={prodRules.instructions[activeLang] ?? ''}
-                    onChange={e => setProdRules(r => ({ ...r, instructions: { ...r.instructions, [activeLang]: e.target.value } }))}
-                    className="input-field flex-1"
-                    placeholder="Escribe un párrafo presentándote en el idioma objetivo..."
-                  />
-                  <button
-                    onClick={async () => {
-                      const improved = await enhance('improve_instructions', activeLang, {
-                        instructions: prodRules.instructions[activeLang],
-                        lessonTitle: activeLang === 'es' ? titleEs : titleEn,
-                      });
-                      if (improved) setProdRules(r => ({ ...r, instructions: { ...r.instructions, [activeLang]: improved } }));
-                    }}
-                    disabled={aiLoading === 'improve_instructions' + activeLang}
-                    className="self-start flex items-center gap-1 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-sm hover:bg-purple-100 disabled:opacity-40"
-                  >
-                    {aiLoading === 'improve_instructions' + activeLang ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
-                  </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="label-sm">Instrucciones (🇪🇸)</label>
+                  <div className="flex gap-2">
+                    <textarea
+                      rows={3}
+                      value={prodRules.instructions.es ?? ''}
+                      onChange={e => setProdRules(r => ({ ...r, instructions: { ...r.instructions, es: e.target.value } }))}
+                      className="input-field flex-1"
+                      placeholder="Ej: Redacta un párrafo presentándote usando los verbos de la lección."
+                    />
+                    <button
+                      onClick={async () => {
+                        const improved = await enhance('improve_instructions', 'es', { instructions: prodRules.instructions.es, lessonTitle: titleEs });
+                        if (improved) setProdRules(r => ({ ...r, instructions: { ...r.instructions, es: improved } }));
+                      }}
+                      disabled={aiLoading === 'improve_instructionses' || !titleEs}
+                      className="self-start flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 disabled:opacity-40 transition"
+                    >
+                      {aiLoading === 'improve_instructionses' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="label-sm">Instructions (🇺🇸)</label>
+                  <div className="flex gap-2">
+                    <textarea
+                      rows={3}
+                      value={prodRules.instructions.en ?? ''}
+                      onChange={e => setProdRules(r => ({ ...r, instructions: { ...r.instructions, en: e.target.value } }))}
+                      className="input-field flex-1"
+                      placeholder="E.g.: Write a paragraph introducing yourself using lesson verbs."
+                    />
+                    <button
+                      onClick={async () => {
+                        const improved = await enhance('improve_instructions', 'en', { instructions: prodRules.instructions.en, lessonTitle: titleEn });
+                        if (improved) setProdRules(r => ({ ...r, instructions: { ...r.instructions, en: improved } }));
+                      }}
+                      disabled={aiLoading === 'improve_instructionsen' || !titleEn}
+                      className="self-start flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 disabled:opacity-40 transition"
+                    >
+                      {aiLoading === 'improve_instructionsen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="label-sm">Palabras requeridas (separadas por coma)</label>
-                <div className="flex gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div>
+                  <label className="label-sm text-green-700">Palabras / Conceptos Requeridos (separados por coma)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={prodRules.required_words}
+                      onChange={e => setProdRules(r => ({ ...r, required_words: e.target.value }))}
+                      className="input-field flex-1 !border-green-300 focus:!ring-green-400"
+                      placeholder="hello, good morning, introduce"
+                    />
+                    <button
+                      onClick={() => suggestWords('es')}
+                      disabled={aiLoading === 'suggest_required_wordses'}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs hover:bg-green-100 disabled:opacity-40 transition"
+                      title="Sugerir basados en el título ES"
+                    >
+                      {aiLoading === 'suggest_required_wordses' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} Auto
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="label-sm text-red-700">Palabras Prohibidas (separadas por coma)</label>
                   <input
                     type="text"
-                    value={prodRules.required_words}
-                    onChange={e => setProdRules(r => ({ ...r, required_words: e.target.value }))}
-                    className="input-field flex-1"
-                    placeholder="hello, good morning, introduce"
+                    value={prodRules.prohibited_words}
+                    onChange={e => setProdRules(r => ({ ...r, prohibited_words: e.target.value }))}
+                    className="input-field !border-red-300 focus:!ring-red-400"
+                    placeholder="hola, gracias (útil para prohibir lengua nativa o jerga)"
                   />
-                  <button
-                    onClick={suggestWords}
-                    disabled={aiLoading === 'suggest_required_words' + activeLang}
-                    className="flex items-center gap-1 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-sm hover:bg-purple-100 disabled:opacity-40"
-                  >
-                    {aiLoading === 'suggest_required_words' + activeLang ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} Sugerir
-                  </button>
                 </div>
               </div>
 
-              <div>
-                <label className="label-sm">Palabras prohibidas (separadas por coma)</label>
-                <input
-                  type="text"
-                  value={prodRules.prohibited_words}
-                  onChange={e => setProdRules(r => ({ ...r, prohibited_words: e.target.value }))}
-                  className="input-field"
-                  placeholder="hola, gracias (L1 prohibida en producción L2)"
-                />
-              </div>
             </div>
           )}
         </section>
 
         {error && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg text-sm">
-            <AlertTriangle className="w-4 h-4" /> {error}
+          <div className="flex items-center gap-2 px-4 py-3 bg-red-50 text-red-700 rounded-xl text-sm border border-red-100">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" /> {error}
           </div>
         )}
       </div>
 
       {/* Footer */}
-      <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-100">
-        <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition">Cancelar</button>
+      <div className="flex justify-end gap-3 pt-5 mt-2 border-t border-gray-100 background-white">
+        <button onClick={onCancel} className="px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {lesson?.id ? 'Guardar cambios' : 'Crear lección'}
+          {lesson?.id ? 'Guardar Cambios' : 'Crear Lección Bilingüe'}
         </button>
       </div>
 

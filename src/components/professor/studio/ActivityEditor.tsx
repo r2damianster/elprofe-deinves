@@ -10,7 +10,7 @@ import type { ActivityType } from '../../../lib/database.types';
 interface Activity {
   id: string;
   type: ActivityType;
-  title: string;
+  title: any; // Soporta JSON para ES/EN
   content: any; // { es: {...}, en: {...} }
   points: number;
   media_url: string | null;
@@ -138,7 +138,7 @@ function MultipleChoiceForm({ c, onChange }: { c: any; onChange: (c: any) => voi
             <div key={opt.id} className="flex items-center gap-2">
               <input
                 type="radio"
-                name={`correct_${c._lang}`}
+                name={\`correct_\${c._lang}\`}
                 checked={c.correct_id === opt.id}
                 onChange={() => onChange({ ...c, correct_id: opt.id })}
                 title="Marcar como correcta"
@@ -149,7 +149,7 @@ function MultipleChoiceForm({ c, onChange }: { c: any; onChange: (c: any) => voi
                 type="text"
                 value={opt.text}
                 onChange={e => setOption(idx, e.target.value)}
-                placeholder={`Opción ${opt.id}`}
+                placeholder={\`Opción \${opt.id}\`}
                 className="input-field flex-1"
               />
               <button type="button" onClick={() => removeOption(idx)} className="text-red-400 hover:text-red-600 flex-shrink-0">
@@ -180,7 +180,7 @@ function TrueFalseForm({ c, onChange }: { c: any; onChange: (c: any) => void }) 
           {[true, false].map(val => (
             <label key={String(val)} className="flex items-center gap-2 cursor-pointer">
               <input type="radio" checked={c.correct === val} onChange={() => onChange({ ...c, correct: val })} className="accent-green-600" />
-              <span className={`text-sm font-medium ${val ? 'text-green-700' : 'text-red-700'}`}>{val ? 'Verdadero' : 'Falso'}</span>
+              <span className={\`text-sm font-medium \${val ? 'text-green-700' : 'text-red-700'}\`}>{val ? 'Verdadero / True' : 'Falso / False'}</span>
             </label>
           ))}
         </div>
@@ -207,7 +207,7 @@ function FillBlankForm({ c, onChange }: { c: any; onChange: (c: any) => void }) 
           {answers.map((ans: string, idx: number) => (
             <div key={idx} className="flex gap-2 items-center">
               <span className="text-xs text-gray-400 w-4">{idx + 1}.</span>
-              <input type="text" value={ans} onChange={e => { const a = [...answers]; a[idx] = e.target.value; onChange({ ...c, answers: a }); }} className="input-field flex-1" placeholder={`Respuesta ${idx + 1}`} />
+              <input type="text" value={ans} onChange={e => { const a = [...answers]; a[idx] = e.target.value; onChange({ ...c, answers: a }); }} className="input-field flex-1" placeholder={\`Respuesta \${idx + 1}\`} />
               <button type="button" onClick={() => { const a = answers.filter((_: string, i: number) => i !== idx); onChange({ ...c, answers: a }); }} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
             </div>
           ))}
@@ -266,8 +266,8 @@ function MatchingForm({ c, onChange }: { c: any; onChange: (c: any) => void }) {
       </div>
       <div>
         <div className="grid grid-cols-2 gap-2 mb-1">
-          <span className="text-xs font-medium text-gray-500">Columna A</span>
-          <span className="text-xs font-medium text-gray-500">Columna B</span>
+          <span className="text-xs font-medium text-gray-500">Elementos Columna A</span>
+          <span className="text-xs font-medium text-gray-500">Elementos Columna B</span>
         </div>
         <div className="space-y-2">
           {pairs.map((p: any, idx: number) => (
@@ -302,14 +302,13 @@ function OrderingForm({ c, onChange }: { c: any; onChange: (c: any) => void }) {
         <input type="text" value={c.instruction ?? ''} onChange={e => onChange({ ...c, instruction: e.target.value })} className="input-field" placeholder="Ordena los siguientes elementos..." />
       </div>
       <div>
-        <label className="label-sm">Elementos (en el orden correcto)</label>
-        <p className="text-xs text-gray-400 mb-2">Ingresa los elementos ya en el orden correcto. El sistema los mezclará para el estudiante.</p>
+        <label className="label-sm">Elementos (ingrésalos en el orden correcto)</label>
         <div className="space-y-2">
           {items.map((it: any, idx: number) => (
             <div key={it.id} className="flex gap-2 items-center">
               <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
               <span className="text-xs text-gray-400 w-4">{idx + 1}.</span>
-              <input type="text" value={it.text} onChange={e => setItem(idx, e.target.value)} className="input-field flex-1" placeholder={`Elemento ${idx + 1}`} />
+              <input type="text" value={it.text} onChange={e => setItem(idx, e.target.value)} className="input-field flex-1" placeholder={\`Elemento \${idx + 1}\`} />
               <button type="button" onClick={() => { const newItems = items.filter((_: any, i: number) => i !== idx); onChange({ ...c, items: newItems, correct_order: newItems.map((i: any) => i.id) }); }} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
             </div>
           ))}
@@ -350,12 +349,12 @@ function DragDropForm({ c, onChange }: { c: any; onChange: (c: any) => void }) {
       {categories.map((cat: any, catIdx: number) => (
         <div key={cat.id} className="border border-gray-200 rounded-lg p-3 space-y-2">
           <div className="flex gap-2 items-center">
-            <input type="text" value={cat.name} onChange={e => setCategory(catIdx, 'name', e.target.value)} className="input-field flex-1 font-medium" placeholder={`Nombre categoría ${catIdx + 1}`} />
+            <input type="text" value={cat.name} onChange={e => setCategory(catIdx, 'name', e.target.value)} className="input-field flex-1 font-medium" placeholder={\`Nombre categoría \${catIdx + 1}\`} />
             <button type="button" onClick={() => onChange({ ...c, categories: categories.filter((_: any, i: number) => i !== catIdx) })} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
           </div>
           {cat.items.map((item: string, itemIdx: number) => (
             <div key={itemIdx} className="flex gap-2 pl-3">
-              <input type="text" value={item} onChange={e => setItem(catIdx, itemIdx, e.target.value)} className="input-field flex-1 text-sm" placeholder={`Elemento ${itemIdx + 1}`} />
+              <input type="text" value={item} onChange={e => setItem(catIdx, itemIdx, e.target.value)} className="input-field flex-1 text-sm" placeholder={\`Elemento \${itemIdx + 1}\`} />
               <button type="button" onClick={() => { const cats = categories.map((c2: any, i: number) => i === catIdx ? { ...c2, items: c2.items.filter((_: string, j: number) => j !== itemIdx) } : c2); onChange({ ...c, categories: cats }); }} className="text-red-400 hover:text-red-600"><X className="w-3.5 h-3.5" /></button>
             </div>
           ))}
@@ -399,7 +398,7 @@ function EssayForm({ c, onChange, type }: { c: any; onChange: (c: any) => void; 
           <div className="space-y-2">
             {(c.guiding_questions ?? ['']).map((q: string, idx: number) => (
               <div key={idx} className="flex gap-2">
-                <input type="text" value={q} onChange={e => { const qs = [...c.guiding_questions]; qs[idx] = e.target.value; onChange({ ...c, guiding_questions: qs }); }} className="input-field flex-1" placeholder={`Pregunta guía ${idx + 1}`} />
+                <input type="text" value={q} onChange={e => { const qs = [...c.guiding_questions]; qs[idx] = e.target.value; onChange({ ...c, guiding_questions: qs }); }} className="input-field flex-1" placeholder={\`Pregunta guía \${idx + 1}\`} />
                 <button type="button" onClick={() => onChange({ ...c, guiding_questions: c.guiding_questions.filter((_: string, i: number) => i !== idx) })} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
               </div>
             ))}
@@ -434,7 +433,7 @@ function ListeningForm({ c, onChange }: { c: any; onChange: (c: any) => void }) 
         <div className="space-y-2">
           {options.map((opt: any, idx: number) => (
             <div key={opt.id} className="flex items-center gap-2">
-              <input type="radio" name={`listening_correct_${c._lang}`} checked={c.correct_id === opt.id} onChange={() => onChange({ ...c, correct_id: opt.id })} className="accent-green-600 flex-shrink-0" />
+              <input type="radio" name={\`listening_correct_\${c._lang}\`} checked={c.correct_id === opt.id} onChange={() => onChange({ ...c, correct_id: opt.id })} className="accent-green-600 flex-shrink-0" />
               <span className="text-xs font-mono text-gray-400 w-4">{opt.id}.</span>
               <input type="text" value={opt.text} onChange={e => onChange({ ...c, options: options.map((o: any, i: number) => i === idx ? { ...o, text: e.target.value } : o) })} className="input-field flex-1" />
               <button type="button" onClick={() => { if (options.length <= 2) return; onChange({ ...c, options: options.filter((_: any, i: number) => i !== idx), correct_id: options[0]?.id }); }} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
@@ -448,10 +447,8 @@ function ListeningForm({ c, onChange }: { c: any; onChange: (c: any) => void }) 
   );
 }
 
-// ─── Formulario por idioma ─────────────────────────────────────────────────
-
 function ContentFormForLang({ type, content, onChange }: { type: ActivityType; content: any; onChange: (c: any) => void }) {
-  const c = { ...content, _lang: undefined };
+  const c = { ...content };
   switch (type) {
     case 'multiple_choice':
     case 'image_question': return <MultipleChoiceForm c={c} onChange={onChange} />;
@@ -477,34 +474,43 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
   const { enhance, loading: aiLoading } = useAI();
 
   const [type, setType] = useState<ActivityType>(activity?.type ?? 'multiple_choice');
-  const [title, setTitle] = useState(activity?.title ?? '');
+  
+  // Títulos Bilingües (Soporta JSON para Title)
+  const isTitleObj = activity?.title && typeof activity.title === 'object';
+  const [titleEs, setTitleEs] = useState(isTitleObj ? activity?.title?.es : (activity?.title ?? ''));
+  const [titleEn, setTitleEn] = useState(isTitleObj ? activity?.title?.en : '');
+
   const [points, setPoints] = useState(activity?.points ?? 1);
   const [mediaUrl, setMediaUrl] = useState(activity?.media_url ?? '');
-  const [activeLang, setActiveLang] = useState<Lang>('es');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const rawContent = activity?.content ?? {};
-  const [contentEs, setContentEs] = useState<any>(rawContent?.es ?? emptyContent(type));
-  const [contentEn, setContentEn] = useState<any>(rawContent?.en ?? emptyContent(type));
+  const [contentEs, setContentEs] = useState<any>({_lang: 'es', ...(rawContent?.es ?? emptyContent(type))});
+  const [contentEn, setContentEn] = useState<any>({_lang: 'en', ...(rawContent?.en ?? emptyContent(type))});
 
   function handleTypeChange(newType: ActivityType) {
     setType(newType);
-    setContentEs(emptyContent(newType));
-    setContentEn(emptyContent(newType));
+    setContentEs({_lang: 'es', ...emptyContent(newType)});
+    setContentEn({_lang: 'en', ...emptyContent(newType)});
   }
 
-  async function handleImproveTitle() {
-    const improved = await enhance('improve_title', activeLang, { title });
-    if (improved) setTitle(improved);
+  async function handleImproveTitle(lang: Lang) {
+    const title = lang === 'es' ? titleEs : titleEn;
+    const improved = await enhance('improve_title', lang, { title });
+    if (improved) {
+      if (lang === 'es') setTitleEs(improved);
+      else setTitleEn(improved);
+    }
   }
 
   async function handleSave() {
-    if (!title.trim()) { setError('El título es obligatorio'); return; }
+    if (!titleEs.trim() && !titleEn.trim()) { setError('Declara un título en al menos un idioma.'); return; }
     setSaving(true);
     setError('');
 
     const contentPayload = { es: contentEs, en: contentEn };
+    const titlePayload = { es: titleEs, en: titleEn };
 
     try {
       const db = supabase as any;
@@ -512,7 +518,7 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
       if (activity?.id) {
         const { data, error: err } = await db
           .from('activities')
-          .update({ type, title, content: contentPayload, points, media_url: mediaUrl || null })
+          .update({ type, title: titlePayload, content: contentPayload, points, media_url: mediaUrl || null })
           .eq('id', activity.id)
           .select()
           .single();
@@ -521,7 +527,7 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
       } else {
         const { data, error: err } = await db
           .from('activities')
-          .insert({ type, title, content: contentPayload, points, media_url: mediaUrl || null, created_by: profile?.id })
+          .insert({ type, title: titlePayload, content: contentPayload, points, media_url: mediaUrl || null, created_by: profile?.id })
           .select()
           .single();
         if (err) throw err;
@@ -539,11 +545,11 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-800">
-            {activity?.id ? 'Editar actividad' : 'Nueva actividad'}
+            {activity?.id ? 'Editar actividad bilingüe' : 'Nueva actividad bilingüe'}
           </h2>
           <button onClick={onCancel} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
             <X className="w-5 h-5" />
@@ -551,85 +557,113 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
         </div>
 
         {/* Body — scrollable */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-          {/* Tipo */}
-          <div>
-            <label className="label-sm">Tipo de actividad</label>
-            <select
-              value={type}
-              onChange={e => handleTypeChange(e.target.value as ActivityType)}
-              disabled={!!activity?.id}
-              className="input-field"
-            >
-              {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-            {activity?.id && <p className="text-xs text-gray-400 mt-1">El tipo no se puede cambiar en una actividad existente.</p>}
-          </div>
-
-          {/* Título + IA */}
-          <div>
-            <label className="label-sm">Título / Instrucción para el estudiante</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                className="input-field flex-1"
-                placeholder="Ej: Selecciona el saludo correcto para la mañana"
-              />
-              <button
-                type="button"
-                onClick={handleImproveTitle}
-                disabled={!title || aiLoading === 'improve_title' + activeLang}
-                className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-sm hover:bg-purple-100 transition disabled:opacity-40"
-              >
-                {aiLoading === 'improve_title' + activeLang ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-                IA
-              </button>
-            </div>
-          </div>
-
-          {/* Puntos */}
-          <div className="w-32">
-            <label className="label-sm">Puntos</label>
-            <input type="number" min={0} max={100} value={points} onChange={e => setPoints(Number(e.target.value))} className="input-field" />
-          </div>
-
-          {/* Media (imagen/audio) */}
-          {needsMedia && (
-            <MediaUploader
-              value={mediaUrl}
-              onChange={setMediaUrl}
-              accept={type === 'image_question' ? 'image' : 'audio'}
-              label={type === 'image_question' ? 'Imagen de la actividad' : 'Archivo de audio'}
-            />
-          )}
-
-          {/* Contenido bilingüe */}
-          <div>
-            <div className="flex items-center gap-4 mb-3">
-              <span className="text-sm font-semibold text-gray-700">Contenido</span>
-              <div className="flex border border-gray-200 rounded-lg overflow-hidden text-sm">
-                {(['es', 'en'] as Lang[]).map(lang => (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => setActiveLang(lang)}
-                    className={`px-4 py-1.5 font-medium transition ${activeLang === lang ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
-                  >
-                    {lang === 'es' ? '🇪🇸 Español' : '🇺🇸 English'}
-                  </button>
-                ))}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Opciones Globales */}
+            <div className="space-y-4">
+              {/* Tipo */}
+              <div>
+                <label className="label-sm">Tipo de actividad</label>
+                <select
+                  value={type}
+                  onChange={e => handleTypeChange(e.target.value as ActivityType)}
+                  disabled={!!activity?.id}
+                  className="input-field"
+                >
+                  {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+                {activity?.id && <p className="text-xs text-gray-400 mt-1">El tipo no se puede cambiar en una actividad existente.</p>}
+              </div>
+              <div className="w-32">
+                <label className="label-sm">Puntos</label>
+                <input type="number" min={0} max={100} value={points} onChange={e => setPoints(Number(e.target.value))} className="input-field" />
               </div>
             </div>
 
-            <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
-              {activeLang === 'es' ? (
-                <ContentFormForLang type={type} content={contentEs} onChange={setContentEs} />
-              ) : (
-                <ContentFormForLang type={type} content={contentEn} onChange={setContentEn} />
-              )}
+            {/* Media (imagen/audio) */}
+            {needsMedia && (
+              <div className="space-y-4">
+                <MediaUploader
+                  value={mediaUrl}
+                  onChange={setMediaUrl}
+                  accept={type === 'image_question' ? 'image' : 'audio'}
+                  label={type === 'image_question' ? 'Imagen de la actividad' : 'Archivo de audio'}
+                />
+              </div>
+            )}
+            
+          </div>
+
+          <div className="border-t border-dashed border-gray-200"></div>
+
+          {/* Títulos */}
+          <div>
+            <label className="label-sm">Títulos / Instrucción para el estudiante</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={titleEs}
+                  onChange={e => setTitleEs(e.target.value)}
+                  className="input-field flex-1"
+                  placeholder="Ej: Selecciona la respuesta (ES)"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleImproveTitle('es')}
+                  disabled={!titleEs || aiLoading === 'improve_titlees'}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 transition disabled:opacity-40"
+                >
+                  {aiLoading === 'improve_titlees' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={titleEn}
+                  onChange={e => setTitleEn(e.target.value)}
+                  className="input-field flex-1"
+                  placeholder="E.g.: Select the correct answer (EN)"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleImproveTitle('en')}
+                  disabled={!titleEn || aiLoading === 'improve_titleen'}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 transition disabled:opacity-40"
+                >
+                  {aiLoading === 'improve_titleen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
+                </button>
+              </div>
             </div>
+          </div>
+
+          {/* Formularios Simultáneos (Side by side) */}
+          <div className="space-y-3">
+             <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-gray-700">Contenido Dinámico de la Actividad</span>
+                <span className="text-xs text-gray-400">Puedes llenar un solo idioma o ambos para modo bilingüe.</span>
+             </div>
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+               {/* Columna ES */}
+               <div className="border border-blue-100 rounded-xl p-4 bg-blue-50/20 shadow-sm relative pt-10">
+                 <div className="absolute top-0 left-0 right-0 bg-blue-100/50 py-1.5 px-4 rounded-t-xl border-b border-blue-100 flex items-center gap-2">
+                    <span className="text-base">🇪🇸</span>
+                    <h3 className="font-bold text-sm text-blue-900">Versión Español</h3>
+                 </div>
+                 <ContentFormForLang type={type} content={contentEs} onChange={setContentEs} />
+               </div>
+
+               {/* Columna EN */}
+               <div className="border border-red-100 rounded-xl p-4 bg-red-50/20 shadow-sm relative pt-10">
+                 <div className="absolute top-0 left-0 right-0 bg-red-100/50 py-1.5 px-4 rounded-t-xl border-b border-red-100 flex items-center gap-2">
+                    <span className="text-base">🇺🇸</span>
+                    <h3 className="font-bold text-sm text-red-900">English Version</h3>
+                 </div>
+                 <ContentFormForLang type={type} content={contentEn} onChange={setContentEn} />
+               </div>
+             </div>
           </div>
 
           {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
@@ -641,12 +675,12 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
             Cancelar
           </button>
           <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+             onClick={handleSave}
+             disabled={saving}
+             className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50"
           >
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-            {activity?.id ? 'Guardar cambios' : 'Crear actividad'}
+             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+             {activity?.id ? 'Guardar cambios' : 'Guardar actividad'}
           </button>
         </div>
       </div>

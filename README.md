@@ -62,6 +62,7 @@ npm run dev
 **Lecciones**
 - Asignar/desasignar lecciones de un curso
 - Cada lección tiene pasos de contenido (texto, slides, video) + actividades evaluativas
+- **Editor Bilingüe Side-by-Side**: Interfaz a doble columna para diseñar contenido y rúbricas simultáneamente en Español e Inglés desde `ContentStudio`.
 
 **Grupos y Agrupaciones**
 - Crear agrupaciones nombradas e independientes por curso (una por dinámica/lección)
