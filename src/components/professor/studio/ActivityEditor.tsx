@@ -138,7 +138,7 @@ function MultipleChoiceForm({ c, onChange }: { c: any; onChange: (c: any) => voi
             <div key={opt.id} className="flex items-center gap-2">
               <input
                 type="radio"
-                name={\`correct_\${c._lang}\`}
+                name={`correct_${c._lang}`}
                 checked={c.correct_id === opt.id}
                 onChange={() => onChange({ ...c, correct_id: opt.id })}
                 title="Marcar como correcta"
@@ -149,7 +149,7 @@ function MultipleChoiceForm({ c, onChange }: { c: any; onChange: (c: any) => voi
                 type="text"
                 value={opt.text}
                 onChange={e => setOption(idx, e.target.value)}
-                placeholder={\`Opción \${opt.id}\`}
+                placeholder={`Opción ${opt.id}`}
                 className="input-field flex-1"
               />
               <button type="button" onClick={() => removeOption(idx)} className="text-red-400 hover:text-red-600 flex-shrink-0">
@@ -180,7 +180,7 @@ function TrueFalseForm({ c, onChange }: { c: any; onChange: (c: any) => void }) 
           {[true, false].map(val => (
             <label key={String(val)} className="flex items-center gap-2 cursor-pointer">
               <input type="radio" checked={c.correct === val} onChange={() => onChange({ ...c, correct: val })} className="accent-green-600" />
-              <span className={\`text-sm font-medium \${val ? 'text-green-700' : 'text-red-700'}\`}>{val ? 'Verdadero / True' : 'Falso / False'}</span>
+              <span className={`text-sm font-medium ${val ? 'text-green-700' : 'text-red-700'}`}>{val ? 'Verdadero / True' : 'Falso / False'}</span>
             </label>
           ))}
         </div>
@@ -207,7 +207,7 @@ function FillBlankForm({ c, onChange }: { c: any; onChange: (c: any) => void }) 
           {answers.map((ans: string, idx: number) => (
             <div key={idx} className="flex gap-2 items-center">
               <span className="text-xs text-gray-400 w-4">{idx + 1}.</span>
-              <input type="text" value={ans} onChange={e => { const a = [...answers]; a[idx] = e.target.value; onChange({ ...c, answers: a }); }} className="input-field flex-1" placeholder={\`Respuesta \${idx + 1}\`} />
+              <input type="text" value={ans} onChange={e => { const a = [...answers]; a[idx] = e.target.value; onChange({ ...c, answers: a }); }} className="input-field flex-1" placeholder={`Respuesta ${idx + 1}`} />
               <button type="button" onClick={() => { const a = answers.filter((_: string, i: number) => i !== idx); onChange({ ...c, answers: a }); }} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
             </div>
           ))}
@@ -308,7 +308,7 @@ function OrderingForm({ c, onChange }: { c: any; onChange: (c: any) => void }) {
             <div key={it.id} className="flex gap-2 items-center">
               <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
               <span className="text-xs text-gray-400 w-4">{idx + 1}.</span>
-              <input type="text" value={it.text} onChange={e => setItem(idx, e.target.value)} className="input-field flex-1" placeholder={\`Elemento \${idx + 1}\`} />
+              <input type="text" value={it.text} onChange={e => setItem(idx, e.target.value)} className="input-field flex-1" placeholder={`Elemento ${idx + 1}`} />
               <button type="button" onClick={() => { const newItems = items.filter((_: any, i: number) => i !== idx); onChange({ ...c, items: newItems, correct_order: newItems.map((i: any) => i.id) }); }} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
             </div>
           ))}
@@ -349,12 +349,12 @@ function DragDropForm({ c, onChange }: { c: any; onChange: (c: any) => void }) {
       {categories.map((cat: any, catIdx: number) => (
         <div key={cat.id} className="border border-gray-200 rounded-lg p-3 space-y-2">
           <div className="flex gap-2 items-center">
-            <input type="text" value={cat.name} onChange={e => setCategory(catIdx, 'name', e.target.value)} className="input-field flex-1 font-medium" placeholder={\`Nombre categoría \${catIdx + 1}\`} />
+            <input type="text" value={cat.name} onChange={e => setCategory(catIdx, 'name', e.target.value)} className="input-field flex-1 font-medium" placeholder={`Nombre categoría ${catIdx + 1}`} />
             <button type="button" onClick={() => onChange({ ...c, categories: categories.filter((_: any, i: number) => i !== catIdx) })} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
           </div>
           {cat.items.map((item: string, itemIdx: number) => (
             <div key={itemIdx} className="flex gap-2 pl-3">
-              <input type="text" value={item} onChange={e => setItem(catIdx, itemIdx, e.target.value)} className="input-field flex-1 text-sm" placeholder={\`Elemento \${itemIdx + 1}\`} />
+              <input type="text" value={item} onChange={e => setItem(catIdx, itemIdx, e.target.value)} className="input-field flex-1 text-sm" placeholder={`Elemento ${itemIdx + 1}`} />
               <button type="button" onClick={() => { const cats = categories.map((c2: any, i: number) => i === catIdx ? { ...c2, items: c2.items.filter((_: string, j: number) => j !== itemIdx) } : c2); onChange({ ...c, categories: cats }); }} className="text-red-400 hover:text-red-600"><X className="w-3.5 h-3.5" /></button>
             </div>
           ))}
@@ -398,7 +398,7 @@ function EssayForm({ c, onChange, type }: { c: any; onChange: (c: any) => void; 
           <div className="space-y-2">
             {(c.guiding_questions ?? ['']).map((q: string, idx: number) => (
               <div key={idx} className="flex gap-2">
-                <input type="text" value={q} onChange={e => { const qs = [...c.guiding_questions]; qs[idx] = e.target.value; onChange({ ...c, guiding_questions: qs }); }} className="input-field flex-1" placeholder={\`Pregunta guía \${idx + 1}\`} />
+                <input type="text" value={q} onChange={e => { const qs = [...c.guiding_questions]; qs[idx] = e.target.value; onChange({ ...c, guiding_questions: qs }); }} className="input-field flex-1" placeholder={`Pregunta guía ${idx + 1}`} />
                 <button type="button" onClick={() => onChange({ ...c, guiding_questions: c.guiding_questions.filter((_: string, i: number) => i !== idx) })} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
               </div>
             ))}
@@ -433,7 +433,7 @@ function ListeningForm({ c, onChange }: { c: any; onChange: (c: any) => void }) 
         <div className="space-y-2">
           {options.map((opt: any, idx: number) => (
             <div key={opt.id} className="flex items-center gap-2">
-              <input type="radio" name={\`listening_correct_\${c._lang}\`} checked={c.correct_id === opt.id} onChange={() => onChange({ ...c, correct_id: opt.id })} className="accent-green-600 flex-shrink-0" />
+              <input type="radio" name={`listening_correct_${c._lang}`} checked={c.correct_id === opt.id} onChange={() => onChange({ ...c, correct_id: opt.id })} className="accent-green-600 flex-shrink-0" />
               <span className="text-xs font-mono text-gray-400 w-4">{opt.id}.</span>
               <input type="text" value={opt.text} onChange={e => onChange({ ...c, options: options.map((o: any, i: number) => i === idx ? { ...o, text: e.target.value } : o) })} className="input-field flex-1" />
               <button type="button" onClick={() => { if (options.length <= 2) return; onChange({ ...c, options: options.filter((_: any, i: number) => i !== idx), correct_id: options[0]?.id }); }} className="text-red-400 hover:text-red-600"><X className="w-4 h-4" /></button>
