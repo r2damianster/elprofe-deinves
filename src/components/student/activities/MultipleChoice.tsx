@@ -18,13 +18,13 @@ export default function MultipleChoice({
   disabled,
   points,
 }: MultipleChoiceProps) {
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [selectedOption, setSelectedOption] = useState<any>(null);
 
   // 🟢 DETERMINAR OPCIONES: Si no existen en el JSON, usamos Verdadero/Falso por defecto
   const options = content.options || ["Verdadero", "Falso"];
   
   // 🟢 DETERMINAR RESPUESTA CORRECTA: Buscamos en ambos nombres posibles
-  const correctAnswer = content.correctAnswer ?? content.correct_answer;
+  const correctAnswer = content.correct_id ?? content.correctAnswer ?? content.correct_answer;
 
   function handleSubmit() {
     if (selectedOption === null) {
@@ -44,27 +44,32 @@ export default function MultipleChoice({
 
       <div className="space-y-2">
         {/* 🟢 Usamos 'options' (la variable segura) en lugar de 'content.options' */}
-        {options.map((option, index) => (
-          <label
-            key={index}
-            className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition ${
-              selectedOption === index
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-200 hover:border-gray-300'
-            } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-          >
-            <input
-              type="radio"
-              name="option"
-              value={index}
-              checked={selectedOption === index}
-              onChange={() => !disabled && setSelectedOption(index)}
-              className="w-5 h-5 text-blue-600"
-              disabled={disabled}
-            />
-            <span className="ml-3 text-gray-800">{option}</span>
-          </label>
-        ))}
+        {options.map((option: any, index: number) => {
+          const textLabel = typeof option === 'object' ? option.text : option;
+          const optionValue = typeof option === 'object' ? option.id : index;
+
+          return (
+            <label
+              key={index}
+              className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition ${
+                selectedOption === optionValue
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+            >
+              <input
+                type="radio"
+                name="option"
+                value={optionValue}
+                checked={selectedOption === optionValue}
+                onChange={() => !disabled && setSelectedOption(optionValue)}
+                className="w-5 h-5 text-blue-600"
+                disabled={disabled}
+              />
+              <span className="ml-3 text-gray-800">{textLabel}</span>
+            </label>
+          );
+        })}
       </div>
 
       <button

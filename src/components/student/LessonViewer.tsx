@@ -394,15 +394,31 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
       }
     }
 
-    // 5. Construir la lista unificada de pasos (todas las actividades en el flujo normal)
+    // 5. Construir la lista unificada respetando el orden original definido en `lesson.content`
     const raw2 = lessonData?.content;
-    const contentSteps: CombinedStep[] = (Array.isArray(raw2) ? raw2 : Array.isArray(raw2?.steps) ? raw2.steps : []) as CombinedStep[];
-    const activitySteps: CombinedStep[] = (activitiesData ?? []).map((a: Activity) => ({
-      ...a,
-      isActivity: true as const,
-    }));
+    const rawSteps = (Array.isArray(raw2) ? raw2 : Array.isArray(raw2?.steps) ? raw2.steps : []);
+    
+    // Remplazar los marcadores {"type": "activity", "activity_id": "xxx"} por el objeto de actividad resuelto
+    const resolvedSteps: CombinedStep[] = rawSteps.map(step => {
+      if (step.type === 'activity') {
+        const activityData = activitiesData.find((a: any) => a.id === step.activity_id);
+        if (activityData) {
+          return { ...activityData, isActivity: true as const };
+        }
+        return null;
+      }
+      // Asegurarse de etiquetar los de contenido general
+      return { ...step, isActivity: false };
+    }).filter(Boolean);
+
+    // Fallback de retrocompatibilidad: si hay actividades asignadas que no están en la secuencia (estructura antigua), se añaden al final
+    const matchedActivityIds = new Set(rawSteps.filter(s => s.type === 'activity').map(s => s.activity_id));
+    const unmatchedActivities = activitiesData
+      .filter((a: any) => !matchedActivityIds.has(a.id))
+      .map((a: any) => ({ ...a, isActivity: true as const }));
+
     setProductionActivities([]);
-    setCombinedSteps([...contentSteps, ...activitySteps]);
+    setCombinedSteps([...resolvedSteps, ...unmatchedActivities] as CombinedStep[]);
     setLoading(false);
   }
 
