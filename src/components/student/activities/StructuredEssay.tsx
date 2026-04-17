@@ -19,15 +19,25 @@ export default function StructuredEssay({ content, onSubmit, disabled, points }:
 
   const totalMinWords  = sections.reduce((acc: number, s: Section) => acc + s.min_words, 0);
   const totalWords     = responses.reduce((acc, r) => acc + wordCount(r), 0);
-  const allMeetMin     = sections.every((s: Section, i: number) => wordCount(responses[i]) >= s.min_words);
-  const compliance     = totalMinWords > 0
-    ? Math.min(100, Math.round((totalWords / totalMinWords) * 100))
-    : 100;
+  
+  const reqWords: string[] = content.required_words || [];
+  const fobWords: string[] = content.forbidden_words || [];
+  const lowerText = responses.join(' ').toLowerCase();
+
+  const reqMet = reqWords.filter(w => lowerText.includes(w.toLowerCase()));
+  const fobUsed = fobWords.filter(w => lowerText.includes(w.toLowerCase()));
+
+  const scoreWords = totalMinWords > 0 ? Math.min(100, Math.round((totalWords / totalMinWords) * 100)) : 100;
+  const scoreReq = reqWords.length > 0 ? (reqMet.length / reqWords.length) * 100 : 100;
+  const scoreFob = fobWords.length > 0 ? ((fobWords.length - fobUsed.length) / fobWords.length) * 100 : 100;
+
+  const totalWeight = 1 + (reqWords.length > 0 ? 1 : 0) + (fobWords.length > 0 ? 1 : 0);
+  const compliance = Math.min(100, Math.round((scoreWords + (reqWords.length > 0 ? scoreReq : 0) + (fobWords.length > 0 ? scoreFob : 0)) / totalWeight));
 
   const sectionsOk     = sections.filter((s: Section, i: number) => wordCount(responses[i]) >= s.min_words).length;
-  const complianceLabel = allMeetMin
-    ? '✓ Todas las secciones completas'
-    : `${sectionsOk}/${sections.length} secciones listas`;
+  const complianceLabel = compliance === 100
+    ? '✓ Todas las secciones completas y vocabularios correctos'
+    : `${sectionsOk}/${sections.length} secciones (Progreso: ${compliance}%)`;
 
   return (
     <div className="space-y-5">
@@ -51,6 +61,27 @@ export default function StructuredEssay({ content, onSubmit, disabled, points }:
         integrity={integrity}
         events={events}
       />
+
+      {(reqWords.length > 0 || fobWords.length > 0) && (
+        <div className="flex flex-wrap gap-2 mb-2">
+          {reqWords.map(w => {
+            const met = lowerText.includes(w.toLowerCase());
+            return (
+              <span key={w} className={`text-xs px-2 py-1 rounded-full border ${met ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                {met ? '✓' : '○'} {w}
+              </span>
+            );
+          })}
+          {fobWords.map(w => {
+            const used = lowerText.includes(w.toLowerCase());
+            return (
+              <span key={w} className={`text-xs px-2 py-1 rounded-full border ${used ? 'bg-red-100 text-red-700 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                {used ? '✗' : '🚫'} {w}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {/* Secciones */}
       {sections.map((section: Section, i: number) => {
@@ -95,8 +126,8 @@ export default function StructuredEssay({ content, onSubmit, disabled, points }:
       })}
 
       <button
-        onClick={() => onSubmit({ responses, integrity_score: integrity }, points)}
-        disabled={disabled || !allMeetMin}
+        onClick={() => onSubmit({ responses, integrity_score: integrity }, (compliance / 100) * points)}
+        disabled={disabled || totalWords === 0}
         className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold disabled:bg-gray-300 transition"
       >
         Enviar ensayo

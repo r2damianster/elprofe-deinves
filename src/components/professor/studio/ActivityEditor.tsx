@@ -367,6 +367,22 @@ function DragDropForm({ c, onChange }: { c: any; onChange: (c: any) => void }) {
 }
 
 function EssayForm({ c, onChange, type }: { c: any; onChange: (c: any) => void; type: ActivityType }) {
+  const reqWords = (c.required_words || []).join(', ');
+  const fobWords = (c.forbidden_words || []).join(', ');
+
+  const advancedFields = (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 pt-3 border-t border-gray-100">
+      <div>
+        <label className="label-sm text-green-700">Palabras Obligatorias (separadas por coma)</label>
+        <input type="text" value={reqWords} onChange={e => onChange({ ...c, required_words: e.target.value.split(',').map((w: string)=>w.trim()).filter(Boolean) })} className="input-field" placeholder="ej. investigación, conclusión" />
+      </div>
+      <div>
+        <label className="label-sm text-red-700">Palabras Prohibidas (separadas por coma)</label>
+        <input type="text" value={fobWords} onChange={e => onChange({ ...c, forbidden_words: e.target.value.split(',').map((w: string)=>w.trim()).filter(Boolean) })} className="input-field" placeholder="ej. yo, wikipedia" />
+      </div>
+    </div>
+  );
+
   if (type === 'structured_essay') {
     return (
       <div className="space-y-3">
@@ -386,6 +402,7 @@ function EssayForm({ c, onChange, type }: { c: any; onChange: (c: any) => void; 
             ))}
           </div>
         </div>
+        {advancedFields}
       </div>
     );
   }
@@ -408,6 +425,7 @@ function EssayForm({ c, onChange, type }: { c: any; onChange: (c: any) => void; 
         <div className="flex gap-3">
           <div className="flex-1"><label className="label-sm">Mín. palabras</label><input type="number" value={c.min_words ?? 80} onChange={e => onChange({ ...c, min_words: Number(e.target.value) })} className="input-field" /></div>
         </div>
+        {advancedFields}
       </div>
     );
   }
@@ -419,6 +437,7 @@ function EssayForm({ c, onChange, type }: { c: any; onChange: (c: any) => void; 
         <div className="flex-1"><label className="label-sm">Mín. palabras</label><input type="number" value={c.min_words ?? 50} onChange={e => onChange({ ...c, min_words: Number(e.target.value) })} className="input-field" /></div>
         <div className="flex-1"><label className="label-sm">Máx. palabras</label><input type="number" value={c.max_words ?? 200} onChange={e => onChange({ ...c, max_words: Number(e.target.value) })} className="input-field" /></div>
       </div>
+      {advancedFields}
     </div>
   );
 }

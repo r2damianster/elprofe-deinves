@@ -9,14 +9,24 @@ export default function LongResponse({ content, onSubmit, disabled, points }: an
 
   const charCount  = text.length;
   const wordCount  = text.trim() ? text.trim().split(/\s+/).length : 0;
-  const meetsMin   = charCount >= min_characters;
-  const compliance = min_characters > 0
-    ? Math.min(100, Math.round((charCount / min_characters) * 100))
-    : 100;
+  
+  const reqWords: string[] = content.required_words || [];
+  const fobWords: string[] = content.forbidden_words || [];
+  const lowerText = text.toLowerCase();
 
-  const complianceLabel = meetsMin
-    ? '✓ Mínimo alcanzado'
-    : `Faltan ${min_characters - charCount} caracteres`;
+  const reqMet = reqWords.filter(w => lowerText.includes(w.toLowerCase()));
+  const fobUsed = fobWords.filter(w => lowerText.includes(w.toLowerCase()));
+
+  const scoreChars = min_characters > 0 ? Math.min(100, Math.round((charCount / min_characters) * 100)) : 100;
+  const scoreReq = reqWords.length > 0 ? (reqMet.length / reqWords.length) * 100 : 100;
+  const scoreFob = fobWords.length > 0 ? ((fobWords.length - fobUsed.length) / fobWords.length) * 100 : 100;
+
+  const totalWeight = 1 + (reqWords.length > 0 ? 1 : 0) + (fobWords.length > 0 ? 1 : 0);
+  const compliance = Math.min(100, Math.round((scoreChars + (reqWords.length > 0 ? scoreReq : 0) + (fobWords.length > 0 ? scoreFob : 0)) / totalWeight));
+
+  const complianceLabel = compliance === 100
+    ? '✓ Requisitos alcanzados'
+    : `Progreso: ${compliance}%`;
 
   return (
     <div className="space-y-4">
@@ -40,18 +50,39 @@ export default function LongResponse({ content, onSubmit, disabled, points }: an
           className="w-full p-4 border border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 text-sm"
         />
         <div className="flex justify-between text-xs text-gray-400 mt-1 px-1">
-          <span className={meetsMin ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
+          <span className={charCount >= min_characters ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
             {charCount}/{min_characters} mín.
           </span>
           {show_word_count && (
             <span>{wordCount} palabras · {charCount}/{max_characters} caracteres</span>
           )}
         </div>
+        
+        {(reqWords.length > 0 || fobWords.length > 0) && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {reqWords.map(w => {
+              const met = lowerText.includes(w.toLowerCase());
+              return (
+                <span key={w} className={`text-xs px-2 py-1 rounded-full border ${met ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                  {met ? '✓' : '○'} {w}
+                </span>
+              );
+            })}
+            {fobWords.map(w => {
+              const used = lowerText.includes(w.toLowerCase());
+              return (
+                <span key={w} className={`text-xs px-2 py-1 rounded-full border ${used ? 'bg-red-100 text-red-700 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                  {used ? '✗' : '🚫'} {w}
+                </span>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <button
-        onClick={() => onSubmit({ text, integrity_score: integrity }, points)}
-        disabled={disabled || !meetsMin}
+        onClick={() => onSubmit({ text, integrity_score: integrity }, (compliance / 100) * points)}
+        disabled={disabled || charCount === 0}
         className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold disabled:bg-gray-300 transition"
       >
         Enviar respuesta
