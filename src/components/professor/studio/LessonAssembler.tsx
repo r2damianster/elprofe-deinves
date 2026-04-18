@@ -7,7 +7,7 @@ import { resolveField } from '../../../lib/i18n';
 interface Lesson {
   id: string;
   title: any;
-  content: any[];
+  content: any; // Can be array or object { steps, tags }
   has_production: boolean;
   order_index: number;
 }
@@ -18,6 +18,7 @@ interface Activity {
   type: string;
   topic?: string;
   level?: string;
+  content?: any;
 }
 
 export default function LessonAssembler() {
@@ -31,6 +32,40 @@ export default function LessonAssembler() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterMode, setFilterMode] = useState<'all' | 'recommended'>('all');
+
+  const getLessonSteps = (lesson: Lesson | null) => {
+    if (!lesson?.content) return [];
+    return Array.isArray(lesson.content) ? lesson.content : (lesson.content.steps || []);
+  };
+  
+  const getLessonTags = (lesson: Lesson | null) => {
+    if (!lesson?.content || Array.isArray(lesson.content)) return [];
+    return lesson.content.tags || [];
+  };
+  
+  const getActivityTags = (act: Activity) => {
+    return (act.content?.es?.tags || act.content?.tags || []) as string[];
+  };
+
+  const filteredActivities = activities.filter(act => {
+    const actTags = getActivityTags(act);
+    const titleMatch = (act.title?.es || act.title?.en || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const typeMatch = act.type.toLowerCase().includes(searchQuery.toLowerCase());
+    const tagMatch = actTags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesSearch = !searchQuery || titleMatch || typeMatch || tagMatch;
+    
+    if (filterMode === 'recommended' && selectedLesson) {
+      const lTags = getLessonTags(selectedLesson);
+      const isRecommended = lTags.some(t => actTags.includes(t));
+      return matchesSearch && isRecommended;
+    }
+    
+    return matchesSearch;
+  });
 
   useEffect(() => {
     async function loadData() {
@@ -68,10 +103,12 @@ export default function LessonAssembler() {
   const handleAddActivity = async (activity: Activity) => {
     if (!selectedLesson) return;
     
-    // Optimistic UI update
+    const steps = getLessonSteps(selectedLesson);
     const newStep = { type: 'activity', activity_id: activity.id, _activity_title: activity.title };
-    const updatedContent = [...(selectedLesson.content || []), newStep];
-    const updatedLesson = { ...selectedLesson, content: updatedContent };
+    const updatedSteps = [...steps, newStep];
+    
+    const baseContent = Array.isArray(selectedLesson.content) ? { steps: [], tags: [] } : (selectedLesson.content || { steps: [], tags: [] });
+    const updatedLesson = { ...selectedLesson, content: { ...baseContent, steps: updatedSteps } };
     
     setSelectedLesson(updatedLesson);
     setLessons(prev => prev.map(l => l.id === updatedLesson.id ? updatedLesson : l));
@@ -82,10 +119,12 @@ export default function LessonAssembler() {
   const handleRemoveActivityStep = async (stepIndex: number) => {
     if (!selectedLesson) return;
     
-    const updatedContent = [...(selectedLesson.content || [])];
-    updatedContent.splice(stepIndex, 1);
+    const steps = getLessonSteps(selectedLesson);
+    const updatedSteps = [...steps];
+    updatedSteps.splice(stepIndex, 1);
     
-    const updatedLesson = { ...selectedLesson, content: updatedContent };
+    const baseContent = Array.isArray(selectedLesson.content) ? { steps: [], tags: [] } : (selectedLesson.content || { steps: [], tags: [] });
+    const updatedLesson = { ...selectedLesson, content: { ...baseContent, steps: updatedSteps } };
     
     setSelectedLesson(updatedLesson);
     setLessons(prev => prev.map(l => l.id === updatedLesson.id ? updatedLesson : l));
@@ -96,14 +135,16 @@ export default function LessonAssembler() {
   const handleMoveStep = async (stepIndex: number, direction: 'up' | 'down') => {
     if (!selectedLesson) return;
     
-    const updatedContent = [...(selectedLesson.content || [])];
+    const steps = getLessonSteps(selectedLesson);
+    const updatedSteps = [...steps];
     const targetIndex = direction === 'up' ? stepIndex - 1 : stepIndex + 1;
     
-    if (targetIndex < 0 || targetIndex >= updatedContent.length) return;
+    if (targetIndex < 0 || targetIndex >= updatedSteps.length) return;
     
-    [updatedContent[stepIndex], updatedContent[targetIndex]] = [updatedContent[targetIndex], updatedContent[stepIndex]];
+    [updatedSteps[stepIndex], updatedSteps[targetIndex]] = [updatedSteps[targetIndex], updatedSteps[stepIndex]];
     
-    const updatedLesson = { ...selectedLesson, content: updatedContent };
+    const baseContent = Array.isArray(selectedLesson.content) ? { steps: [], tags: [] } : (selectedLesson.content || { steps: [], tags: [] });
+    const updatedLesson = { ...selectedLesson, content: { ...baseContent, steps: updatedSteps } };
     
     setSelectedLesson(updatedLesson);
     setLessons(prev => prev.map(l => l.id === updatedLesson.id ? updatedLesson : l));
@@ -116,14 +157,19 @@ export default function LessonAssembler() {
     setSuccessMsg('');
     setError('');
     try {
-      const cleanSteps = (lesson.content || []).map((s: any) => {
+      const steps = getLessonSteps(lesson);
+      const cleanSteps = steps.map((s: any) => {
         const { _activity_title, ...rest } = s;
         return rest;
       });
 
+      const dbContent = Array.isArray(lesson.content) 
+        ? cleanSteps 
+        : { ...lesson.content, steps: cleanSteps };
+
       const { error: updateErr } = await supabase
         .from('lessons')
-        .update({ content: cleanSteps })
+        .update({ content: dbContent })
         .eq('id', lesson.id);
         
       if (updateErr) throw updateErr;
@@ -184,27 +230,39 @@ export default function LessonAssembler() {
           ) : (
             lessons.map(lesson => {
               const isSelected = selectedLesson?.id === lesson.id;
-              const activityCount = (lesson.content || []).filter(s => s.type === 'activity').length;
+              const steps = getLessonSteps(lesson);
+              const activityCount = steps.filter(s => s.type === 'activity').length;
+              const tags = getLessonTags(lesson);
               
               return (
                 <div 
                   key={lesson.id}
-                  onClick={() => setSelectedLesson(lesson)}
-                  className={`p-3 rounded-lg border cursor-pointer transition flex items-start gap-3
+                  onClick={() => { setSelectedLesson(lesson); setFilterMode('all'); setSearchQuery(''); }}
+                  className={`p-3 rounded-lg border cursor-pointer transition flex flex-col gap-2
                     ${isSelected ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-300' : 'bg-white border-gray-200 hover:border-blue-200'}`}
                 >
-                  <div className={`w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center text-sm font-bold
-                    ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                    {lesson.order_index}
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center text-sm font-bold
+                      ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                      {lesson.order_index}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-semibold truncate ${isSelected ? 'text-blue-900' : 'text-gray-700'}`}>
+                        {resolveField(lesson.title, 'es')}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {steps.length} pasos • {activityCount} actividades
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-semibold truncate ${isSelected ? 'text-blue-900' : 'text-gray-700'}`}>
-                      {resolveField(lesson.title, 'es')}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {lesson.content?.length || 0} pasos • {activityCount} actividades
-                    </p>
-                  </div>
+                  {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1 pl-11">
+                      {tags.slice(0, 3).map(tag => (
+                         <span key={tag} className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded drop-shadow-sm">{tag}</span>
+                      ))}
+                      {tags.length > 3 && <span className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded">+{tags.length - 3}</span>}
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -243,16 +301,16 @@ export default function LessonAssembler() {
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {error && (
                     <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4"/> {error}
+                       <AlertCircle className="w-4 h-4"/> {error}
                     </div>
                   )}
 
-                  {!(selectedLesson.content?.length > 0) ? (
+                  {getLessonSteps(selectedLesson).length === 0 ? (
                     <div className="text-center py-12 text-sm text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
                       La lección está vacía.<br/>Agrega actividades desde la derecha.
                     </div>
                   ) : (
-                    selectedLesson.content.map((step, idx) => {
+                    getLessonSteps(selectedLesson).map((step, idx) => {
                       const isActivity = step.type === 'activity';
                       
                       return (
@@ -279,7 +337,7 @@ export default function LessonAssembler() {
                               <button onClick={() => handleMoveStep(idx, 'up')} disabled={idx === 0 || saving} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded disabled:opacity-30">
                                 <ChevronUp className="w-4 h-4" />
                               </button>
-                              <button onClick={() => handleMoveStep(idx, 'down')} disabled={idx === selectedLesson.content.length - 1 || saving} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded disabled:opacity-30">
+                              <button onClick={() => handleMoveStep(idx, 'down')} disabled={idx === getLessonSteps(selectedLesson).length - 1 || saving} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded disabled:opacity-30">
                                 <ChevronDown className="w-4 h-4" />
                               </button>
                             </div>
@@ -313,32 +371,75 @@ export default function LessonAssembler() {
               </div>
 
               {/* Right: Activity Bank */}
-              <div className="w-[350px] flex flex-col bg-white">
-                <div className="p-3 bg-gray-100 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wide flex justify-between items-center">
-                  <span>Banco de Actividades</span>
-                  <span className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{activities.length}</span>
+              <div className="w-[380px] flex flex-col bg-white">
+                <div className="p-3 bg-gray-100 border-b border-gray-200 flex flex-col gap-2">
+                  <div className="flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wide">
+                    <span>Banco de Actividades</span>
+                    <span className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{filteredActivities.length}</span>
+                  </div>
+                  <input
+                    type="search"
+                    placeholder="Buscar por título, tipo, código o tag..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full text-sm px-3 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:border-blue-400"
+                  />
+                  <div className="flex bg-gray-200/50 p-1 rounded-lg">
+                    <button
+                      onClick={() => setFilterMode('all')}
+                      className={`flex-1 text-xs py-1 rounded-md font-medium transition ${filterMode === 'all' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Todas
+                    </button>
+                    <button
+                      onClick={() => setFilterMode('recommended')}
+                      disabled={getLessonTags(selectedLesson).length === 0}
+                      className={`flex-1 text-xs py-1 rounded-md font-medium transition disabled:opacity-30 ${filterMode === 'recommended' ? 'bg-white shadow text-green-700' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Recomendadas
+                    </button>
+                  </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                  {activities.length === 0 ? (
-                     <p className="text-sm text-gray-400 text-center py-8">No tienes actividades creadas.</p>
+                
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {filteredActivities.length === 0 ? (
+                     <p className="text-sm text-gray-400 text-center py-8">No hay coincidencias.</p>
                   ) : (
-                    activities.map(act => (
-                      <div key={act.id} className="p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition group">
-                        <p className="font-medium text-sm text-gray-800 line-clamp-2">{resolveField(act.title, 'es')}</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-[10px] uppercase font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
-                            {act.type}
-                          </span>
-                          <button 
-                            onClick={() => handleAddActivity(act)}
-                            disabled={saving}
-                            className="flex items-center gap-1 text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-600 hover:text-white transition disabled:opacity-50"
-                          >
-                            <Plus className="w-3 h-3" /> Añadir
-                          </button>
+                    filteredActivities.map(act => {
+                      const tags = getActivityTags(act);
+                      return (
+                        <div key={act.id} className="p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition group flex flex-col gap-2">
+                          <p className="font-medium text-sm text-gray-800 line-clamp-2">{resolveField(act.title, 'es')}</p>
+                          
+                          {tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {tags.map(tag => (
+                                <button
+                                  key={tag}
+                                  onClick={() => setSearchQuery(tag)}
+                                  className="text-[10px] bg-blue-50 text-blue-600 hover:bg-blue-100 px-1.5 py-0.5 rounded cursor-pointer transition border border-blue-200"
+                                >
+                                  {tag}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
+                              {act.type}
+                            </span>
+                            <button 
+                              onClick={() => handleAddActivity(act)}
+                              disabled={saving}
+                              className="flex items-center gap-1 text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-600 hover:text-white transition disabled:opacity-50"
+                            >
+                              <Plus className="w-3 h-3" /> Añadir
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      )
+                    })
                   )}
                 </div>
               </div>

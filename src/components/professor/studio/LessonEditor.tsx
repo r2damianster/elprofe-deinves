@@ -6,6 +6,7 @@ import {
   BookOpen, Video, Image, Link2, FileText, Settings, X, AlertTriangle,
 } from 'lucide-react';
 import MediaUploader from './MediaUploader';
+import TagInput from './TagInput';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -272,9 +273,12 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
   const [descEs,  setDescEs]        = useState(lesson?.description?.es ?? lesson?.description ?? '');
   const [descEn,  setDescEn]        = useState(lesson?.description?.en ?? '');
   const [orderIndex, setOrderIndex] = useState(lesson?.order_index ?? 0);
+  
+  // Extra Meta
+  const [tags, setTags] = useState<string[]>(lesson?.content?.tags ?? []);
 
   // Pasos
-  const [steps, setSteps] = useState<ContentStep[]>(lesson?.content ?? []);
+  const [steps, setSteps] = useState<ContentStep[]>(Array.isArray(lesson?.content) ? lesson.content : (lesson?.content?.steps ?? []));
 
   // Producción
   const [hasProduction, setHasProduction] = useState(lesson?.has_production ?? false);
@@ -377,7 +381,7 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
       const payload = {
         title: { es: titleEs, en: titleEn },
         description: { es: descEs, en: descEn },
-        content: cleanSteps,
+        content: { steps: cleanSteps, tags },
         has_production: hasProduction,
         production_unlock_percentage: unlockPct,
         order_index: orderIndex,
@@ -525,6 +529,11 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
                 </button>
               </div>
             </div>
+          </div>
+
+          <div>
+            <label className="label-sm">Palabras clave / Etiquetas de la Lección</label>
+            <TagInput tags={tags} onChange={setTags} placeholder="Ej: [gramática] [básico] [conversación]" />
           </div>
 
           <div className="w-32">

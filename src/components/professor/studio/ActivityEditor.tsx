@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { X, Plus, Trash2, Loader2, Wand2, GripVertical } from 'lucide-react';
 import MediaUploader from './MediaUploader';
+import TagInput from './TagInput';
 import type { ActivityType } from '../../../lib/database.types';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -501,6 +502,7 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
 
   const [points, setPoints] = useState(activity?.points ?? 1);
   const [mediaUrl, setMediaUrl] = useState(activity?.media_url ?? '');
+  const [tags, setTags] = useState<string[]>(activity?.content?.tags ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -528,7 +530,7 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
     setSaving(true);
     setError('');
 
-    const contentPayload = { es: contentEs, en: contentEn };
+    const contentPayload = { es: { ...contentEs, tags }, en: { ...contentEn, tags } };
     const titlePayload = { es: titleEs, en: titleEn };
 
     try {
@@ -612,6 +614,14 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
               </div>
             )}
             
+          </div>
+
+          <div className="border-t border-dashed border-gray-200"></div>
+
+          {/* Etiquetas */}
+          <div>
+            <label className="label-sm">Palabras clave / Etiquetas de la Actividad</label>
+            <TagInput tags={tags} onChange={setTags} placeholder="Ej: [vocabulario] [lectura] [deportes]" />
           </div>
 
           <div className="border-t border-dashed border-gray-200"></div>
