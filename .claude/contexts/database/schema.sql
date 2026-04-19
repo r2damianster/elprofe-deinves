@@ -20,12 +20,12 @@
 -- If is_admin = true, returns 'admin' regardless of role
 CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS text AS $$
-  SELECT 
-    CASE 
+  SELECT
+    CASE
       WHEN is_admin THEN 'admin'
       ELSE role::text
     END
-  FROM public.profiles 
+  FROM public.profiles
   WHERE id = auth.uid();
 $$ LANGUAGE sql SECURITY DEFINER;
 
@@ -309,7 +309,7 @@ CREATE TABLE public.presentation_sessions (
 -- ============================================================
 
 -- All students with their course enrollments
-SELECT 
+SELECT
   p.id AS student_id,
   p.email,
   p.full_name,
@@ -325,7 +325,7 @@ WHERE p.role = 'student'
 ORDER BY p.created_at DESC;
 
 -- Students without course enrollments
-SELECT 
+SELECT
   p.id,
   p.email,
   p.full_name,
@@ -336,7 +336,7 @@ WHERE p.role = 'student'
 ORDER BY p.created_at DESC;
 
 -- Lessons assigned to each course
-SELECT 
+SELECT
   la.id AS assignment_id,
   l.title->>'es' AS lesson_title_es,
   c.name AS course_name,
@@ -347,26 +347,26 @@ JOIN courses c ON la.course_id = c.id
 ORDER BY la.assigned_at DESC;
 
 -- Students with no lesson assignments (via course or direct)
-SELECT 
+SELECT
   p.id,
   p.email,
   p.full_name
 FROM profiles p
 WHERE p.role = 'student'
   AND p.id NOT IN (
-    SELECT cs.student_id 
+    SELECT cs.student_id
     FROM course_students cs
     JOIN lesson_assignments la ON la.course_id = cs.course_id
   )
   AND p.id NOT IN (
-    SELECT la.student_id 
-    FROM lesson_assignments la 
+    SELECT la.student_id
+    FROM lesson_assignments la
     WHERE la.student_id IS NOT NULL
   )
 ORDER BY p.created_at DESC;
 
 -- Production rules per lesson
-SELECT 
+SELECT
   l.title->>'es' AS lesson_title,
   pr.min_words,
   pr.max_words,
@@ -378,7 +378,7 @@ JOIN lessons l ON pr.lesson_id = l.id
 ORDER BY l.order_index;
 
 -- Group summary per course
-SELECT 
+SELECT
   c.name AS course_name,
   gs.name AS group_set_name,
   g.name AS group_name,
@@ -393,7 +393,7 @@ GROUP BY c.name, gs.name, g.name, g.max_members, g.enrollment_open
 ORDER BY c.name, g.name;
 
 -- Active presentation sessions
-SELECT 
+SELECT
   ps.id,
   l.title->>'es' AS lesson_title,
   c.name AS course_name,

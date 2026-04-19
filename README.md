@@ -183,12 +183,7 @@ profiles                     (usuarios: admin, professor, student, is_admin bool
 
 | Archivo | Contenido |
 |---------|-----------|
-| [`docs/actividades-json.md`](./docs/actividades-json.md) | Referencia técnica de todos los tipos de actividad con ejemplos JSON y SQL |
-| [`docs/gemini-gem-prompt.md`](./docs/gemini-gem-prompt.md) | Prompt para la Gem de Google Gemini que genera actividades automáticamente desde materiales de clase |
-| [`docs/database-schema.sql`](./docs/database-schema.sql) | Esquema SQL completo con 18 tablas y 9 consultas de diagnóstico |
-
----
-
-## Crear actividades con IA
-
-La carpeta `docs/` incluye el prompt para configurar una **Gem de Google Gemini** que, dado un Google Slide, PDF o texto, propone actividades pedagógicas y genera el JSON listo para insertar en Supabase. Ver [`docs/gemini-gem-prompt.md`](./docs/gemini-gem-prompt.md).
+| [`.claude/docs/architecture/activity-jsonb-spec.md`](./.claude/docs/architecture/activity-jsonb-spec.md) | Especificación JSONB de todos los tipos de actividad (formato bilingüe actual) |
+| [`.claude/docs/architecture/lesson-jsonb-spec.md`](./.claude/docs/architecture/lesson-jsonb-spec.md) | Especificación JSONB de lecciones y sincronización con lesson_activities |
+| [`.claude/contexts/database/schema.sql`](./.claude/contexts/database/schema.sql) | Esquema SQL completo con 18 tablas y 9 consultas de diagnóstico |
+| [`.claude/docs/architecture/conventions.md`](./.claude/docs/architecture/conventions.md) | Convenciones de código, estilos, TypeScript y comandos |
