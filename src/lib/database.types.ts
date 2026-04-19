@@ -145,7 +145,7 @@ export interface Database {
         Row: {
           id: string;
           type: ActivityType;
-          title: string;
+          title: any; // JSONB: { es: string; en: string }
           content: any;
           points: number;
           media_url: string | null;
@@ -155,7 +155,7 @@ export interface Database {
         Insert: {
           id?: string;
           type: ActivityType;
-          title: string;
+          title: any; // JSONB: { es: string; en: string }
           content?: any;
           points?: number;
           media_url?: string | null;
@@ -165,7 +165,7 @@ export interface Database {
         Update: {
           id?: string;
           type?: ActivityType;
-          title?: string;
+          title?: any; // JSONB: { es: string; en: string }
           content?: any;
           points?: number;
           media_url?: string | null;

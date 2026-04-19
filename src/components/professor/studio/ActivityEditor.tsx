@@ -495,10 +495,17 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
 
   const [type, setType] = useState<ActivityType>(activity?.type ?? 'multiple_choice');
   
-  // Títulos Bilingües (Soporta JSON para Title)
-  const isTitleObj = activity?.title && typeof activity.title === 'object';
-  const [titleEs, setTitleEs] = useState(isTitleObj ? activity?.title?.es : (activity?.title ?? ''));
-  const [titleEn, setTitleEn] = useState(isTitleObj ? activity?.title?.en : '');
+  // Títulos Bilingües — normaliza string plano, JSON-string o objeto
+  const _initTitles = (() => {
+    let t = activity?.title;
+    if (typeof t === 'string' && t.startsWith('{')) {
+      try { t = JSON.parse(t); } catch { /* keep as string */ }
+    }
+    if (t && typeof t === 'object') return { es: t.es || '', en: t.en || '' };
+    return { es: (t as string) || '', en: '' };
+  })();
+  const [titleEs, setTitleEs] = useState(_initTitles.es);
+  const [titleEn, setTitleEn] = useState(_initTitles.en);
 
   const [points, setPoints] = useState(activity?.points ?? 1);
   const [mediaUrl, setMediaUrl] = useState(activity?.media_url ?? '');

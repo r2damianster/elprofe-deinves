@@ -17,7 +17,8 @@
       "mcp__claude_ai_Supabase__apply_migration",
       "mcp__claude_ai_Vercel__list_projects",
       "mcp__claude_ai_Vercel__list_deployments",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "mcp__claude_ai_Supabase__list_projects"
     ]
   }
 }
