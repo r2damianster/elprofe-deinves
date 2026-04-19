@@ -221,11 +221,12 @@ export default function GroupManager({ courseId }: Props) {
       } else if (createMode === 'affinity') {
         const max = affinityMax === '' ? null : Number(affinityMax);
         for (let i = 1; i <= affinityCount; i++) {
-          const { error: affErr } = await supabase.from('groups').insert({
+          const { data: gData, error: affErr } = await supabase.from('groups').insert({
             course_id: courseId, name: `Grupo ${i}`,
             created_by: profile?.id, group_set_id: setData.id,
             enrollment_open: true, max_members: max,
-          });
+          }).select().single();
+          console.log(`[createSet] grupo ${i}:`, gData, affErr);
           if (affErr) throw affErr;
         }
       }
