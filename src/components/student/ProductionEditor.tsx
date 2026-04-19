@@ -63,6 +63,7 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
   const [saving, setSaving]         = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [rulesLoading, setRulesLoading] = useState(true);
 
   // Métricas
   const [integrityScore, setIntegrityScore]   = useState(100);
@@ -166,9 +167,11 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
   // ── Carga de datos ────────────────────────────────────────────────────────
 
   async function loadRules() {
+    setRulesLoading(true);
     const { data } = await supabase
       .from('production_rules').select('*').eq('lesson_id', lessonId).maybeSingle();
     if (data) setRules(data);
+    setRulesLoading(false);
   }
 
   async function loadProduction() {
@@ -211,10 +214,11 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
       else met++;
     }
 
-    // Palabras requeridas
+    // Palabras requeridas (se normalizan eliminando puntuación periférica)
     rules.required_words.forEach(w => {
       total++;
-      if (!lower.includes(w.toLowerCase())) errors.push(`Falta la palabra clave: "${w}"`);
+      const clean = w.replace(/^[^a-záéíóúñüA-ZÁÉÍÓÚÑÜ]+|[^a-záéíóúñüA-ZÁÉÍÓÚÑÜ]+$/g, '').toLowerCase();
+      if (!lower.includes(clean)) errors.push(`Falta la palabra clave: "${w}"`);
       else met++;
     });
 
@@ -306,6 +310,7 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
   }
 
   async function submitProduction(forced = false) {
+    if (!rules) { alert('Las reglas de la producción aún no han cargado. Espera un momento.'); return; }
     if (!forced && validationErrors.length > 0) { alert('Corrige los errores antes de enviar.'); return; }
     if (!forced && !confirm('¿Enviar producción? No podrás editarla después.')) return;
     setSubmitting(true);
@@ -349,7 +354,7 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
   // ── Derivados ─────────────────────────────────────────────────────────────
 
   const wordCount = countWords(content);
-  const isValid   = validationErrors.length === 0 && wordCount > 0;
+  const isValid   = !rulesLoading && rules !== null && validationErrors.length === 0 && wordCount >= rules.min_words;
   const attempts  = production?.attempts || 1;
 
   // ── Render ────────────────────────────────────────────────────────────────

@@ -1,84 +1,32 @@
 # Flujo de Producción Escrita
 
-Las producciones son actividades de escritura libre (`essay`, `long_response`, `structured_essay`) que requieren revisión humana del profesor.
+Las producciones son actividades de escritura libre (`essay`, `long_response`, `structured_essay`) que requieren revisión humana del profesor y validación estricta de reglas de la base de datos.
 
 ## 1. Desbloqueo
 
 Una producción se desbloquea cuando el estudiante supera el `production_unlock_percentage` de la lección:
+`completion_percentage (student_progress) >= production_unlock_percentage (lessons)`
 
-```
-completion_percentage (student_progress) >= production_unlock_percentage (lessons)
-```
+## 2. Escritura y Validación (Real-time)
 
-Hasta ese punto, el botón/paso de producción aparece bloqueado en `LessonViewer`.
+El estudiante escribe en el componente correspondiente. **Es obligatorio** realizar un fetch previo a `public.production_rules` usando el `lesson_id`.
 
-## 2. Escritura
+- **Validación de Compliance:**
+  - El sistema debe comparar `word_count` contra `min_words` y `max_words`.
+  - Debe verificar la presencia de `required_words` y la ausencia de `prohibited_words`.
+- **Integridad:** Se registran eventos de `useIntegrity` en el array JSONB `integrity_events`.
 
-El estudiante escribe en el componente correspondiente (`Essay`, `LongResponse`, `StructuredEssay`). Mientras escribe:
+## 3. Envío (Submit)
 
-- **Barra de compliance** en tiempo real:
-  - Progreso hacia el mínimo de palabras/caracteres
-  - Palabras obligatorias presentes (`required_words`)
-  - Palabras prohibidas evitadas (`forbidden_words`)
-- **Barra de integridad** via `useIntegrity`:
-  - Detecta: paste, cambio de pestaña, clic derecho, atajos Ctrl+C/V/X/A, resize de ventana
-  - Cada evento se registra en `integrity_events` (array JSONB)
+**REGLA CRÍTICA:** El botón de envío DEBE estar deshabilitado si `word_count < min_words`. 
 
-## 3. Envío
+Al hacer submit, se crea/actualiza el registro en `productions`:
+- `status`: 'submitted' (solo si cumple el mínimo de palabras).
+- `compliance_score`: Calculado según el cumplimiento de reglas.
+- `word_count`: Guardado para auditoría.
 
-Al hacer submit, se llama a `onSubmit(response, score)` desde `ActivityRenderer`. Esto crea/actualiza un registro en `productions`:
+## 4. Revisión y Resultados
 
-```
-productions.status: 'draft' → 'submitted'
-```
+El profesor califica en el dashboard. El estado cambia a `reviewed` y se libera el feedback. Si se marca "reintento", el flujo vuelve al paso 2.
 
-Los campos guardados:
-- `content` — texto escrito
-- `word_count` — conteo de palabras
-- `compliance_score` — 0-100
-- `integrity_score` — 0-100
-- `integrity_events` — array de eventos detectados
-- `time_on_task` — segundos desde que abrió la actividad
-
-## 4. Revisión del Profesor
-
-El profesor ve las producciones en `ProductionReviewer.tsx` (tab Producciones del dashboard):
-
-- Filtros: pendiente / revisado / todos
-- Ve el texto completo + barras de compliance e integridad
-- Ve el log forense de `integrity_events`
-- Asigna puntaje 0-100 y feedback textual
-- Puede marcar para reintento
-
-Al calificar:
-```
-productions.status: 'submitted' → 'reviewed'
-productions.score = puntaje
-productions.feedback = texto
-productions.reviewed_at = now()
-```
-
-## 5. Resultado visible al estudiante
-
-Tras la revisión, el estudiante ve el puntaje y feedback en `LessonResults` y `StudentResults`.
-
-Si el profesor habilitó reintento: el estudiante puede editar y re-enviar.
-
-## Diagrama simplificado
-
-```
-student_progress.completion_percentage >= production_unlock_percentage
-        ↓
-  [Desbloqueo del paso de producción]
-        ↓
-  Essay / LongResponse / StructuredEssay
-  (compliance + integrity en tiempo real)
-        ↓
-  onSubmit → productions (status: submitted)
-        ↓
-  ProductionReviewer → calificación del profesor
-        ↓
-  productions (status: reviewed, score, feedback)
-        ↓
-  StudentResults / LessonResults
-```
+> **Nota de Arquitectura:** Las reglas de validación NO están en el JSON de la actividad. Se consultan exclusivamente en la tabla `production_rules` vinculada a la lección.
