@@ -172,9 +172,10 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
   }
 
   async function loadProduction() {
+    if (!profile?.id) return;
     const { data } = await supabase
       .from('productions').select('*')
-      .eq('student_id', profile?.id).eq('lesson_id', lessonId).maybeSingle();
+      .eq('student_id', profile.id).eq('lesson_id', lessonId).maybeSingle();
     if (data) {
       setProduction(data);
       setContent(data.content ?? '');
@@ -295,7 +296,7 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
         await supabase.from('productions').update(buildPayload()).eq('id', production.id);
       } else {
         const { data } = await supabase.from('productions')
-          .insert({ student_id: profile?.id!, lesson_id: lessonId, status: 'draft', ...buildPayload() })
+          .insert({ student_id: profile!.id, lesson_id: lessonId, status: 'draft' as const, ...buildPayload() })
           .select().single();
         if (data) setProduction(data);
       }
@@ -313,10 +314,14 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
         await supabase.from('productions').update(buildPayload('submitted')).eq('id', production.id);
       } else {
         await supabase.from('productions').insert({
-          student_id: profile?.id!, lesson_id: lessonId, ...buildPayload('submitted'),
+          student_id: profile!.id, lesson_id: lessonId, ...buildPayload('submitted'),
         });
       }
-      if (!forced) alert('Producción enviada exitosamente.');
+      if (!forced) {
+        alert('Producción enviada exitosamente.');
+        onBack();
+        return;
+      }
       loadProduction();
     } catch (err: any) { alert('Error: ' + err.message); }
     finally { setSubmitting(false); }
@@ -430,19 +435,40 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
         )}
 
         {/* Requisitos */}
-        {rules && !isSubmitted && (
+        {!isSubmitted && (
           <div className="bg-white rounded-xl shadow-sm border p-5">
             <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-blue-600" /> Requisitos de Escritura
             </h3>
-            <ul className="space-y-1 text-sm text-gray-700">
-              <li>• Mínimo <strong>{rules.min_words}</strong> palabras{rules.max_words ? `, máximo ${rules.max_words}` : ''}.</li>
-              {rules.required_words.length > 0 && <li>• Debes incluir: <strong className="text-green-700">{rules.required_words.join(', ')}</strong></li>}
-              {rules.prohibited_words.length > 0 && <li>• Prohibido usar: <strong className="text-red-600">{rules.prohibited_words.join(', ')}</strong></li>}
-              {rules.extra_rules?.min_paragraphs && <li>• Mínimo <strong>{rules.extra_rules.min_paragraphs}</strong> párrafos.</li>}
-              {rules.extra_rules?.forbidden_first_person && <li>• Redacción en tercera persona (sin "yo", "me", "mi").</li>}
-              {rules.extra_rules?.required_apa_citations && <li>• Al menos <strong>{rules.extra_rules.required_apa_citations}</strong> cita(s) en formato APA.</li>}
-              {rules.extra_rules?.required_sections?.map(s => <li key={s}>• Debe incluir la sección: <strong>"{s}"</strong></li>)}
+            {rules ? (
+              <ul className="space-y-1 text-sm text-gray-700">
+                <li>• Mínimo <strong>{rules.min_words}</strong> palabras{rules.max_words ? `, máximo ${rules.max_words}` : ''}.</li>
+                {rules.required_words.length > 0 && <li>• Debes incluir: <strong className="text-green-700">{rules.required_words.join(', ')}</strong></li>}
+                {rules.prohibited_words.length > 0 && <li>• Prohibido usar: <strong className="text-red-600">{rules.prohibited_words.join(', ')}</strong></li>}
+                {rules.extra_rules?.min_paragraphs && <li>• Mínimo <strong>{rules.extra_rules.min_paragraphs}</strong> párrafos.</li>}
+                {rules.extra_rules?.forbidden_first_person && <li>• Redacción en tercera persona (sin "yo", "me", "mi").</li>}
+                {rules.extra_rules?.required_apa_citations && <li>• Al menos <strong>{rules.extra_rules.required_apa_citations}</strong> cita(s) en formato APA.</li>}
+                {rules.extra_rules?.required_sections?.map(s => <li key={s}>• Debe incluir la sección: <strong>"{s}"</strong></li>)}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500 italic">El docente no ha configurado requisitos específicos para esta producción. Redacta libremente.</p>
+            )}
+          </div>
+        )}
+
+        {/* Reglas de integridad académica */}
+        {!isSubmitted && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+            <h3 className="font-bold text-amber-800 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
+              <ShieldAlert className="w-4 h-4" /> Reglas de Integridad Académica
+            </h3>
+            <ul className="space-y-1 text-sm text-amber-900">
+              <li>• Cambiar de pestaña o ventana: <strong>−10 puntos</strong></li>
+              <li>• Perder el foco de la ventana: <strong>−5 puntos</strong></li>
+              <li>• Intentar pegar texto externo: <strong>−15 puntos</strong> (bloqueado)</li>
+              <li>• Copiar texto (Ctrl+C): <strong>−5 puntos</strong></li>
+              <li>• Clic derecho: <strong>−3 puntos</strong></li>
+              <li>• Si la integridad llega a <strong>≤ 50</strong>, el ensayo se enviará automáticamente.</li>
             </ul>
           </div>
         )}

@@ -48,11 +48,17 @@ export default function ContentStudio() {
 
   useEffect(() => { loadLessons(); }, [loadLessons]);
 
+  function getLessonTags(l: Lesson): string[] {
+    return Array.isArray(l.content) ? [] : ((l.content as any)?.tags || []);
+  }
+
   const filtered = lessons.filter(l => {
     if (filterOwn && l.created_by !== profile?.id) return false;
     if (search) {
-      const title = resolveField(l.title, 'es').toLowerCase();
-      if (!title.includes(search.toLowerCase())) return false;
+      const q = search.toLowerCase();
+      const titleMatch = resolveField(l.title, 'es').toLowerCase().includes(q);
+      const tagMatch = getLessonTags(l).some((t: string) => t.toLowerCase().includes(q));
+      if (!titleMatch && !tagMatch) return false;
     }
     return true;
   });
@@ -127,7 +133,7 @@ export default function ContentStudio() {
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar lección..."
+                placeholder="Buscar por título o etiqueta..."
                 className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
             </div>
@@ -190,6 +196,16 @@ export default function ContentStudio() {
                         {lesson.has_production && <span className="text-purple-600">+ Producción</span>}
                         {!isOwn && <span className="text-amber-500">📖 compartida</span>}
                       </div>
+                      {getLessonTags(lesson).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {getLessonTags(lesson).slice(0, 4).map((tag: string) => (
+                            <span key={tag} className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded">{tag}</span>
+                          ))}
+                          {getLessonTags(lesson).length > 4 && (
+                            <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded">+{getLessonTags(lesson).length - 4}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Acciones */}

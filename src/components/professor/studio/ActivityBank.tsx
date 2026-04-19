@@ -79,11 +79,20 @@ export default function ActivityBank({ onSelectForLesson, linkedIds }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
+  function getTags(a: Activity): string[] {
+    return (a.content?.es?.tags || a.content?.tags || []) as string[];
+  }
+
   const filtered = activities.filter(a => {
     if (filterType && a.type !== filterType) return false;
     if (filterOwn && a.created_by !== profile?.id) return false;
-    if (search && !resolveField(a.title, 'es').toLowerCase().includes(search.toLowerCase()) &&
-        !resolveField(a.title, 'en').toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const titleMatch = resolveField(a.title, 'es').toLowerCase().includes(q) ||
+                         resolveField(a.title, 'en').toLowerCase().includes(q);
+      const tagMatch = getTags(a).some(t => t.toLowerCase().includes(q));
+      if (!titleMatch && !tagMatch) return false;
+    }
     return true;
   });
 
@@ -125,7 +134,7 @@ export default function ActivityBank({ onSelectForLesson, linkedIds }: Props) {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar por título..."
+              placeholder="Buscar por título o etiqueta..."
               className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>
@@ -202,6 +211,16 @@ export default function ActivityBank({ onSelectForLesson, linkedIds }: Props) {
                     {isOwn && <span className="text-xs text-blue-500">✎ mía</span>}
                   </div>
                   <p className="text-sm font-medium text-gray-800 truncate">{resolveField(activity.title, 'es')}</p>
+                  {getTags(activity).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {getTags(activity).slice(0, 4).map(tag => (
+                        <span key={tag} className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{tag}</span>
+                      ))}
+                      {getTags(activity).length > 4 && (
+                        <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded">+{getTags(activity).length - 4}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1 flex-shrink-0">
