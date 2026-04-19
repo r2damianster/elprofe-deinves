@@ -1,24 +1,23 @@
 {
   "permissions": {
     "allow": [
-      "mcp__785ba7f2-3851-4a9f-a790-b06dd37855e9__list_tables",
+      "mcp__supabase__list_tables",
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "mcp__785ba7f2-3851-4a9f-a790-b06dd37855e9__execute_sql",
-      "mcp__785ba7f2-3851-4a9f-a790-b06dd37855e9__list_migrations",
-      "mcp__785ba7f2-3851-4a9f-a790-b06dd37855e9__apply_migration",
+      "mcp__supabase__execute_sql",
+      "mcp__supabase__list_migrations",
+      "mcp__supabase__apply_migration",
       "Bash(npx supabase:*)",
       "Bash(ollama run:*)",
       "Bash(npx tsc:*)",
       "Bash(grep -i \"language\" /c/Users/User/Desktop/elprofe-deinves/supabase/migrations/*.sql)",
-      "mcp__claude_ai_Supabase__list_tables",
-      "mcp__claude_ai_Supabase__execute_sql",
-      "mcp__claude_ai_Supabase__apply_migration",
       "mcp__claude_ai_Vercel__list_projects",
       "mcp__claude_ai_Vercel__list_deployments",
       "Bash(git pull *)",
-      "mcp__claude_ai_Supabase__list_projects"
+      "mcp__supabase__list_projects",
+      "Bash(curl -s -X POST https://ckpmrmhkrbylibecezxn.supabase.co/rest/v1/rpc/exec_sql -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrcG1ybWhrcmJ5bGliZWNlenhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNjkzMDIsImV4cCI6MjA5MDc0NTMwMn0.Q5vomcjyFsVm8HU2w_jyCqv9ISYzOVNIY67pzknootE' -H 'Content-Type: application/json' -d '{\"query\": \"SELECT policyname, cmd FROM pg_policies WHERE tablename IN \\('\\\\''production_rules'\\\\'', '\\\\''productions'\\\\''\\) ORDER BY tablename, cmd\"}')",
+      "Bash(git -C \"c:/Users/User/Documents/Desarrollo Web/elprofe-deinves\" diff .claude/agents/especialista-bd.md .claude/settings.local.json .gitignore)"
     ]
   }
 }
