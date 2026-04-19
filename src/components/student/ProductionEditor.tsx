@@ -10,7 +10,7 @@ interface ProductionRules {
   max_words: number | null;
   required_words: string[];
   prohibited_words: string[];
-  instructions: string | null;
+  instructions: string | { es: string; en: string } | null;
   extra_rules: {
     min_paragraphs?: number;
     forbidden_first_person?: boolean;
@@ -33,11 +33,11 @@ interface Production {
   status: string;
   score: number | null;
   feedback: string | null;
-  attempts: number;
-  compliance_score: number;
-  integrity_score: number;
-  integrity_events: IntegrityEvent[];
-  time_on_task: number;
+  attempts: number | null;
+  compliance_score: number | null;
+  integrity_score: number | null;
+  integrity_events: IntegrityEvent[] | null;
+  time_on_task: number | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -371,7 +371,13 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-800">Redacción Final</h1>
-              {rules?.instructions && <p className="text-gray-600 mt-1 text-sm">{rules.instructions}</p>}
+              {rules?.instructions && (
+                <p className="text-gray-600 mt-1 text-sm">
+                  {typeof rules.instructions === 'object'
+                    ? (rules.instructions as { es: string; en: string }).es
+                    : rules.instructions}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1 text-sm text-gray-500">
