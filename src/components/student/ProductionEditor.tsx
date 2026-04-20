@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import {
   ArrowLeft, AlertCircle, CheckCircle, Save, Send,
   ShieldAlert, BarChart, Clock, FileText, Info, X,
+  Sparkles, PanelLeftClose, PanelLeftOpen, ThumbsUp, Lightbulb,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -83,13 +84,24 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
   const [timeOnTask, setTimeOnTask]           = useState(0);
 
   // UI state
-  const [activeTab, setActiveTab]         = useState<'instructions' | 'status' | 'integrity'>('instructions');
+  const [activeTab, setActiveTab]         = useState<'instructions' | 'status' | 'integrity' | 'ia'>('instructions');
   const [toasts, setToasts]               = useState<Toast[]>([]);
   const [pasteBanner, setPasteBanner]     = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [lastSaved, setLastSaved]         = useState<Date | null>(null);
+  const [focusMode, setFocusMode]         = useState(false);
   const autoSaveRef                       = useRef<ReturnType<typeof setInterval> | null>(null);
   const errorsRef                         = useRef<HTMLDivElement | null>(null);
+
+  // IA feedback state
+  const [aiFeedback, setAiFeedback] = useState<{
+    score: number;
+    summary: string;
+    strengths: string[];
+    improvements: string[];
+  } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError]     = useState<string | null>(null);
 
   const isSubmitted = production?.status === 'submitted' || production?.status === 'reviewed';
   const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -407,6 +419,50 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
     finally { setSubmitting(false); }
   }
 
+  // ── Análisis con IA ───────────────────────────────────────────────────────
+
+  async function analyzeWithAI() {
+    setAiLoading(true);
+    setAiFeedback(null);
+    setAiError(null);
+    setActiveTab('ia');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const res = await fetch(`${supabaseUrl}/functions/v1/ai-enhance`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          task: 'review_production',
+          lang: 'es',
+          data: {
+            content,
+            instructions: rules?.instructions
+              ? typeof rules.instructions === 'object'
+                ? (rules.instructions as { es: string; en: string }).es
+                : rules.instructions
+              : 'Redacción libre',
+            min_words: rules?.min_words,
+            max_words: rules?.max_words,
+            required_words: rules?.required_words ?? [],
+            prohibited_words: rules?.prohibited_words ?? [],
+          },
+        }),
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setAiFeedback(json.result);
+    } catch (err: any) {
+      setAiError(err.message);
+      showToast('Error al analizar con IA', 'error');
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   // ── Derivados ─────────────────────────────────────────────────────────────
 
   const wordCount = countWords(content);
@@ -472,6 +528,16 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
                 Intento {attempts} de 2
               </span>
             )}
+            <button
+              onClick={() => setFocusMode(f => !f)}
+              title={focusMode ? 'Mostrar panel' : 'Modo enfoque'}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 border border-gray-200 hover:border-blue-400 px-2.5 py-1.5 rounded-lg transition"
+            >
+              {focusMode
+                ? <><PanelLeftOpen className="w-3.5 h-3.5" /> Panel</>
+                : <><PanelLeftClose className="w-3.5 h-3.5" /> Enfoque</>
+              }
+            </button>
           </div>
         </div>
       </header>
@@ -507,16 +573,17 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
         <div className="flex flex-col lg:flex-row gap-6 items-start">
 
           {/* Panel izquierdo — informativo (40%) */}
-          <aside className="w-full lg:w-2/5 flex flex-col gap-4">
+          <aside className={`flex flex-col gap-4 transition-all duration-300 ${focusMode ? 'hidden' : 'w-full lg:w-2/5'}`}>
 
             {/* Tabs del panel */}
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
               <div className="flex border-b">
                 {(
                   [
-                    { id: 'instructions', label: 'Instrucciones', icon: FileText },
-                    { id: 'status',       label: 'Estado',        icon: Info      },
+                    { id: 'instructions', label: 'Instrucciones', icon: FileText    },
+                    { id: 'status',       label: 'Estado',        icon: Info        },
                     { id: 'integrity',    label: 'Integridad',    icon: ShieldAlert },
+                    { id: 'ia',           label: 'IA',            icon: Sparkles    },
                   ] as const
                 ).map(({ id, label, icon: Icon }) => (
                   <button
@@ -538,6 +605,11 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
                     {id === 'integrity' && integrityEvents.length > 0 && (
                       <span className="ml-1 bg-amber-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
                         {integrityEvents.length}
+                      </span>
+                    )}
+                    {id === 'ia' && aiFeedback && (
+                      <span className="ml-1 bg-purple-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                        {aiFeedback.score}
                       </span>
                     )}
                   </button>
@@ -711,11 +783,92 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
                   )}
                 </div>
               )}
+
+              {/* Tab: IA */}
+              {activeTab === 'ia' && (
+                <div className="p-5">
+                  {aiLoading && (
+                    <div className="flex flex-col items-center gap-3 py-8 text-purple-600">
+                      <Sparkles className="w-8 h-8 animate-pulse" />
+                      <p className="text-sm font-medium">Analizando tu ensayo...</p>
+                    </div>
+                  )}
+
+                  {aiError && !aiLoading && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+                      <p className="font-semibold mb-1">Error al analizar</p>
+                      <p className="text-xs">{aiError}</p>
+                    </div>
+                  )}
+
+                  {aiFeedback && !aiLoading && (
+                    <div className="space-y-4">
+                      {/* Score */}
+                      <div className="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-xl p-4">
+                        <div>
+                          <p className="text-xs font-bold text-purple-600 uppercase tracking-wide mb-0.5">Puntuación estimada</p>
+                          <p className="text-xs text-purple-700 leading-snug">{aiFeedback.summary}</p>
+                        </div>
+                        <span className={`text-3xl font-black shrink-0 ml-3 ${
+                          aiFeedback.score >= 80 ? 'text-green-600' : aiFeedback.score >= 60 ? 'text-yellow-600' : 'text-red-600'
+                        }`}>
+                          {aiFeedback.score}
+                        </span>
+                      </div>
+
+                      {/* Fortalezas */}
+                      {aiFeedback.strengths.length > 0 && (
+                        <div>
+                          <h4 className="flex items-center gap-1.5 text-xs font-bold text-green-700 uppercase tracking-wide mb-2">
+                            <ThumbsUp className="w-3.5 h-3.5" /> Fortalezas
+                          </h4>
+                          <ul className="space-y-1.5">
+                            {aiFeedback.strengths.map((s, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm text-green-800 bg-green-50 rounded-lg px-3 py-2 border border-green-100">
+                                <CheckCircle className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />
+                                {s}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Mejoras */}
+                      {aiFeedback.improvements.length > 0 && (
+                        <div>
+                          <h4 className="flex items-center gap-1.5 text-xs font-bold text-amber-700 uppercase tracking-wide mb-2">
+                            <Lightbulb className="w-3.5 h-3.5" /> Sugerencias de mejora
+                          </h4>
+                          <ul className="space-y-1.5">
+                            {aiFeedback.improvements.map((m, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
+                                <Lightbulb className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                                {m}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <p className="text-xs text-gray-400 text-center pt-1">
+                        Feedback orientativo. La calificación oficial la asigna el profesor.
+                      </p>
+                    </div>
+                  )}
+
+                  {!aiFeedback && !aiLoading && !aiError && (
+                    <div className="flex flex-col items-center gap-3 py-8 text-gray-400">
+                      <Sparkles className="w-8 h-8" />
+                      <p className="text-sm text-center">Escribe al menos {rules?.min_words ?? 50} palabras y pulsa el botón de análisis.</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </aside>
 
-          {/* Panel derecho — editor (60%) */}
-          <section className="w-full lg:w-3/5 flex flex-col gap-4">
+          {/* Panel derecho — editor (60% normal, 100% en modo enfoque) */}
+          <section className={`flex flex-col gap-4 transition-all duration-300 ${focusMode ? 'w-full' : 'w-full lg:w-3/5'}`}>
             <div className="bg-white rounded-xl shadow-sm border p-6 flex flex-col">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-lg text-gray-800">Hoja de Trabajo</h3>
@@ -771,21 +924,34 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
 
               {/* Botones */}
               {!isSubmitted && (
-                <div className="flex flex-col sm:flex-row gap-3 mt-5">
-                  <button
-                    onClick={saveProduction}
-                    disabled={saving || wordCount === 0 || submitting}
-                    className="flex-1 bg-gray-100 border border-gray-300 text-gray-700 py-3 rounded-xl hover:bg-gray-200 transition font-bold disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    <Save className="w-4 h-4" /> {saving ? 'Guardando...' : 'Guardar borrador'}
-                  </button>
-                  <button
-                    onClick={() => submitProduction(false)}
-                    disabled={submitting || !isValid || integrityScore <= 50}
-                    className="flex-1 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition font-bold disabled:opacity-50 flex items-center justify-center gap-2 shadow-md shadow-blue-200"
-                  >
-                    <Send className="w-4 h-4" /> {submitting ? 'Enviando...' : 'Entregar Ensayo'}
-                  </button>
+                <div className="flex flex-col gap-3 mt-5">
+                  {/* Botón IA — solo visible cuando hay suficientes palabras */}
+                  {wordCount >= (rules?.min_words ?? 50) && !focusMode && (
+                    <button
+                      onClick={analyzeWithAI}
+                      disabled={aiLoading}
+                      className="w-full border-2 border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 hover:border-purple-500 py-2.5 rounded-xl transition font-semibold disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      {aiLoading ? 'Analizando...' : 'Analizar con IA (orientativo)'}
+                    </button>
+                  )}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={saveProduction}
+                      disabled={saving || wordCount === 0 || submitting}
+                      className="flex-1 bg-gray-100 border border-gray-300 text-gray-700 py-3 rounded-xl hover:bg-gray-200 transition font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <Save className="w-4 h-4" /> {saving ? 'Guardando...' : 'Guardar borrador'}
+                    </button>
+                    <button
+                      onClick={() => submitProduction(false)}
+                      disabled={submitting || !isValid || integrityScore <= 50}
+                      className="flex-1 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition font-bold disabled:opacity-50 flex items-center justify-center gap-2 shadow-md shadow-blue-200"
+                    >
+                      <Send className="w-4 h-4" /> {submitting ? 'Enviando...' : 'Entregar Ensayo'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

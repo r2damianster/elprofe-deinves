@@ -39,6 +39,25 @@ Al hacer submit, se crea/actualiza el registro en `productions`:
 
 El profesor califica en el dashboard. El estado cambia a `reviewed` y se libera el feedback. Si se marca "reintento", el flujo vuelve al paso 2 (máx. 2 intentos).
 
+## 5. Feedback Orientativo con IA (opcional, antes del envío)
+
+Una vez que el estudiante supera `min_words`, aparece el botón **"Analizar con IA (orientativo)"**. Al pulsarlo:
+
+1. Se llama a `supabase.functions.invoke` → `ai-enhance` con task `review_production`
+2. GROQ evalúa coherencia, gramática, vocabulario y cumplimiento de reglas
+3. La pestaña "IA" del panel izquierdo muestra:
+   - **Score** estimado (0-100, con color verde/amarillo/rojo)
+   - **Summary** — resumen en 1 oración
+   - **Strengths** — 2 fortalezas
+   - **Improvements** — 2-3 sugerencias de mejora
+4. El feedback es **orientativo** — no altera la calificación oficial del profesor
+
+El botón IA no aparece en modo enfoque (`focusMode === true`).
+
+## 6. Modo Enfoque
+
+Toggle en el header (`PanelLeftClose / PanelLeftOpen`) que oculta el panel izquierdo y expande el editor a 100% del ancho. El estudiante puede alternar libremente. No afecta la validación ni el envío.
+
 ## Notas de Arquitectura
 
 - Las reglas de validación NO están en el JSON de la actividad — se consultan en `production_rules` por `lesson_id`.

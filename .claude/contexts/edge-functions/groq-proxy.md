@@ -36,6 +36,7 @@ Content-Type: application/json
 | `improve_instructions` | `{ instructions, lessonTitle? }` | string — instrucciones mejoradas |
 | `generate_activity_options` | `{ question, correct? }` | `{ options: [{id, text}], correct_id }` |
 | `suggest_required_words` | `{ lessonTitle, level? }` | `{ required_words: string[] }` |
+| `review_production` | `{ content, instructions?, min_words?, max_words?, required_words?, prohibited_words? }` | `{ score: number, summary: string, strengths: string[], improvements: string[] }` |
 
 ## Response
 
@@ -47,7 +48,7 @@ Content-Type: application/json
 { error: string }   // HTTP 500
 ```
 
-Las tareas `generate_activity_options` y `suggest_required_words` devuelven `result` como objeto JSON parseado. El resto devuelve `result` como string plano.
+Las tareas `generate_activity_options`, `suggest_required_words` y `review_production` devuelven `result` como objeto JSON parseado. El resto devuelve `result` como string plano.
 
 ## Ejemplo de uso desde el frontend
 
@@ -67,3 +68,4 @@ const { data, error } = await supabase.functions.invoke('ai-enhance', {
 - Modelo: `llama-3.3-70b-versatile` (GROQ, temperatura 0.4, max 400 tokens)
 - CORS habilitado para todos los orígenes (`*`)
 - Se accede desde `LessonEditor.tsx` en el Content Studio para sugerencias inline
+- Se accede desde `ProductionEditor.tsx` (estudiante) para feedback orientativo de ensayos (`review_production`)

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Modo Enfoque en ProductionEditor**: toggle en el header oculta el panel informativo y expande el editor a pantalla completa para reducir distracciones durante la escritura
+- **Feedback IA orientativo en ProductionEditor**: botón "Analizar con IA" (aparece al superar min_words) que llama a GROQ via `ai-enhance` y muestra score estimado, fortalezas y sugerencias de mejora en pestaña "IA"
+- **Task `review_production` en Edge Function `ai-enhance`**: evalúa coherencia, gramática, vocabulario y cumplimiento de reglas; devuelve `{ score, summary, strengths[], improvements[] }`
+
 ### Fixed
 - **Activity management in lessons**: Fixed display of activity titles when editing existing lessons. Now professors can properly view, add, reorder, and remove activities within lessons via the LessonEditor.
 

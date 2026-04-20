@@ -14,7 +14,8 @@ type EnhanceTask =
   | 'improve_description'
   | 'improve_instructions'
   | 'generate_activity_options'
-  | 'suggest_required_words';
+  | 'suggest_required_words'
+  | 'review_production';
 
 interface RequestBody {
   task: EnhanceTask;
@@ -107,6 +108,25 @@ function buildMessages(task: EnhanceTask, lang: 'es' | 'en', data: Record<string
         },
       ];
 
+    case 'review_production':
+      return [
+        {
+          role: 'system',
+          content: `Eres un docente experto en evaluación de producción escrita en español. Analiza el ensayo del estudiante y devuelve SOLO JSON con este formato exacto (sin markdown, sin bloques de código):
+{"score":<0-100>,"summary":"<resumen en 1 oración>","strengths":["<fortaleza1>","<fortaleza2>"],"improvements":["<mejora1>","<mejora2>","<mejora3>"]}
+
+Criterios de puntuación: coherencia, gramática, vocabulario, cumplimiento de instrucciones y reglas.`,
+        },
+        {
+          role: 'user',
+          content: `Instrucciones de la tarea: ${data.instructions ?? 'Redacción libre'}
+Reglas: mínimo ${data.min_words ?? 0} palabras${data.max_words ? `, máximo ${data.max_words}` : ''}.${data.required_words?.length ? `\nPalabras requeridas: ${data.required_words.join(', ')}` : ''}${data.prohibited_words?.length ? `\nPalabras prohibidas: ${data.prohibited_words.join(', ')}` : ''}
+
+Ensayo:
+${data.content}`,
+        },
+      ];
+
     default:
       throw new Error(`Unknown task: ${task}`);
   }
@@ -150,7 +170,7 @@ serve(async (req) => {
     const result = groqData.choices[0]?.message?.content?.trim() ?? '';
 
     // Para tareas que esperan JSON, intentar parsear
-    const jsonTasks: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words'];
+    const jsonTasks: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production'];
     if (jsonTasks.includes(task)) {
       try {
         const parsed = JSON.parse(result);
