@@ -100,8 +100,12 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
     strengths: string[];
     improvements: string[];
   } | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError]     = useState<string | null>(null);
+  const [aiLoading, setAiLoading]   = useState(false);
+  const [aiError, setAiError]       = useState<string | null>(null);
+  const [aiCooldownMin, setAiCooldownMin] = useState<number | null>(null);
+
+  const AI_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 horas
+  const aiStorageKey   = `ai_review_${lessonId}`;
 
   const isSubmitted = production?.status === 'submitted' || production?.status === 'reviewed';
   const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -419,9 +423,36 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
     finally { setSubmitting(false); }
   }
 
+  // ── Cooldown IA ───────────────────────────────────────────────────────────
+
+  function getAiCooldownRemaining(): number {
+    const raw = localStorage.getItem(aiStorageKey);
+    if (!raw) return 0;
+    const elapsed = Date.now() - parseInt(raw, 10);
+    return Math.max(0, AI_COOLDOWN_MS - elapsed);
+  }
+
+  // Inicializa y refresca el cooldown cada minuto
+  useEffect(() => {
+    const refresh = () => {
+      const ms = getAiCooldownRemaining();
+      setAiCooldownMin(ms > 0 ? Math.ceil(ms / 60000) : null);
+    };
+    refresh();
+    const t = setInterval(refresh, 60000);
+    return () => clearInterval(t);
+  }, [lessonId]);
+
   // ── Análisis con IA ───────────────────────────────────────────────────────
 
   async function analyzeWithAI() {
+    const remaining = getAiCooldownRemaining();
+    if (remaining > 0) {
+      const mins = Math.ceil(remaining / 60000);
+      showToast(`Disponible en ${mins} min. Solo 1 análisis cada 2 horas.`, 'warning');
+      return;
+    }
+
     setAiLoading(true);
     setAiFeedback(null);
     setAiError(null);
@@ -454,6 +485,9 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
+      // Guardar timestamp del uso exitoso
+      localStorage.setItem(aiStorageKey, Date.now().toString());
+      setAiCooldownMin(120);
       setAiFeedback(json.result);
     } catch (err: any) {
       setAiError(err.message);
@@ -929,11 +963,16 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
                   {wordCount >= (rules?.min_words ?? 50) && !focusMode && (
                     <button
                       onClick={analyzeWithAI}
-                      disabled={aiLoading}
-                      className="w-full border-2 border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 hover:border-purple-500 py-2.5 rounded-xl transition font-semibold disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                      disabled={aiLoading || aiCooldownMin !== null}
+                      title={aiCooldownMin ? `Disponible en ${aiCooldownMin} min` : 'Analizar con IA'}
+                      className="w-full border-2 border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 hover:border-purple-500 py-2.5 rounded-xl transition font-semibold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
                     >
                       <Sparkles className="w-4 h-4" />
-                      {aiLoading ? 'Analizando...' : 'Analizar con IA (orientativo)'}
+                      {aiLoading
+                        ? 'Analizando...'
+                        : aiCooldownMin
+                        ? `IA disponible en ${aiCooldownMin} min`
+                        : 'Analizar con IA (orientativo)'}
                     </button>
                   )}
                   <div className="flex flex-col sm:flex-row gap-3">

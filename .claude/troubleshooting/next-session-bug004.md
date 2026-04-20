@@ -42,16 +42,21 @@ Abrir: `http://localhost:5173` — login como estudiante.
 
 ---
 
-### C. Botón "Analizar con IA"
+### C. Botón "Analizar con IA" y cooldown de 2 horas
 
 | Paso | Acción | Resultado esperado |
 |------|--------|--------------------|
 | 1 | Escribir menos de `min_words` palabras | Botón morado NO aparece |
-| 2 | Escribir ≥ `min_words` palabras | Botón morado "Analizar con IA (orientativo)" aparece sobre los botones Guardar/Entregar |
-| 3 | Click en el botón | Se activa la pestaña "IA"; spinner "Analizando..." visible |
+| 2 | Escribir ≥ `min_words` palabras (sin uso previo) | Botón "Analizar con IA (orientativo)" activo |
+| 3 | Click en el botón | Pestaña "IA" activa; spinner "Analizando..." |
 | 4 | Esperar respuesta (~3-5 s) | Score badge + resumen + fortalezas + mejoras |
 | 5 | Score ≥ 80 → verde; 60-79 → amarillo; < 60 → rojo | Colores correctos |
-| 6 | Click en "Analizar con IA" de nuevo | Borra resultado anterior y vuelve a llamar a la IA |
+| 6 | Inmediatamente después del análisis | Botón cambia a "IA disponible en 120 min" y queda deshabilitado |
+| 7 | Click en botón deshabilitado | Toast: "Disponible en X min. Solo 1 análisis cada 2 horas." |
+| 8 | Recargar la página dentro de las 2 horas | Botón sigue deshabilitado con el tiempo restante (persiste en localStorage) |
+| 9 | Pasadas 2 horas | Botón vuelve a estar activo |
+
+**Clave localStorage:** `ai_review_<lessonId>` — valor: timestamp en ms del último uso exitoso.
 
 ---
 
