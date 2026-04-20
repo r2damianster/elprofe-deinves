@@ -19,5 +19,9 @@
       "Bash(curl -s -X POST https://ckpmrmhkrbylibecezxn.supabase.co/rest/v1/rpc/exec_sql -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrcG1ybWhrcmJ5bGliZWNlenhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNjkzMDIsImV4cCI6MjA5MDc0NTMwMn0.Q5vomcjyFsVm8HU2w_jyCqv9ISYzOVNIY67pzknootE' -H 'Content-Type: application/json' -d '{\"query\": \"SELECT policyname, cmd FROM pg_policies WHERE tablename IN \\('\\\\''production_rules'\\\\'', '\\\\''productions'\\\\''\\) ORDER BY tablename, cmd\"}')",
       "Bash(git -C \"c:/Users/User/Documents/Desarrollo Web/elprofe-deinves\" diff .claude/agents/especialista-bd.md .claude/settings.local.json .gitignore)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
+  "enableAllProjectMcpServers": true
 }

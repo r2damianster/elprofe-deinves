@@ -1,49 +1,92 @@
-# Reporte de Diagnóstico Externo: Bug-003
-**ID del Error:** Bug-003 - Fallo de Persistencia en Agrupaciones
-**Analista:** IA (Análisis de Caja Negra)
-**Estado:** Sugerencia de Corrección
+# Reporte de Diagnóstico Técnico: Bug-003
 
-## 1. Contexto del Análisis
-Este reporte se genera tras analizar la estructura del proyecto (`tree`) y el esquema de base de datos SQL proporcionado. Como entidad externa, no tengo acceso a la lógica de ejecución (runtime), pero he detectado una discrepancia entre el estado de la UI y la persistencia en el backend.
+**ID del Error:** Bug-003 - Recursión Infinita en Políticas RLS y Fallo de Persistencia Atomizada  
+**Estado:** **RESUELTO** (2026-04-19)
 
-## 2. Descripción del Problema
-En la interfaz de `GroupManager.tsx`, el usuario puede previsualizar grupos (estado volátil). Sin embargo, al confirmar la creación ("Crear agrupación"):
-1. Se crea exitosamente el registro en `group_sets` (se visualiza "Afinidad" en la lista inferior).
-2. **Falla la vinculación:** La sección indica "0 grupo(s)", lo que sugiere que los registros en la tabla `groups` no se están creando o no están vinculando correctamente el `group_set_id`.
-3. **Pérdida de integridad:** Al no haber grupos vinculados, las lecciones no pueden asignarse.
+---
 
-## 3. Hipótesis Técnicas (Basadas en SQL)
+## 1. Descripción del Escenario
 
-### A. El "Id Huérfano" (Más probable)
-En tu SQL, la tabla `groups` tiene una columna `group_set_id uuid`. Es muy probable que en el frontend estés enviando la petición de creación de grupos **antes** de recibir el ID de la nueva `group_set` o que simplemente no se esté pasando ese parámetro en el `INSERT`.
+Al crear una agrupación aleatoria (ej: 4 grupos), el sistema fallaba con:
 
-### B. Fallo en la Cascada de Inserción
-Si estás usando Supabase u otro cliente API, recuerda que la creación de una agrupación es un proceso de 3 pasos:
-1. `INSERT` en `group_sets` -> Retorna `set_id`.
-2. `INSERT` en `groups` (usando el `set_id`) -> Retorna `group_ids`.
-3. `INSERT` en `group_members` (usando los `group_ids`).
+1. **Error de Base de Datos:** `infinite recursion detected in policy for relation "group_members"`.
+2. **Persistencia Parcial:** La transacción se interrumpía. El `group_set` se creaba, pero los `groups` o sus `members` fallaban, dejando la agrupación "vacía" o incompleta.
+3. **Estado Fantasma:** Tras un Hard Refresh (Ctrl+Shift+R), los datos aparecían parcialmente porque la caché del navegador se limpiaba y lograba leer lo que alcanzó a insertarse antes del error.
 
-Si el paso 1 tiene éxito pero el paso 2 falla (por ejemplo, por falta de permisos RLS o datos mal formateados), el sistema queda en el estado "incompleto" que muestra la imagen.
+---
 
-## 4. Sugerencias de Corrección
+## 2. Causa Raíz
 
-### Sugerencia 1: Verificación de la Función de Guardado
-Recomiendo revisar en `src/components/professor/GroupManager.tsx` la función que maneja el evento del botón azul. Debería verse similar a este flujo lógico:
+La política INSERT `"Estudiantes se auto-inscriben en grupos abiertos"` contenía un subquery autorreferencial en su `WITH CHECK`:
 
-```typescript
-// Lógica sugerida
-const crearAgrupacionCompleta = async (datosPreview) => {
-  // 1. Crear el Set
-  const { data: nuevoSet } = await supabase.from('group_sets').insert({...});
-  
-  // 2. IMPORTANTE: Usar el ID del set para los grupos
-  const gruposConId = datosPreview.map(g => ({
-    ...g,
-    group_set_id: nuevoSet.id, // <-- Verificar que esto no sea null
-    course_id: idDelCurso
-  }));
+```sql
+-- PROBLEMÁTICO: consulta group_members desde dentro de una política de group_members
+SELECT count(*) FROM group_members gm WHERE gm.group_id = group_members.group_id
+```
 
-  const { data: gruposCreados } = await supabase.from('groups').insert(gruposConId);
-  
-  // 3. Vincular miembros...
-}
+Al evaluar esta política durante un INSERT, PostgreSQL intentaba aplicar RLS al subquery, lo que volvía a evaluar la misma política, creando un bucle infinito hasta que el motor lo abortaba.
+
+**Políticas confirmadas en producción antes del fix:**
+
+| Política | Cmd | Problema |
+|---|---|---|
+| Miembros ven su grupo | SELECT | OK |
+| Profesores y admin gestionan miembros | ALL | OK |
+| Estudiantes se auto-inscriben en grupos abiertos | INSERT | **Recursión en WITH CHECK** |
+| Estudiantes ven miembros de grupos de sus cursos | SELECT | OK |
+| Estudiantes pueden salir de grupos abiertos | DELETE | OK |
+
+---
+
+## 3. Solución Aplicada
+
+### Migración: `fix_group_members_rls_recursion`
+
+```sql
+-- 1. Función SECURITY DEFINER que consulta group_members sin disparar RLS
+CREATE OR REPLACE FUNCTION count_group_members(gid uuid)
+RETURNS bigint
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT count(*) FROM group_members WHERE group_id = gid;
+$$;
+
+-- 2. Reemplazar la política INSERT que causaba recursión
+DROP POLICY IF EXISTS "Estudiantes se auto-inscriben en grupos abiertos" ON public.group_members;
+
+CREATE POLICY "Estudiantes se auto-inscriben en grupos abiertos"
+ON public.group_members
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  (student_id = auth.uid()) AND (EXISTS (
+    SELECT 1
+    FROM groups g
+    JOIN course_students cs ON (cs.course_id = g.course_id AND cs.student_id = auth.uid())
+    WHERE g.id = group_members.group_id
+      AND g.enrollment_open = true
+      AND (g.max_members IS NULL OR count_group_members(g.id) < g.max_members)
+  ))
+);
+```
+
+**Clave:** `SECURITY DEFINER` hace que la función se ejecute con los permisos del creador (superuser), bypasseando RLS y rompiendo el ciclo.
+
+---
+
+## 4. Validación
+
+- Crear agrupación aleatoria de 4 grupos sin recibir error `infinite recursion`.
+- Los 4 grupos aparecen inmediatamente en la UI sin recargar.
+- Estudiantes aún no pueden auto-inscribirse en grupos cerrados (lógica preservada).
+
+---
+
+## 5. Archivos Afectados
+
+| Artefacto | Tipo | Detalle |
+|---|---|---|
+| `supabase/migrations/fix_group_members_rls_recursion` | Migración BD | Aplicada vía MCP |
+| `group_members` (RLS) | Política INSERT | Reescrita con función SECURITY DEFINER |
