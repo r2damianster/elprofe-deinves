@@ -54,9 +54,20 @@ Toggle en el header (`PanelLeftClose / PanelLeftOpen`) que oculta el panel izqui
 | `focusMode` state | boolean, toggle en header |
 | `aiFeedback` state | `{ score, summary, strengths[], improvements[] } \| null` |
 | `aiLoading` / `aiError` | estados de carga y error |
-| `analyzeWithAI()` | función async que llama al Edge Function |
+| `aiCooldownMin` state | minutos restantes de cooldown (null = disponible) |
+| `AI_COOLDOWN_MS` | constante 2 h = 7 200 000 ms |
+| `aiStorageKey` | `ai_review_<lessonId>` — clave localStorage por lección |
+| `getAiCooldownRemaining()` | lee localStorage y calcula ms restantes |
+| `analyzeWithAI()` | verifica cooldown antes de llamar; guarda timestamp al éxito |
+| `useEffect` cooldown | refresca `aiCooldownMin` cada 60 s |
 | Pestaña IA | 4ª pestaña con badge de score cuando hay resultado |
-| Botón IA | aparece solo cuando `wordCount >= min_words` y `!focusMode` |
+| Botón IA | aparece cuando `wordCount >= min_words` y `!focusMode`; deshabilitado con texto "IA disponible en X min" durante cooldown |
+
+#### Límite de uso IA (cooldown)
+- **1 uso cada 2 horas** por lección, almacenado en `localStorage`
+- Clave: `ai_review_<lessonId>` → valor: timestamp ms del último uso exitoso
+- Persiste al recargar la página
+- Durante el cooldown: botón deshabilitado + tooltip + toast si intentan forzarlo
 
 ---
 
