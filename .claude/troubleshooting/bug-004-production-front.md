@@ -1,6 +1,6 @@
 # Bug-004: Sobrecarga Visual y Módulo IA en ProductionEditor
 
-**Estado:** IMPLEMENTADO — pendiente verificación en producción  
+**Estado:** IMPLEMENTADO — pendiente verificación manual en navegador  
 **Fecha implementación:** 2026-04-19  
 **Sesión:** Bug-004 (continuación de Bug-001)
 

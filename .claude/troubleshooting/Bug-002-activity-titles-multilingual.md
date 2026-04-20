@@ -1,4 +1,9 @@
-# Reporte de Incidencia: Bug-002 - Anidamiento de JSON en Títulos (Estructura Híbrida)
+# Bug-002: Anidamiento de JSON en Títulos de Actividades (Estructura Híbrida)
+
+**Estado:** IMPLEMENTADO — pendiente verificación manual en navegador  
+**Fecha implementación:** 2026-04-19 (commit `e55c456`)
+
+---
 
 ## 1. Diagnóstico y Presunción del Problema
 Se ha detectado un comportamiento crítico en el almacenamiento de los títulos dentro de la tabla `activities`. Los datos se están guardando con un "doble empaquetado" JSON (JSON-in-JSON), resultando en valores como:

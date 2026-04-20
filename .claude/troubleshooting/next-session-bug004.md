@@ -1,4 +1,6 @@
-# Próxima Sesión — Verificación Bug-004
+# Próxima Sesión — Verificación Bug-004 [SUPERSEDIDO]
+
+> **Este archivo está supersedido por `next-session.md`** (consolidado de Bugs 001–005, actualizado 2026-04-20).
 
 **Fecha de creación:** 2026-04-19  
 **Estado:** pendiente de prueba manual

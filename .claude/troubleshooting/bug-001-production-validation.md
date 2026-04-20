@@ -1,7 +1,7 @@
 # Bug-001: Omisión de Validación en Reglas de Producción
 
-**Estado:** CERRADO  
-**Fecha cierre:** 2026-04-19
+**Estado:** IMPLEMENTADO — pendiente verificación manual en navegador  
+**Fecha implementación:** 2026-04-19
 
 ## Descripción
 El sistema permitía enviar producciones (ensayos) con 1 sola palabra, ignorando el campo `min_words` de `public.production_rules`.

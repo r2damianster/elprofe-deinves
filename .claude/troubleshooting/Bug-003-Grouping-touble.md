@@ -1,7 +1,8 @@
 # Reporte de Diagnóstico Técnico: Bug-003
 
 **ID del Error:** Bug-003 - Recursión Infinita en Políticas RLS y Fallo de Persistencia Atomizada  
-**Estado:** **RESUELTO** (2026-04-19)
+**Estado:** IMPLEMENTADO — pendiente verificación manual en navegador  
+**Fecha implementación:** 2026-04-19 (commit `f703183`)
 
 ---
 

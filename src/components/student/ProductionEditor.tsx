@@ -6,6 +6,7 @@ import {
   Sparkles, PanelLeftClose, PanelLeftOpen, ThumbsUp, Lightbulb,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { resolveField } from '../../lib/i18n';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -472,9 +473,7 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
           data: {
             content,
             instructions: rules?.instructions
-              ? typeof rules.instructions === 'object'
-                ? (rules.instructions as { es: string; en: string }).es
-                : rules.instructions
+              ? resolveField(rules.instructions, 'es')
               : 'Redacción libre',
             min_words: rules?.min_words,
             max_words: rules?.max_words,
@@ -656,9 +655,7 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
                   {rules?.instructions && (
                     <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
                       <p className="text-sm text-blue-800 leading-relaxed">
-                        {typeof rules.instructions === 'object'
-                          ? (rules.instructions as { es: string; en: string }).es
-                          : rules.instructions}
+                        {resolveField(rules.instructions, 'es')}
                       </p>
                     </div>
                   )}

@@ -120,14 +120,34 @@ export function useTranslations(lang: Lang = 'es') {
 }
 
 /**
- * Resuelve un campo que puede ser string (formato antiguo) o
- * {es: string, en: string} (formato multilingüe).
+ * Resuelve un campo que puede ser:
+ *   - string plano
+ *   - string legacy con marcadores "en/// ... es/// ..."
+ *   - {es: string, en: string} (formato JSONB actual)
  * Fallback automático al otro idioma si la traducción está vacía.
  */
 export function resolveField(field: any, lang: Lang): string {
   if (!field) return '';
-  if (typeof field === 'string') return field;
-  const primary  = field[lang];
-  const fallback = field[lang === 'en' ? 'es' : 'en'];
-  return (primary && primary.trim()) ? primary : (fallback ?? '');
+  if (typeof field === 'object') {
+    const primary  = field[lang];
+    const fallback = field[lang === 'en' ? 'es' : 'en'];
+    return (primary && primary.trim()) ? primary : (fallback ?? '');
+  }
+  const raw = field as string;
+  if (raw.includes('es///') || raw.includes('en///')) {
+    if (lang === 'es') {
+      const m = raw.match(/es\/\/\/\s*([\s\S]*)$/);
+      if (m) return m[1].trim();
+      // solo tiene en///
+      const mEn = raw.match(/en\/\/\/\s*([\s\S]*)$/);
+      return mEn ? mEn[1].trim() : raw;
+    } else {
+      const m = raw.match(/en\/\/\/\s*([\s\S]*)(?:\s*es\/\/\/|$)/);
+      if (m) return m[1].replace(/\s*es\/\/\/[\s\S]*$/, '').trim();
+      // solo tiene es///
+      const mEs = raw.match(/es\/\/\/\s*([\s\S]*)$/);
+      return mEs ? mEs[1].trim() : raw;
+    }
+  }
+  return raw;
 }
