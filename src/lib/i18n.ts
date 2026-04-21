@@ -149,5 +149,16 @@ export function resolveField(field: any, lang: Lang): string {
       return mEs ? mEs[1].trim() : raw;
     }
   }
+  // Caso: string que es un objeto JSON serializado '{"es":"...","en":"..."}'
+  if (raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        const primary  = parsed[lang];
+        const fallback = parsed[lang === 'en' ? 'es' : 'en'];
+        return (primary && primary.trim()) ? primary : (fallback ?? raw);
+      }
+    } catch { /* no es JSON válido, devolver raw */ }
+  }
   return raw;
 }

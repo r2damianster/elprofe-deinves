@@ -303,7 +303,15 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
           max_words: data.max_words,
           required_words: (data.required_words ?? []).join(', '),
           prohibited_words: (data.prohibited_words ?? []).join(', '),
-          instructions: typeof data.instructions === 'object' ? data.instructions : { es: data.instructions ?? '', en: '' },
+          instructions: (() => {
+            const raw = data.instructions;
+            if (!raw) return { es: '', en: '' };
+            if (typeof raw === 'object') return raw;
+            if (typeof raw === 'string' && raw.startsWith('{')) {
+              try { return JSON.parse(raw); } catch { /* ignorar */ }
+            }
+            return { es: raw, en: '' };
+          })(),
         });
       } finally {
         setLoadingRules(false);
