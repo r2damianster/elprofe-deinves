@@ -459,15 +459,8 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
     setAiError(null);
     setActiveTab('ia');
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-      const res = await fetch(`${supabaseUrl}/functions/v1/ai-enhance`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
+      const { data: invokeData, error: invokeError } = await (supabase as any).functions.invoke('ai-enhance', {
+        body: {
           task: 'review_production',
           lang: 'es',
           data: {
@@ -480,10 +473,10 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
             required_words: rules?.required_words ?? [],
             prohibited_words: rules?.prohibited_words ?? [],
           },
-        }),
+        },
       });
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
+      if (invokeError) throw new Error(invokeError.message);
+      const json = invokeData;
       // Guardar timestamp del uso exitoso
       localStorage.setItem(aiStorageKey, Date.now().toString());
       setAiCooldownMin(120);
