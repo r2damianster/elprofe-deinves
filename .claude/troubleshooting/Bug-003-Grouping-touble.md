@@ -1,8 +1,10 @@
 # Reporte de Diagnóstico Técnico: Bug-003
 
 **ID del Error:** Bug-003 - Recursión Infinita en Políticas RLS y Fallo de Persistencia Atomizada  
-**Estado:** IMPLEMENTADO — pendiente verificación manual en navegador  
-**Fecha implementación:** 2026-04-19 (commit `f703183`)
+**Estado:** CERRADO con advertencia menor  
+**Fecha implementación:** 2026-04-19 (commit `f703183`)  
+**Fecha cierre:** 2026-04-21 — funcionalidad verificada ✅  
+**Advertencia activa:** Warning DOM `<button> cannot appear as a descendant of <button>` en `GroupManager.tsx` → documentado como Bug-006
 
 ---
 

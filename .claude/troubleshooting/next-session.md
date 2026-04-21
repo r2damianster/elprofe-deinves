@@ -1,121 +1,115 @@
-# Próxima Sesión — Verificación Manual de Bugs 001–005
+# Próxima Sesión — Estado de Bugs y Tareas Pendientes
 
-**Actualizado:** 2026-04-20  
-**Instrucción:** Empieza aquí. Lee cada sección, abre el navegador y verifica en orden. Marca ✅ cuando pase o anota qué falló.
+**Actualizado:** 2026-04-21  
+**Instrucción:** Empieza aquí. Las tareas están ordenadas por prioridad.
 
 ---
 
-## Preparación
+## Resumen de estado
 
-```bash
-cd "c:\Users\User\Documents\Desarrollo Web\elprofe-deinves"
-npm run dev
+| Bug | Descripción | Estado |
+|-----|-------------|--------|
+| Bug-001 | Validación producción / RLS | ✅ CERRADO (verificado 2026-04-21) |
+| Bug-002 | Doble anidamiento JSON en títulos | ✅ CERRADO (verificado 2026-04-21) |
+| Bug-003 | Recursión RLS en group_members | ✅ CERRADO (verificado 2026-04-21) |
+| Bug-004 | Módulo IA en ProductionEditor (401) | ❌ FALLA — fix pendiente |
+| Bug-005 | Instrucciones producción como JSON string | ❌ ABIERTO — fix BD + código pendiente |
+| Bug-006 | `<button>` anidado en GroupManager | ⚠️ ABIERTO — warning DOM, no bloquea |
+
+---
+
+## Tarea 1 — Bug-005: Limpiar `instructions` en Supabase (PRIORITARIA)
+
+El campo `production_rules.instructions` está guardado como string TEXT serializado: `'{"es":"...","en":"..."}'` en lugar de JSONB real.
+
+**Ejecutar en Supabase Dashboard → SQL Editor:**
+
+```sql
+-- Paso 1: Verificar qué tipo tiene la columna y ver los valores
+SELECT id, lesson_id,
+  pg_typeof(instructions) AS col_type,
+  jsonb_typeof(instructions) AS jsonb_type,
+  instructions
+FROM production_rules
+LIMIT 20;
 ```
 
-Abrir: `http://localhost:5173`  
-Tener a mano dos cuentas: una de **estudiante** y una de **profesor/admin**.
+Según el resultado:
+
+**Si `jsonb_typeof` devuelve `'string'`** (la columna es JSONB pero contiene un string):
+```sql
+UPDATE production_rules
+SET instructions = (instructions #>> '{}')::jsonb
+WHERE jsonb_typeof(instructions) = 'string';
+```
+
+**Si `pg_typeof` devuelve `'text'`** (la columna es TEXT):
+```sql
+UPDATE production_rules
+SET instructions = instructions::jsonb
+WHERE instructions IS NOT NULL
+  AND instructions LIKE '{%';
+```
+
+Después de ejecutar, verificar que el campo ya no muestra JSON crudo en la pestaña "Instrucciones" del editor de producción del estudiante.
 
 ---
 
-## Bug-001 — Validación de Producción Escrita
+## Tarea 2 — Bug-004: Configurar secret GROQ_URL en Supabase
 
-**Fix:** `ProductionEditor.tsx` — `rulesLoading`, `isValid` blindado, guard en submit. RLS en `production_rules` y `productions`.  
-**Commit:** `a767279`, `bcfcadb`
+La Edge Function `ai-enhance` devuelve **401 Unauthorized**.
 
-| # | Acción | Resultado esperado |
-|---|--------|--------------------|
-| 1 | Login como estudiante → entrar a una lección con producción escrita | Se carga el editor sin pantalla en blanco |
-| 2 | Con menos de `min_words` palabras intentar enviar | Botón "Enviar" deshabilitado o muestra error |
-| 3 | Escribir exactamente `min_words` palabras | Botón "Enviar" se activa |
-| 4 | Enviar → confirmar | Producción guardada, redirige o muestra confirmación |
-| 5 | Recargar la página inmediatamente | El contenido guardado persiste |
+1. Ir a: Supabase Dashboard → Project Settings → Edge Functions → Secrets
+2. Verificar que existe `GROQ_URL` con la clave API de GROQ
+3. Si no existe, crearlo con el valor del archivo `.env` local (variable `VITE_GROQ_URL` o similar)
+4. Si existe pero falla igual, revisar `supabase/functions/ai-enhance/index.ts` — verificar que lee `Deno.env.get('GROQ_URL')`
 
 ---
 
-## Bug-002 — Doble Anidamiento JSON en Títulos de Actividades
+## Tarea 3 — Bug-006: Corregir `<button>` anidado en GroupManager
 
-**Fix:** `ActivityEditor.tsx` — lógica de re-hidratación normalizada.  
-**Commit:** `e55c456`
+Warning: `<button> cannot appear as a descendant of <button>` en `GroupManager.tsx:39`.
 
-| # | Acción | Resultado esperado |
-|---|--------|--------------------|
-| 1 | Login como profesor → Content Studio → abrir una actividad existente | El título se muestra correctamente en los campos ES y EN (no JSON crudo) |
-| 2 | Editar el título ES → Guardar → volver a abrir la actividad | El título guardado es texto plano, no `{"es": "{\"es\":..."}` |
-| 3 | Desde la vista del estudiante, navegar a una actividad | El título de la actividad aparece como texto normal |
-| 4 | Actividades en `ActivityBank` del assembler | Títulos legibles, no JSON crudo |
+Reestructurar el layout para que los botones de acción sean hermanos en lugar de hijos. Ver detalles en `bug-006-button-nesting-groupmanager.md`.
 
 ---
 
-## Bug-003 — Recursión Infinita en RLS de Agrupaciones
+## Tarea 4 (código) — Parche defensivo `resolveField` para JSON strings
 
-**Fix:** función `count_group_members()` con `SECURITY DEFINER`; política INSERT reescrita.  
-**Commit:** `f703183`
+Aunque se limpie la BD (Tarea 1), conviene que `resolveField` maneje el caso JSON string por si vuelve a ocurrir.
 
-| # | Acción | Resultado esperado |
-|---|--------|--------------------|
-| 1 | Login como profesor → ir a Agrupaciones de un curso | Panel carga sin errores de consola |
-| 2 | Crear agrupación aleatoria (ej. 4 grupos) | Se crean los 4 grupos sin error `infinite recursion` |
-| 3 | Los grupos aparecen en la UI sin recargar | Inmediato, sin Hard Refresh |
-| 4 | Login como estudiante → intentar unirse a un grupo | Se une correctamente; no puede unirse a grupos cerrados o llenos |
+Agregar en `src/lib/i18n.ts`, dentro de `resolveField`, antes del `return raw` final:
 
----
-
-## Bug-004 — Modo Enfoque + Módulo IA en ProductionEditor
-
-**Fix:** toggle Modo Enfoque, feedback GROQ con cooldown 2h.  
-**Commits:** `6d90f4b`, `96fae25`, `7b9a585`
-
-| # | Acción | Resultado esperado |
-|---|--------|--------------------|
-| 1 | En una producción, header muestra botón "Enfoque" (ícono panel) | Visible en esquina derecha del header |
-| 2 | Click en "Enfoque" | Panel izquierdo desaparece; editor a 100% ancho |
-| 3 | Click en "Panel" | Panel reaparece; layout 40/60 |
-| 4 | En modo enfoque, el botón "Analizar con IA" NO aparece | Correcto por diseño |
-| 5 | Escribir ≥ `min_words` palabras (fuera de modo enfoque) | Botón morado "Analizar con IA (orientativo)" aparece |
-| 6 | Click en el botón | Pestaña "IA" activa con spinner |
-| 7 | Respuesta llega (~3-5 s) | Score badge + resumen + fortalezas + mejoras |
-| 8 | Inmediatamente después | Botón cambia a "IA disponible en 120 min" — deshabilitado |
-| 9 | Recargar la página | Botón sigue deshabilitado con tiempo restante |
-
-**Si falla el paso 6/7:**
-- "GROQ_API_KEY not configured" → agregar secret `GROQ_URL` en Supabase Dashboard → Project Settings → Edge Functions → Secrets
-- Toast "Error al analizar con IA" → revisar logs: Dashboard → Edge Functions → `ai-enhance` → Logs
-
----
-
-## Bug-005 — Inconsistencias en/es en Frontend
-
-**Fix:** `resolveField` en `i18n.ts` extendida con manejo del formato legacy `en/// ... es/// ...`. `ProductionEditor.tsx` usa `resolveField` en ambos puntos.  
-**BD:** diagnóstico ejecutado el 2026-04-20 — **0 registros legacy** encontrados.  
-**Commit:** (este mismo — `docs/fix: bug-005 lang inconsistency`)
-
-| # | Acción | Resultado esperado |
-|---|--------|--------------------|
-| 1 | En la pestaña "Instrucciones" de cualquier producción | El texto se muestra limpio, sin `en///` ni `es///` |
-| 2 | Si alguna instrucción aparece con marcadores | Anota el `lesson_id` y abre issue — hay un registro legacy no detectado |
-| 3 | Títulos de lecciones y actividades en la vista del estudiante | Texto limpio, no JSON crudo ni marcadores |
-
----
-
-## Al terminar la verificación
-
-Por cada bug verificado OK:
-1. Cambiar su estado de `IMPLEMENTADO — pendiente verificación manual` a `CERRADO`
-2. Agregar la línea: `**Fecha cierre:** YYYY-MM-DD — verificado manualmente en navegador`
-
-Si algún bug falla, anotarlo en su archivo y abrir una nueva sesión con el agente correspondiente.
-
----
-
-## Fix TypeScript pendiente (no bloquea runtime)
-
-Errores TS en `ProductionEditor.tsx` líneas ~144, 147, 252-256, 369, 372, 392, 394, 412:  
-`integrity_events: IntegrityEvent[]` no es asignable a `Json | null` con PostgREST 14.5.
-
-**Fix rápido** (cuando quieras limpiarlo):
 ```typescript
-// En buildPayload(), castear:
+// Caso: string que es un objeto JSON serializado '{"es":"...","en":"..."}'
+if (raw.startsWith('{')) {
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      const primary = parsed[lang];
+      const fallback = parsed[lang === 'en' ? 'es' : 'en'];
+      return (primary && primary.trim()) ? primary : (fallback ?? raw);
+    }
+  } catch { /* no es JSON válido */ }
+}
+```
+
+---
+
+## Fix TypeScript pendiente (cosmético, no bloquea runtime)
+
+Errores en `ProductionEditor.tsx` líneas ~144, 147, 252-256, 369, 372, 392, 394, 412:  
+`integrity_events: IntegrityEvent[]` no asignable a `Json | null` con PostgREST 14.5.
+
+**Fix rápido** en `buildPayload()`:
+```typescript
 integrity_events: integrityEvents as unknown as import('../lib/database.types').Json,
 ```
 
-**Fix completo:** regenerar `database.types.ts` con `mcp__supabase__generate_typescript_types`.
+---
+
+## Pregunta del usuario — ¿Quién puede escribir en un grupo?
+
+En el sistema actual, la producción escrita es **individual**: cada estudiante escribe la suya propia en `ProductionEditor`. El panel de grupo muestra el contexto (a qué grupo pertenece el estudiante) pero no hay un editor colaborativo compartido. Cada miembro del grupo entrega su propia producción de forma independiente.
+
+Si la intención es que solo un miembro por grupo entregue (o que entreguen juntos), eso requeriría una nueva feature de "producción grupal" (no existe actualmente).

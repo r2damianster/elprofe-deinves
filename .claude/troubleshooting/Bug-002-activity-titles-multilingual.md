@@ -1,7 +1,8 @@
 # Bug-002: Anidamiento de JSON en Títulos de Actividades (Estructura Híbrida)
 
-**Estado:** IMPLEMENTADO — pendiente verificación manual en navegador  
-**Fecha implementación:** 2026-04-19 (commit `e55c456`)
+**Estado:** CERRADO  
+**Fecha implementación:** 2026-04-19 (commit `e55c456`)  
+**Fecha cierre:** 2026-04-21 — verificado manualmente en navegador ✅
 
 ---
 

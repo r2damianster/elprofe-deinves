@@ -1,6 +1,7 @@
 # Bug-004: Sobrecarga Visual y Módulo IA en ProductionEditor
 
-**Estado:** IMPLEMENTADO — pendiente verificación manual en navegador  
+**Estado:** FALLA — error 401 en Edge Function `ai-enhance`  
+**Verificación:** 2026-04-21 — modo enfoque OK ✅ / módulo IA falla ❌  
 **Fecha implementación:** 2026-04-19  
 **Sesión:** Bug-004 (continuación de Bug-001)
 
@@ -81,6 +82,28 @@ Las operaciones `.update()` / `.insert()` en la tabla `productions` dan error TS
 
 ---
 
-## Pendiente de verificación (próxima sesión)
+---
 
-Ver `.claude/troubleshooting/next-session-bug004.md`
+## Resultado verificación 2026-04-21
+
+| Funcionalidad | Estado |
+|---|---|
+| Modo Enfoque (toggle panel) | ✅ Funciona correctamente |
+| Botón "Analizar con IA" aparece al superar min_words | No verificado (bloqueado por 401) |
+| Feedback IA (score, fortalezas, mejoras) | ❌ Error 401 en Edge Function |
+| Cooldown 2h en localStorage | No verificado |
+
+### Error exacto
+```
+POST ckpmrmhkrbylibecezxn.supabase.co/functions/v1/ai-enhance  → 401 Unauthorized
+```
+
+### Causa probable
+El secret `GROQ_URL` no está configurado en el proyecto Supabase remoto, o el token de la sesión no se está enviando correctamente en el header `Authorization`.
+
+### Fix requerido (próxima sesión)
+1. Ir a Supabase Dashboard → Project Settings → Edge Functions → Secrets
+2. Verificar que existe `GROQ_URL` con la clave válida de GROQ
+3. Si no existe, agregarlo con el valor de `VITE_GROQ_URL` del `.env` local (o de la clave guardada)
+4. Re-desplegar la Edge Function si es necesario: `mcp__supabase__deploy_edge_function` con nombre `ai-enhance`
+5. Verificar también que la Edge Function valida el JWT correctamente (revisar código de `ai-enhance/index.ts`)
