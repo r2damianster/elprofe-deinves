@@ -15,6 +15,7 @@
 | Bug-004 | Módulo IA en ProductionEditor (401) | ❌ FALLA — fix pendiente |
 | Bug-005 | Instrucciones producción como JSON string | ❌ ABIERTO — fix BD + código pendiente |
 | Bug-006 | `<button>` anidado en GroupManager | ⚠️ ABIERTO — warning DOM, no bloquea |
+| Bug-007 | Producción grupal — solo el primero en entregar cuenta | 🆕 DISEÑO PENDIENTE — elegir opción e implementar |
 
 ---
 
@@ -108,8 +109,10 @@ integrity_events: integrityEvents as unknown as import('../lib/database.types').
 
 ---
 
-## Pregunta del usuario — ¿Quién puede escribir en un grupo?
+## Tarea 5 — Bug-007: Producción grupal (primero en entregar = entrega del grupo)
 
-En el sistema actual, la producción escrita es **individual**: cada estudiante escribe la suya propia en `ProductionEditor`. El panel de grupo muestra el contexto (a qué grupo pertenece el estudiante) pero no hay un editor colaborativo compartido. Cada miembro del grupo entrega su propia producción de forma independiente.
+**Decisión previa requerida:** elegir entre Opción A (documento compartido) u Opción B (lock al primer envío). Ver detalles en `bug-007-group-production-first-submit.md`.
 
-Si la intención es que solo un miembro por grupo entregue (o que entreguen juntos), eso requeriría una nueva feature de "producción grupal" (no existe actualmente).
+**Recomendación:** Opción B — más simple, menos invasiva. Solo requiere una tabla nueva `group_production_locks` y lógica de detección en `ProductionEditor.tsx`.
+
+Al decidir la opción, delegar al agente `agente-estudiantes` para el frontend y a `especialista-bd` para la migración.
