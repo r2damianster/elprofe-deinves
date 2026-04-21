@@ -320,7 +320,8 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
   // Cargar títulos de actividades para pasos existentes
   useEffect(() => {
     if (!lesson?.content) return;
-    const activityIds = lesson.content.filter((s: any) => s.type === 'activity' && s.activity_id).map((s: any) => s.activity_id);
+    const contentSteps: any[] = Array.isArray(lesson.content) ? lesson.content : ((lesson.content as any)?.steps ?? []);
+    const activityIds = contentSteps.filter((s: any) => s.type === 'activity' && s.activity_id).map((s: any) => s.activity_id);
     if (activityIds.length === 0) return;
     (async () => {
       const { data } = await supabase.from('activities').select('id, title').in('id', activityIds);

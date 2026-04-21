@@ -172,8 +172,9 @@ export default function ContentStudio() {
             <div className="space-y-2">
               {filtered.map(lesson => {
                 const isOwn = lesson.created_by === profile?.id;
-                const stepCount = (lesson.content ?? []).length;
-                const activityCount = (lesson.content ?? []).filter((s: any) => s.type === 'activity').length;
+                const contentSteps: any[] = Array.isArray(lesson.content) ? lesson.content : ((lesson.content as any)?.steps ?? []);
+                const stepCount = contentSteps.length;
+                const activityCount = contentSteps.filter((s: any) => s.type === 'activity').length;
 
                 return (
                   <div key={lesson.id}
