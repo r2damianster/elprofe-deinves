@@ -1,6 +1,6 @@
 # Próxima Sesión — Estado de Bugs y Tareas Pendientes
 
-**Actualizado:** 2026-04-21  
+**Actualizado:** 2026-04-22  
 **Instrucción:** Empieza aquí. Las tareas están ordenadas por prioridad.
 
 ---
@@ -16,6 +16,8 @@
 | Bug-005 | Instrucciones producción como JSON string | ❌ ABIERTO — fix BD + código pendiente |
 | Bug-006 | `<button>` anidado en GroupManager | ⚠️ ABIERTO — warning DOM, no bloquea |
 | Bug-007 | Producción grupal — solo el primero en entregar cuenta | 🆕 DISEÑO PENDIENTE — elegir opción e implementar |
+| Bug-008 | Essay bloqueado al volver del tab de producción | 🆕 ABIERTO — diagnóstico completo, fix pendiente |
+| Bug-009 | Producción invisible en lecciones sin actividades | 🆕 ABIERTO — fix BD aplicado, fix de código pendiente |
 
 ---
 
@@ -116,3 +118,36 @@ integrity_events: integrityEvents as unknown as import('../lib/database.types').
 **Recomendación:** Opción B — más simple, menos invasiva. Solo requiere una tabla nueva `group_production_locks` y lógica de detección en `ProductionEditor.tsx`.
 
 Al decidir la opción, delegar al agente `agente-estudiantes` para el frontend y a `especialista-bd` para la migración.
+
+---
+
+## Tarea 6 — Bug-008: Essay bloqueado al volver del tab de producción
+
+Ver detalles completos en `bug-008-essay-locked-after-production-nav.md`.
+
+**Dos fixes independientes, aplicar los dos:**
+
+**Fix A** — `src/components/student/ActivityRenderer.tsx:131`  
+No aplicar `pointer-events-none` a actividades de tipo producción. Cambiar `insert` por `upsert` para permitir re-edición de essay/long_response/structured_essay/open_writing.
+
+**Fix B** — `src/components/student/LessonViewer.tsx:379-383`  
+Agregar `.in('activity_id', activityIds)` al query de `activity_responses` para filtrar solo las actividades de la lección actual.
+
+Delegar a `agente-estudiantes` o `agente-frontend`.
+
+---
+
+## Tarea 7 — Bug-009: Producción invisible en lecciones sin actividades
+
+Ver detalles en `bug-009-lesson-no-activities-production-invisible.md`.
+
+**Fix de emergencia ya aplicado en BD** (INSERT manual de `student_progress` para ZAMORA y TIGUA).
+
+**Cuatro fixes de código pendientes (en orden de prioridad):**
+
+1. **Fix A** — `ProductionEditor.tsx`: al hacer submit, upsert en `student_progress` con `completion_percentage = 100`
+2. **Fix B** — `LessonViewer.tsx`: mostrar botón "Ver mis resultados" también cuando hay producción enviada, no solo cuando `progress > 0`
+3. **Fix C** — `StudentResults.tsx`: consultar `productions` directamente además de `student_progress`, para incluir lecciones sin actividades
+4. **Fix D** — `LessonResults.tsx`: mostrar el texto de la producción (`productions.content`) para que el estudiante pueda releer su ensayo
+
+Delegar Fix A + B a `agente-estudiantes`, Fix C + D a `agente-frontend`.

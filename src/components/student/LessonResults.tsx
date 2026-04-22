@@ -23,6 +23,7 @@ interface ProductionResult {
   word_count: number;
   attempts: number;
   compliance_score: number;
+  integrity_score: number;
   submitted_at: string | null;
 }
 
@@ -111,7 +112,7 @@ export default function LessonResults({
 
       // 3. Producción del estudiante para esta lección
       const { data: prod } = await (supabase.from('productions') as any)
-        .select('status, score, feedback, word_count, attempts, compliance_score, submitted_at')
+        .select('status, score, feedback, word_count, attempts, compliance_score, integrity_score, submitted_at')
         .eq('student_id', profile!.id)
         .eq('lesson_id', lessonId)
         .maybeSingle();
@@ -283,14 +284,18 @@ export default function LessonResults({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 mb-1">Palabras escritas</p>
-                    <p className="text-lg font-bold text-gray-800">{production.word_count}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
                     <p className="text-xs text-gray-500 mb-1">Cumplimiento</p>
-                    <p className="text-lg font-bold text-blue-700">{production.compliance_score}%</p>
+                    <p className={`text-lg font-bold ${production.compliance_score >= 80 ? 'text-green-700' : production.compliance_score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                      {production.compliance_score}%
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-gray-500 mb-1">Integridad</p>
+                    <p className={`text-lg font-bold ${(production.integrity_score ?? 100) >= 80 ? 'text-green-700' : (production.integrity_score ?? 100) >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                      {production.integrity_score ?? 100}%
+                    </p>
                   </div>
                   {production.score !== null && (
                     <div className="bg-green-50 rounded-lg p-3 col-span-2">

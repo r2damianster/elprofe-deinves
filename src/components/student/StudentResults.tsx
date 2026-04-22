@@ -35,6 +35,7 @@ interface ProductionSummary {
   feedback: string | null;
   word_count: number;
   compliance_score: number;
+  integrity_score: number;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -125,7 +126,7 @@ export default function StudentResults() {
 
       // 5. Producciones del estudiante
       const { data: productions } = await (supabase.from('productions') as any)
-        .select('lesson_id, status, score, feedback, word_count, compliance_score')
+        .select('lesson_id, status, score, feedback, word_count, compliance_score, integrity_score')
         .eq('student_id', profile!.id)
         .in('lesson_id', lessonIds);
 
@@ -137,6 +138,7 @@ export default function StudentResults() {
           feedback:         p.feedback,
           word_count:       p.word_count,
           compliance_score: p.compliance_score,
+          integrity_score:  p.integrity_score ?? 100,
         };
       });
 
@@ -262,7 +264,10 @@ export default function StudentResults() {
                     <span className="text-blue-600">{lesson.completion_percentage}% progreso</span>
                   )}
                   {lesson.production && (
-                    <span className="text-purple-600">+ Producción</span>
+                    <span className="text-purple-600 flex items-center gap-1">
+                      <FileText className="w-3 h-3" />
+                      {STATUS_LABEL[lesson.production.status]}
+                    </span>
                   )}
                 </div>
               </div>
@@ -272,10 +277,16 @@ export default function StudentResults() {
                 {pct !== null && (
                   <p className={`text-lg font-bold ${scoreColor(pct)}`}>{pct}%</p>
                 )}
-                {lesson.totalPoints > 0 && (
-                  <p className="text-xs text-gray-400">
-                    {lesson.totalEarned}/{lesson.totalPoints} pts
-                  </p>
+                {lesson.production && (
+                  <div className="flex items-center gap-1.5 justify-end mt-0.5">
+                    <span className={`text-xs font-medium ${lesson.production.compliance_score >= 80 ? 'text-green-600' : lesson.production.compliance_score >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
+                      {lesson.production.compliance_score}% cumpl.
+                    </span>
+                    <span className="text-gray-300 text-xs">·</span>
+                    <span className={`text-xs font-medium ${lesson.production.integrity_score >= 80 ? 'text-green-600' : lesson.production.integrity_score >= 50 ? 'text-yellow-500' : 'text-red-500'}`}>
+                      {lesson.production.integrity_score}% integr.
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -350,26 +361,32 @@ export default function StudentResults() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <FileText className="w-4 h-4 text-purple-500" />
-                          <span className="text-sm font-medium text-gray-700">
-                            {lesson.production.word_count} palabras
-                          </span>
+                          <span className="text-sm font-medium text-gray-700">Producción escrita</span>
                         </div>
                         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLOR[lesson.production.status]}`}>
                           {STATUS_LABEL[lesson.production.status]}
                         </span>
                       </div>
 
-                      <div className="flex gap-4 text-sm">
-                        <div className="flex-1">
+                      <div className="flex gap-3">
+                        <div className="flex-1 bg-gray-50 rounded-lg p-2.5 text-center">
                           <p className="text-xs text-gray-400 mb-0.5">Cumplimiento</p>
-                          <p className="font-semibold text-blue-700">{lesson.production.compliance_score}%</p>
+                          <p className={`text-base font-bold ${lesson.production.compliance_score >= 80 ? 'text-green-700' : lesson.production.compliance_score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                            {lesson.production.compliance_score}%
+                          </p>
+                        </div>
+                        <div className="flex-1 bg-gray-50 rounded-lg p-2.5 text-center">
+                          <p className="text-xs text-gray-400 mb-0.5">Integridad</p>
+                          <p className={`text-base font-bold ${lesson.production.integrity_score >= 80 ? 'text-green-700' : lesson.production.integrity_score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                            {lesson.production.integrity_score}%
+                          </p>
                         </div>
                         {lesson.production.score !== null && (
-                          <div className="flex-1">
+                          <div className="flex-1 bg-green-50 rounded-lg p-2.5 text-center">
                             <p className="text-xs text-gray-400 mb-0.5">Calificación</p>
-                            <p className="font-semibold text-green-700 flex items-center gap-1">
+                            <p className="text-base font-bold text-green-700 flex items-center justify-center gap-1">
                               <Star className="w-3.5 h-3.5 text-yellow-400" />
-                              {lesson.production.score} / 100
+                              {lesson.production.score}
                             </p>
                           </div>
                         )}
