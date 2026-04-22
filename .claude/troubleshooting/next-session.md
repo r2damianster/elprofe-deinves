@@ -19,6 +19,7 @@
 | Bug-008 | Essay bloqueado al volver del tab de producción | 🆕 ABIERTO — diagnóstico completo, fix pendiente |
 | Bug-009 | Producción invisible en lecciones sin actividades | ⚠️ PARCIAL — fix BD aplicado (21 estudiantes), fix de código pendiente |
 | Feature-001 | Calificación batch con IA en Producciones | 🗺️ DISEÑO — ver `.claude/roadmap/feature-001-ai-grading-productions.md` |
+| Feature-002 | Umbrales configurables de compliance e integridad | 🗺️ DISEÑO — ver `.claude/roadmap/feature-002-production-thresholds.md` |
 
 ---
 
@@ -175,3 +176,20 @@ Ver diseño completo en `.claude/roadmap/feature-001-ai-grading-productions.md`.
 - UI de revisión batch (tabla editable) en `ProductionReviewer.tsx`
 
 Delegar a `agente-ia` (Edge Function) + `agente-frontend` (UI).
+
+---
+
+## Feature-002 — Umbrales configurables de compliance e integridad
+
+Ver diseño completo en `.claude/roadmap/feature-002-production-thresholds.md`.
+
+**Resumen:** El profesor configura `compliance_threshold` e `integrity_threshold` por lección. Ejemplo: 20 palabras requeridas + 50% threshold → solo 10 obligatorias.
+
+**Tareas:**
+- Migración: `ADD COLUMN compliance_threshold int2 DEFAULT 100` y `integrity_threshold int2 DEFAULT 0` en `production_rules`
+- `ProductionEditor.tsx`: usar `compliance_threshold` en la validación del submit
+- `ProductionEditor.tsx`: mostrar advertencia si `integrity < integrity_threshold`
+- Content Studio: agregar sliders en el editor de reglas de producción
+- UI estudiante: mostrar `X% / mín. Y%` en el panel de métricas
+
+Delegar migración a `especialista-bd`, UI a `agente-frontend`, validación a `agente-estudiantes`.
