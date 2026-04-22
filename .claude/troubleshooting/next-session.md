@@ -1,6 +1,6 @@
 # Próxima Sesión — Estado de Bugs y Tareas Pendientes
 
-**Actualizado:** 2026-04-22  
+**Actualizado:** 2026-04-22 (sesión tarde)  
 **Instrucción:** Empieza aquí. Las tareas están ordenadas por prioridad.
 
 ---
@@ -17,7 +17,8 @@
 | Bug-006 | `<button>` anidado en GroupManager | ⚠️ ABIERTO — warning DOM, no bloquea |
 | Bug-007 | Producción grupal — solo el primero en entregar cuenta | 🆕 DISEÑO PENDIENTE — elegir opción e implementar |
 | Bug-008 | Essay bloqueado al volver del tab de producción | 🆕 ABIERTO — diagnóstico completo, fix pendiente |
-| Bug-009 | Producción invisible en lecciones sin actividades | 🆕 ABIERTO — fix BD aplicado, fix de código pendiente |
+| Bug-009 | Producción invisible en lecciones sin actividades | ⚠️ PARCIAL — fix BD aplicado (21 estudiantes), fix de código pendiente |
+| Feature-001 | Calificación batch con IA en Producciones | 🗺️ DISEÑO — ver `.claude/roadmap/feature-001-ai-grading-productions.md` |
 
 ---
 
@@ -151,3 +152,26 @@ Ver detalles en `bug-009-lesson-no-activities-production-invisible.md`.
 4. **Fix D** — `LessonResults.tsx`: mostrar el texto de la producción (`productions.content`) para que el estudiante pueda releer su ensayo
 
 Delegar Fix A + B a `agente-estudiantes`, Fix C + D a `agente-frontend`.
+
+---
+
+## Feature-001 — Calificación batch con IA en Producciones
+
+Ver diseño completo en `.claude/roadmap/feature-001-ai-grading-productions.md`.
+
+**Resumen del flujo:**
+1. Profesor filtra producciones por curso/lección
+2. IA analiza todos los ensayos y propone rúbrica de evaluación
+3. Profesor edita el prompt/rúbrica
+4. IA califica cada ensayo (score 0-100 + feedback)
+5. Profesor revisa tabla propuesta → confirma → guarda en Supabase
+6. Score se guarda en `productions.score/feedback/status` → aparece como "Calificación del profesor" para el estudiante (sin cambios en BD ni en vistas)
+
+**Prerrequisito:** Bug-004 (GROQ_URL secret) debe estar resuelto.
+
+**Tareas:**
+- Agregar filtro por curso a `ProductionReviewer.tsx`
+- Dos tasks nuevas en Edge Function `ai-enhance`: `suggest_rubric` y `batch_grade`
+- UI de revisión batch (tabla editable) en `ProductionReviewer.tsx`
+
+Delegar a `agente-ia` (Edge Function) + `agente-frontend` (UI).
