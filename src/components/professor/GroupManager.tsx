@@ -360,7 +360,7 @@ export default function GroupManager({ courseId }: Props) {
 
     return (
       <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-        <button className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition"
+        <div className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition cursor-pointer"
           onClick={() => toggleGroupExpand(group.id)}>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
@@ -386,7 +386,7 @@ export default function GroupManager({ courseId }: Props) {
             </button>
             {isOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
           </div>
-        </button>
+        </div>
 
         {isOpen && (
           <div className="border-t border-gray-100 p-3 space-y-2">
