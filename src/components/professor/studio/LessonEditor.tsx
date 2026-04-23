@@ -530,6 +530,10 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
                   className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 disabled:opacity-40 transition">
                   {aiLoading === 'improve_titleen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
                 </button>
+                <button onClick={() => translate(titleEn, 'en', setTitleEs)} disabled={aiLoading === 'translateen' || !titleEn}
+                  className="flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-40 transition" title="Traducir al español">
+                  {aiLoading === 'translateen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '← ES'}
+                </button>
               </div>
             </div>
           </div>
@@ -567,6 +571,10 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
                 <button onClick={() => generateDesc('en')} disabled={aiLoading === 'improve_descriptionen' || !titleEn}
                   className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 disabled:opacity-40 self-start transition">
                   {aiLoading === 'improve_descriptionen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
+                </button>
+                <button onClick={() => translate(descEn, 'en', setDescEs)} disabled={aiLoading === 'translateen' || !descEn}
+                  className="flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-40 self-start transition" title="Traducir al español">
+                  {aiLoading === 'translateen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '← ES'}
                 </button>
               </div>
             </div>
