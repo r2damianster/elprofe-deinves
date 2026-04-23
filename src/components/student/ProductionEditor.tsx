@@ -13,8 +13,8 @@ import { resolveField } from '../../lib/i18n';
 interface ProductionRules {
   min_words: number;
   max_words: number | null;
-  required_words: string[];
-  prohibited_words: string[];
+  required_words: { es: string[]; en: string[] } | string[] | null;
+  prohibited_words: { es: string[]; en: string[] } | string[] | null;
   instructions: string | { es: string; en: string } | null;
   extra_rules: {
     min_paragraphs?: number;
@@ -24,6 +24,12 @@ interface ProductionRules {
   };
   compliance_threshold: number;  // % mínimo requerido para submit (default 100)
   integrity_threshold: number;   // % mínimo de integridad para advertencia (default 0)
+}
+
+function resolveWords(field: { es: string[]; en: string[] } | string[] | null | undefined, lang: 'es' | 'en'): string[] {
+  if (!field) return [];
+  if (Array.isArray(field)) return field;
+  return field[lang] ?? [];
 }
 
 interface IntegrityEvent {
@@ -286,7 +292,7 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
     }
 
     // Palabras requeridas (se normalizan eliminando puntuación periférica)
-    rules.required_words.forEach(w => {
+    resolveWords(rules.required_words, 'es').forEach(w => {
       total++;
       const clean = w.replace(/^[^a-záéíóúñüA-ZÁÉÍÓÚÑÜ]+|[^a-záéíóúñüA-ZÁÉÍÓÚÑÜ]+$/g, '').toLowerCase();
       if (!lower.includes(clean)) errors.push(`Falta la palabra clave: "${w}"`);
@@ -294,7 +300,7 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
     });
 
     // Palabras prohibidas
-    rules.prohibited_words.forEach(w => {
+    resolveWords(rules.prohibited_words, 'es').forEach(w => {
       total++;
       if (lower.includes(w.toLowerCase())) errors.push(`Palabra prohibida detectada: "${w}"`);
       else met++;
@@ -483,8 +489,8 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
               : 'Redacción libre',
             min_words: rules?.min_words,
             max_words: rules?.max_words,
-            required_words: rules?.required_words ?? [],
-            prohibited_words: rules?.prohibited_words ?? [],
+            required_words: resolveWords(rules?.required_words, 'es'),
+            prohibited_words: resolveWords(rules?.prohibited_words, 'es'),
           },
         },
       });
@@ -601,7 +607,7 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
               )}
             </div>
             <p className="text-blue-800 font-medium mb-3">
-              Calificacion: <span className="text-xl font-bold bg-white px-2 py-0.5 rounded border">{production.score}/100</span>
+              Calificacion: <span className="text-xl font-bold bg-white px-2 py-0.5 rounded border">{production.score}/10</span>
             </p>
             {production.feedback && (
               <div className="bg-white rounded-lg p-4 border">
@@ -678,16 +684,16 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
                           Minimo <strong className="mx-1">{rules.min_words}</strong> palabras
                           {rules.max_words ? <>, maximo <strong className="mx-1">{rules.max_words}</strong></> : ''}.
                         </li>
-                        {rules.required_words.length > 0 && (
+                        {resolveWords(rules.required_words, 'es').length > 0 && (
                           <li className="flex items-start gap-2">
                             <span className="mt-0.5 w-2 h-2 rounded-full bg-green-400 shrink-0" />
-                            Incluir: <strong className="text-green-700 ml-1">{rules.required_words.join(', ')}</strong>
+                            Incluir: <strong className="text-green-700 ml-1">{resolveWords(rules.required_words, 'es').join(', ')}</strong>
                           </li>
                         )}
-                        {rules.prohibited_words.length > 0 && (
+                        {resolveWords(rules.prohibited_words, 'es').length > 0 && (
                           <li className="flex items-start gap-2">
                             <span className="mt-0.5 w-2 h-2 rounded-full bg-red-400 shrink-0" />
-                            Prohibido: <strong className="text-red-600 ml-1">{rules.prohibited_words.join(', ')}</strong>
+                            Prohibido: <strong className="text-red-600 ml-1">{resolveWords(rules.prohibited_words, 'es').join(', ')}</strong>
                           </li>
                         )}
                         {rules.extra_rules?.min_paragraphs && (

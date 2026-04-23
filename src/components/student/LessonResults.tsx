@@ -303,7 +303,7 @@ export default function LessonResults({
                       <div className="flex items-center gap-2">
                         <Star className="w-4 h-4 text-yellow-500" />
                         <p className="text-2xl font-bold text-green-700">{production.score}</p>
-                        <span className="text-sm text-green-600">/ 100</span>
+                        <span className="text-sm text-green-600">/ 10</span>
                       </div>
                     </div>
                   )}

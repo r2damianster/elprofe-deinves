@@ -1,9 +1,9 @@
 # Bug-008 — Actividad de escritura bloqueada al volver del tab de producción
 
-**Estado:** 🆕 ABIERTO — diagnóstico completo, fix pendiente  
-**Detectado:** 2026-04-22  
+**Estado:** 🆕 ABIERTO — diagnóstico completo, fix pendiente    
 **Reportado por:** Estudiante (caso real)  
-**Componentes:** `ActivityRenderer.tsx`, `LessonViewer.tsx`
+**Componentes:** `Activ
+**Detectado:** 2026-04-22ityRenderer.tsx`, `LessonViewer.tsx`
 
 ---
 

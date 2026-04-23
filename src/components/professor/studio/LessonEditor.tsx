@@ -30,11 +30,11 @@ interface ContentStep {
 interface ProductionRules {
   min_words: number;
   max_words: number | null;
-  required_words: string;   // string separada por comas para el form
-  prohibited_words: string;
+  required_words: { es: string; en: string };
+  prohibited_words: { es: string; en: string };
   instructions: { es: string; en: string };
-  compliance_threshold: number;  // % mínimo requerido (0-100)
-  integrity_threshold: number;   // % mínimo de integridad (0 = sin límite)
+  compliance_threshold: number;
+  integrity_threshold: number;
 }
 
 interface Lesson {
@@ -285,7 +285,7 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
   // Producción
   const [hasProduction, setHasProduction] = useState(lesson?.has_production ?? false);
   const [unlockPct,  setUnlockPct]        = useState(lesson?.production_unlock_percentage ?? 80);
-  const [prodRules, setProdRules]         = useState<ProductionRules>({ min_words: 50, max_words: null, required_words: '', prohibited_words: '', instructions: { es: '', en: '' }, compliance_threshold: 100, integrity_threshold: 0 });
+  const [prodRules, setProdRules]         = useState<ProductionRules>({ min_words: 50, max_words: null, required_words: { es: '', en: '' }, prohibited_words: { es: '', en: '' }, instructions: { es: '', en: '' }, compliance_threshold: 100, integrity_threshold: 0 });
   const [loadingRules, setLoadingRules]   = useState(false);
 
   const [saving, setSaving]   = useState(false);
@@ -303,8 +303,14 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
         if (data) setProdRules({
           min_words: data.min_words,
           max_words: data.max_words,
-          required_words: (data.required_words ?? []).join(', '),
-          prohibited_words: (data.prohibited_words ?? []).join(', '),
+          required_words: {
+            es: (data.required_words?.es ?? []).join(', '),
+            en: (data.required_words?.en ?? []).join(', '),
+          },
+          prohibited_words: {
+            es: (data.prohibited_words?.es ?? []).join(', '),
+            en: (data.prohibited_words?.en ?? []).join(', '),
+          },
           compliance_threshold: data.compliance_threshold ?? 100,
           integrity_threshold:  data.integrity_threshold  ?? 0,
           instructions: (() => {
@@ -378,8 +384,14 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
     const title = lang === 'es' ? titleEs : titleEn;
     const result = await enhance('suggest_required_words', lang, { lessonTitle: title });
     if (result?.required_words) {
-      setProdRules(r => ({ ...r, required_words: result.required_words.join(', ') }));
+      setProdRules(r => ({ ...r, required_words: { ...r.required_words, [lang]: result.required_words.join(', ') } }));
     }
+  }
+
+  async function translate(text: string, fromLang: Lang, setter: (v: string) => void) {
+    if (!text.trim()) return;
+    const result = await enhance('translate', fromLang, { text, from_lang: fromLang });
+    if (result) setter(result);
   }
 
   // Guardar
@@ -430,8 +442,14 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
           lesson_id: savedLesson.id,
           min_words: prodRules.min_words,
           max_words: prodRules.max_words,
-          required_words: prodRules.required_words.split(',').map(w => w.trim()).filter(Boolean),
-          prohibited_words: prodRules.prohibited_words.split(',').map(w => w.trim()).filter(Boolean),
+          required_words: {
+            es: prodRules.required_words.es.split(',').map(w => w.trim()).filter(Boolean),
+            en: prodRules.required_words.en.split(',').map(w => w.trim()).filter(Boolean),
+          },
+          prohibited_words: {
+            es: prodRules.prohibited_words.es.split(',').map(w => w.trim()).filter(Boolean),
+            en: prodRules.prohibited_words.en.split(',').map(w => w.trim()).filter(Boolean),
+          },
           instructions: prodRules.instructions,
           compliance_threshold: prodRules.compliance_threshold,
           integrity_threshold:  prodRules.integrity_threshold,
@@ -492,6 +510,10 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
                   className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 disabled:opacity-40 transition">
                   {aiLoading === 'improve_titlees' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
                 </button>
+                <button onClick={() => translate(titleEs, 'es', setTitleEn)} disabled={aiLoading === 'translatees' || !titleEs}
+                  className="flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-40 transition" title="Traducir al inglés">
+                  {aiLoading === 'translatees' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '→ EN'}
+                </button>
               </div>
             </div>
             <div>
@@ -526,6 +548,10 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
                 <button onClick={() => generateDesc('es')} disabled={aiLoading === 'improve_descriptiones' || !titleEs}
                   className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 disabled:opacity-40 self-start transition">
                   {aiLoading === 'improve_descriptiones' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
+                </button>
+                <button onClick={() => translate(descEs, 'es', setDescEn)} disabled={aiLoading === 'translatees' || !descEs}
+                  className="flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-40 self-start transition" title="Traducir al inglés">
+                  {aiLoading === 'translatees' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '→ EN'}
                 </button>
               </div>
             </div>
@@ -692,6 +718,13 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
                     >
                       {aiLoading === 'improve_instructionses' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
                     </button>
+                    <button
+                      onClick={() => translate(prodRules.instructions.es, 'es', v => setProdRules(r => ({ ...r, instructions: { ...r.instructions, en: v } })))}
+                      disabled={aiLoading === 'translatees' || !prodRules.instructions.es}
+                      className="self-start flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-40 transition" title="Traducir al inglés"
+                    >
+                      {aiLoading === 'translatees' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '→ EN'}
+                    </button>
                   </div>
                 </div>
                 <div>
@@ -719,35 +752,71 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div>
-                  <label className="label-sm text-green-700">Palabras / Conceptos Requeridos (separados por coma)</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={prodRules.required_words}
-                      onChange={e => setProdRules(r => ({ ...r, required_words: e.target.value }))}
-                      className="input-field flex-1 !border-green-300 focus:!ring-green-400"
-                      placeholder="hello, good morning, introduce"
-                    />
-                    <button
-                      onClick={() => suggestWords('es')}
-                      disabled={aiLoading === 'suggest_required_wordses'}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs hover:bg-green-100 disabled:opacity-40 transition"
-                      title="Sugerir basados en el título ES"
-                    >
-                      {aiLoading === 'suggest_required_wordses' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} Auto
-                    </button>
+                <div>
+                  <label className="label-sm text-green-700">Palabras Requeridas (separadas por coma)</label>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex gap-2 items-center">
+                      <span className="text-xs text-gray-400 w-6">🇪🇸</span>
+                      <input type="text" value={prodRules.required_words.es}
+                        onChange={e => setProdRules(r => ({ ...r, required_words: { ...r.required_words, es: e.target.value } }))}
+                        className="input-field flex-1 !border-green-300 focus:!ring-green-400 text-sm"
+                        placeholder="presentar, saludar, describir" />
+                      <button onClick={() => suggestWords('es')} disabled={aiLoading === 'suggest_required_wordses'}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs hover:bg-green-100 disabled:opacity-40 transition" title="Sugerir con IA">
+                        {aiLoading === 'suggest_required_wordses' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                      </button>
+                      <button onClick={() => translate(prodRules.required_words.es, 'es', v => setProdRules(r => ({ ...r, required_words: { ...r.required_words, en: v } })))}
+                        disabled={aiLoading === 'translatees' || !prodRules.required_words.es}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-40 transition" title="Traducir al inglés">
+                        {aiLoading === 'translatees' ? <Loader2 className="w-3 h-3 animate-spin" /> : '→ EN'}
+                      </button>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <span className="text-xs text-gray-400 w-6">🇺🇸</span>
+                      <input type="text" value={prodRules.required_words.en}
+                        onChange={e => setProdRules(r => ({ ...r, required_words: { ...r.required_words, en: e.target.value } }))}
+                        className="input-field flex-1 !border-green-300 focus:!ring-green-400 text-sm"
+                        placeholder="introduce, greet, describe" />
+                      <button onClick={() => suggestWords('en')} disabled={aiLoading === 'suggest_required_wordsen'}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs hover:bg-green-100 disabled:opacity-40 transition" title="Sugerir con IA">
+                        {aiLoading === 'suggest_required_wordsen' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                      </button>
+                      <button onClick={() => translate(prodRules.required_words.en, 'en', v => setProdRules(r => ({ ...r, required_words: { ...r.required_words, es: v } })))}
+                        disabled={aiLoading === 'translateen' || !prodRules.required_words.en}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-40 transition" title="Traducir al español">
+                        {aiLoading === 'translateen' ? <Loader2 className="w-3 h-3 animate-spin" /> : '← ES'}
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div>
                   <label className="label-sm text-red-700">Palabras Prohibidas (separadas por coma)</label>
-                  <input
-                    type="text"
-                    value={prodRules.prohibited_words}
-                    onChange={e => setProdRules(r => ({ ...r, prohibited_words: e.target.value }))}
-                    className="input-field !border-red-300 focus:!ring-red-400"
-                    placeholder="hola, gracias (útil para prohibir lengua nativa o jerga)"
-                  />
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex gap-2 items-center">
+                      <span className="text-xs text-gray-400 w-6">🇪🇸</span>
+                      <input type="text" value={prodRules.prohibited_words.es}
+                        onChange={e => setProdRules(r => ({ ...r, prohibited_words: { ...r.prohibited_words, es: e.target.value } }))}
+                        className="input-field flex-1 !border-red-300 focus:!ring-red-400 text-sm"
+                        placeholder="hola, gracias (prohibir lengua nativa)" />
+                      <button onClick={() => translate(prodRules.prohibited_words.es, 'es', v => setProdRules(r => ({ ...r, prohibited_words: { ...r.prohibited_words, en: v } })))}
+                        disabled={aiLoading === 'translatees' || !prodRules.prohibited_words.es}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-40 transition" title="Traducir al inglés">
+                        {aiLoading === 'translatees' ? <Loader2 className="w-3 h-3 animate-spin" /> : '→ EN'}
+                      </button>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <span className="text-xs text-gray-400 w-6">🇺🇸</span>
+                      <input type="text" value={prodRules.prohibited_words.en}
+                        onChange={e => setProdRules(r => ({ ...r, prohibited_words: { ...r.prohibited_words, en: e.target.value } }))}
+                        className="input-field flex-1 !border-red-300 focus:!ring-red-400 text-sm"
+                        placeholder="hello, thanks (prohibit native language)" />
+                      <button onClick={() => translate(prodRules.prohibited_words.en, 'en', v => setProdRules(r => ({ ...r, prohibited_words: { ...r.prohibited_words, es: v } })))}
+                        disabled={aiLoading === 'translateen' || !prodRules.prohibited_words.en}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-40 transition" title="Traducir al español">
+                        {aiLoading === 'translateen' ? <Loader2 className="w-3 h-3 animate-spin" /> : '← ES'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 

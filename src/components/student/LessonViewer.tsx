@@ -376,11 +376,15 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
 
     } else {
       // Modo individual normal
-      const { data: responses } = await supabase
-        .from('activity_responses')
-        .select('activity_id')
-        .eq('student_id', profile?.id);
-      if (responses) setCompletedActivities(new Set(responses.map((r) => r.activity_id)));
+      const activityIds = activitiesData.map((a: any) => a.id);
+      const { data: responses } = activityIds.length > 0
+        ? await supabase
+            .from('activity_responses')
+            .select('activity_id')
+            .eq('student_id', profile?.id)
+            .in('activity_id', activityIds)
+        : { data: [] };
+      if (responses) setCompletedActivities(new Set(responses.map((r: any) => r.activity_id)));
 
       const { data: progressData } = await supabase
         .from('student_progress')

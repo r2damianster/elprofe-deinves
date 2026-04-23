@@ -103,7 +103,7 @@ export default function ProductionReviewer() {
   async function submitReview(productionId: string) {
     const score    = parseInt(scores[productionId] || '0');
     const feedback = feedbacks[productionId] || '';
-    if (isNaN(score) || score < 0 || score > 100) { alert('La nota debe estar entre 0 y 100'); return; }
+    if (isNaN(score) || score < 0 || score > 10) { alert('La nota debe estar entre 0 y 10'); return; }
 
     setSubmitting(productionId);
     try {
@@ -184,7 +184,7 @@ export default function ProductionReviewer() {
                     <span className="text-xs text-gray-500">{p.word_count} pal.</span>
                     {statusBadge(p.status)}
                     {p.score !== null && (
-                      <span className="font-bold text-sm text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg">{p.score}/100</span>
+                      <span className="font-bold text-sm text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg">{p.score}/10</span>
                     )}
                   </div>
                   {expanded === p.id ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
@@ -231,12 +231,12 @@ export default function ProductionReviewer() {
                       </h4>
                       <div className="flex gap-3 items-start">
                         <div className="w-28">
-                          <label className="text-xs text-gray-500 mb-1 block">Nota (0-100)</label>
-                          <input type="number" min="0" max="100"
+                          <label className="text-xs text-gray-500 mb-1 block">Nota (0-10)</label>
+                          <input type="number" min="0" max="10" step="0.1"
                             value={scores[p.id] || ''}
                             onChange={e => setScores({ ...scores, [p.id]: e.target.value })}
                             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            placeholder="0-100" />
+                            placeholder="0-10" />
                         </div>
                         <div className="flex-1">
                           <label className="text-xs text-gray-500 mb-1 block">Comentarios para el estudiante</label>
@@ -258,7 +258,7 @@ export default function ProductionReviewer() {
                   ) : (
                     <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-xl">
                       <div>
-                        <p className="text-sm font-bold text-green-800">Calificación enviada: {p.score}/100</p>
+                        <p className="text-sm font-bold text-green-800">Calificación enviada: {p.score}/10</p>
                         {p.feedback && <p className="text-xs text-green-700 mt-1">{p.feedback}</p>}
                       </div>
                       {p.attempts < 2 && (

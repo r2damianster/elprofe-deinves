@@ -15,7 +15,8 @@ type EnhanceTask =
   | 'improve_instructions'
   | 'generate_activity_options'
   | 'suggest_required_words'
-  | 'review_production';
+  | 'review_production'
+  | 'translate';
 
 interface RequestBody {
   task: EnhanceTask;
@@ -113,7 +114,7 @@ function buildMessages(task: EnhanceTask, lang: 'es' | 'en', data: Record<string
         {
           role: 'system',
           content: `Eres un docente experto en evaluación de producción escrita en español. Analiza el ensayo del estudiante y devuelve SOLO JSON con este formato exacto (sin markdown, sin bloques de código):
-{"score":<0-100>,"summary":"<resumen en 1 oración>","strengths":["<fortaleza1>","<fortaleza2>"],"improvements":["<mejora1>","<mejora2>","<mejora3>"]}
+{"score":<0-10>,"summary":"<resumen en 1 oración>","strengths":["<fortaleza1>","<fortaleza2>"],"improvements":["<mejora1>","<mejora2>","<mejora3>"]}
 
 Criterios de puntuación: coherencia, gramática, vocabulario, cumplimiento de instrucciones y reglas.`,
         },
@@ -124,6 +125,20 @@ Reglas: mínimo ${data.min_words ?? 0} palabras${data.max_words ? `, máximo ${d
 
 Ensayo:
 ${data.content}`,
+        },
+      ];
+
+    case 'translate':
+      return [
+        {
+          role: 'system',
+          content: data.from_lang === 'es'
+            ? 'You are a professional translator. Translate the given text from Spanish to English accurately. Reply ONLY with the translated text, no explanations, no quotes.'
+            : 'Eres un traductor profesional. Traduce el texto dado del inglés al español con precisión. Responde SOLO con el texto traducido, sin explicaciones, sin comillas.',
+        },
+        {
+          role: 'user',
+          content: data.text,
         },
       ];
 

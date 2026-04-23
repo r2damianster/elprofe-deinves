@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { type Lang, useTranslations, resolveField } from '../../lib/i18n';
+import { isProduction } from '../../lib/activityTypes';
 
 // Importación de todos los tipos de actividades
 import MultipleChoice from './activities/MultipleChoice';
@@ -67,12 +68,15 @@ export default function ActivityRenderer({
     setSubmitting(true);
 
     try {
-      const { error } = await supabase.from('activity_responses').insert({
-        activity_id: activity.id,
-        student_id: profile?.id,
-        response,
-        score,
-      });
+      const op = isProduction(activity.type)
+        ? supabase.from('activity_responses').upsert(
+            { activity_id: activity.id, student_id: profile?.id, response, score },
+            { onConflict: 'activity_id,student_id' }
+          )
+        : supabase.from('activity_responses').insert(
+            { activity_id: activity.id, student_id: profile?.id, response, score }
+          );
+      const { error } = await op;
 
       if (error) throw error;
 
@@ -128,7 +132,7 @@ export default function ActivityRenderer({
       )}
 
       {/* Renderizado de Componentes por Tipo */}
-      <div className={isCompleted ? "opacity-75 pointer-events-none" : ""}>
+      <div className={isCompleted && !isProduction(activity.type) ? "opacity-75 pointer-events-none" : ""}>
         {activity.type === 'multiple_choice' && (
           <MultipleChoice
             content={content}
