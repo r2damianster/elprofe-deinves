@@ -1,6 +1,6 @@
 # Bug-007: Producción Grupal — Solo el Primero en Entregar Cuenta para el Grupo
 
-**Estado:** ABIERTO — feature no implementada  
+**Estado:** ✅ RESUELTO — 2026-04-23 (commit bd5e029) — Opción B implementada: tabla group_production_locks  
 **Fecha apertura:** 2026-04-21  
 **Severidad:** MEDIA — comportamiento esperado ausente; actualmente cada estudiante entrega de forma independiente
 

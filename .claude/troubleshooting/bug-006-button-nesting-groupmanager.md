@@ -1,6 +1,6 @@
 # Bug-006: `<button>` Anidado en GroupManager (Warning DOM)
 
-**Estado:** ABIERTO — warning visible en consola, no bloquea funcionalidad  
+**Estado:** ✅ RESUELTO — 2026-04-23 (commit 9ba4a44) — button exterior reemplazado por div  
 **Fecha apertura:** 2026-04-21  
 **Severidad:** BAJA — degradación técnica (HTML inválido), sin impacto visual directo
 

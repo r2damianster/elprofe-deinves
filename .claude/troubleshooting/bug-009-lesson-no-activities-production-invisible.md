@@ -1,6 +1,6 @@
 # Bug-009 — Producción invisible en lecciones sin actividades
 
-**Estado:** 🆕 ABIERTO — diagnóstico completo, fix de código pendiente  
+**Estado:** ✅ RESUELTO — 2026-04-23 (commit 62a7321)  
 **Detectado:** 2026-04-22  
 **Afectadas:** ZAMORA ROMERO NAYESKA JOELIZ, TIGUA ARAY RICARDO VALENTINO  
 **Lección:** "Problemas prácticos vs. problemas de investigación" (`7ddca0da-32bb-4c7b-b199-ce2be6a09857`)  

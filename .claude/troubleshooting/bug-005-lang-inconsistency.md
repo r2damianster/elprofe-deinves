@@ -1,8 +1,8 @@
 # Bug-005: Instrucciones de Producción Almacenadas como JSON Serializado (String)
 
-**Estado:** ABIERTO — fix BD pendiente (limpieza SQL en Supabase)  
-**Fecha apertura:** 2026-04-20  
-**Fecha actualización:** 2026-04-21 — confirmado en navegador  
+**Estado:** ✅ RESUELTO — 2026-04-23 (commit 62a7321)
+**Fecha apertura:** 2026-04-20
+**Fecha resolución:** 2026-04-23 — migración BD convirtió instructions/required_words/prohibited_words a JSONB bilingüe {es,en}  
 **Severidad:** ALTA visualmente — el estudiante ve el JSON crudo completo como texto
 
 ---
