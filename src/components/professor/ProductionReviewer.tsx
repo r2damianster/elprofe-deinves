@@ -87,7 +87,10 @@ export default function ProductionReviewer() {
           compliance_score, integrity_score, integrity_events,
           time_on_task, attempts, submitted_at,
           student:profiles!student_id (full_name, email),
-          lesson:lessons!lesson_id (title)
+          lesson:lessons!lesson_id (title),
+          group_lock:group_production_locks!production_id (
+            group:groups!group_id (name)
+          )
         `)
         .order('submitted_at', { ascending: false });
 
@@ -166,7 +169,14 @@ export default function ProductionReviewer() {
                 onClick={() => setExpanded(expanded === p.id ? null : p.id)}>
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-800 truncate">{p.student?.full_name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-gray-800 truncate">{p.student?.full_name}</p>
+                      {(p as any).group_lock?.group?.name && (
+                        <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-semibold">
+                          {(p as any).group_lock.group.name}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-500 truncate">{resolveField(p.lesson?.title, 'es')}</p>
                   </div>
 

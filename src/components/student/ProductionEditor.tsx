@@ -103,6 +103,10 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
   const errorsRef                         = useRef<HTMLDivElement | null>(null);
 
   // IA feedback state
+  // Estado de grupo
+  const [myGroupId, setMyGroupId]   = useState<string | null>(null);
+  const [groupLock, setGroupLock]   = useState<{ student_name: string; submitted_at: string } | null>(null);
+
   const [aiFeedback, setAiFeedback] = useState<{
     score: number;
     summary: string;
@@ -130,7 +134,7 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
 
   // ── Carga inicial ─────────────────────────────────────────────────────────
 
-  useEffect(() => { loadRules(); loadProduction(); }, [lessonId]);
+  useEffect(() => { loadRules(); loadProduction(); loadGroupLock(); }, [lessonId]);
   useEffect(() => { validateContent(); }, [content, rules]);
 
   // ── Timer de tiempo en tarea ──────────────────────────────────────────────
@@ -263,6 +267,32 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
       setComplianceScore(data.compliance_score ?? 0);
       setIntegrityEvents(data.integrity_events ?? []);
       setTimeOnTask(data.time_on_task ?? 0);
+    }
+  }
+
+  async function loadGroupLock() {
+    if (!profile?.id) return;
+    const { data: myGroups } = await supabase
+      .from('group_members').select('group_id').eq('student_id', profile.id);
+    if (!myGroups?.length) return;
+
+    const { data: assignment } = await (supabase as any)
+      .from('group_lesson_assignments').select('group_id')
+      .eq('lesson_id', lessonId).in('group_id', myGroups.map((g: any) => g.group_id))
+      .maybeSingle();
+    if (!assignment) return;
+    setMyGroupId(assignment.group_id);
+
+    const { data: lock } = await (supabase as any)
+      .from('group_production_locks')
+      .select('student_id, submitted_at, profiles!student_id(full_name)')
+      .eq('group_id', assignment.group_id).eq('lesson_id', lessonId).maybeSingle();
+
+    if (lock && lock.student_id !== profile.id) {
+      setGroupLock({
+        student_name: lock.profiles?.full_name ?? 'Un compañero',
+        submitted_at: lock.submitted_at,
+      });
     }
   }
 
@@ -405,6 +435,15 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
         });
       }
 
+      // Registrar lock grupal si corresponde (solo el primero en entregar)
+      if (myGroupId) {
+        const prodId = production?.id ?? null;
+        await (supabase as any).from('group_production_locks').upsert(
+          { group_id: myGroupId, lesson_id: lessonId, student_id: profile!.id, production_id: prodId },
+          { onConflict: 'group_id,lesson_id', ignoreDuplicates: true }
+        );
+      }
+
       // Bug-009 Fix A: garantizar student_progress aunque la lección no tenga actividades
       await (supabase as any).from('student_progress').upsert({
         student_id:            profile!.id,
@@ -544,6 +583,29 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
     : null;
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+  // Grupo ya entregó — mostrar pantalla de solo lectura
+  if (groupLock) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-lg p-10 text-center max-w-md">
+          <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-10 h-10 text-blue-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Producción ya entregada</h2>
+          <p className="text-gray-600 mb-1">
+            <strong>{groupLock.student_name}</strong> ya entregó la producción del grupo.
+          </p>
+          <p className="text-sm text-gray-400 mb-6">
+            {new Date(groupLock.submitted_at).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })}
+          </p>
+          <button onClick={onBack} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition">
+            Volver a la lección
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (submitSuccess) {
     return (
