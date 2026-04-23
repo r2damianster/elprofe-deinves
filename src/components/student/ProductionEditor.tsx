@@ -22,6 +22,8 @@ interface ProductionRules {
     required_apa_citations?: number;
     required_sections?: string[];
   };
+  compliance_threshold: number;  // % mínimo requerido para submit (default 100)
+  integrity_threshold: number;   // % mínimo de integridad para advertencia (default 0)
 }
 
 interface IntegrityEvent {
@@ -396,6 +398,17 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
           student_id: profile!.id, lesson_id: lessonId, ...buildPayload('submitted'),
         });
       }
+
+      // Bug-009 Fix A: garantizar student_progress aunque la lección no tenga actividades
+      await (supabase as any).from('student_progress').upsert({
+        student_id:            profile!.id,
+        lesson_id:             lessonId,
+        completion_percentage: 100,
+        completed_at:          new Date().toISOString(),
+        attempts:              1,
+        started_at:            new Date().toISOString(),
+      }, { onConflict: 'student_id,lesson_id', ignoreDuplicates: false });
+
       if (!forced) {
         setSubmitSuccess(true);
         setTimeout(() => onBack(), 2000);
@@ -491,8 +504,12 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
 
   // ── Derivados ─────────────────────────────────────────────────────────────
 
-  const wordCount = countWords(content);
-  const isValid   = !rulesLoading && rules !== null && validationErrors.length === 0 && wordCount >= rules.min_words;
+  const wordCount           = countWords(content);
+  const complianceThreshold = rules?.compliance_threshold ?? 100;
+  const integrityThreshold  = rules?.integrity_threshold  ?? 0;
+  const isValid = !rulesLoading && rules !== null
+    && wordCount >= rules.min_words
+    && complianceScore >= complianceThreshold;
   const attempts  = production?.attempts || 1;
 
   // Colores del contador de palabras
@@ -712,17 +729,24 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
                   <div>
                     <div className="flex justify-between text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">
                       <span className="flex items-center gap-1"><BarChart className="w-3 h-3" /> Cumplimiento</span>
-                      <span className={complianceScore === 100 ? 'text-green-600' : complianceScore > 50 ? 'text-blue-600' : 'text-red-600'}>
+                      <span className={complianceScore >= complianceThreshold ? 'text-green-600' : complianceScore > 50 ? 'text-blue-600' : 'text-red-600'}>
                         {complianceScore}%
+                        {complianceThreshold < 100 && (
+                          <span className="ml-1 text-gray-400 font-normal">/ mín. {complianceThreshold}%</span>
+                        )}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2.5">
+                    <div className="relative w-full bg-gray-100 rounded-full h-2.5">
                       <div
                         className={`h-2.5 rounded-full transition-all duration-500 ${
-                          complianceScore === 100 ? 'bg-green-500' : complianceScore > 50 ? 'bg-blue-500' : 'bg-red-500'
+                          complianceScore >= complianceThreshold ? 'bg-green-500' : complianceScore > 50 ? 'bg-blue-500' : 'bg-red-500'
                         }`}
                         style={{ width: `${complianceScore}%` }}
                       />
+                      {complianceThreshold > 0 && complianceThreshold < 100 && (
+                        <div className="absolute top-0 bottom-0 w-0.5 bg-purple-500 opacity-70"
+                          style={{ left: `${complianceThreshold}%` }} />
+                      )}
                     </div>
                   </div>
                   <div>
@@ -730,16 +754,29 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
                       <span className="flex items-center gap-1"><ShieldAlert className="w-3 h-3" /> Integridad</span>
                       <span className={integrityScore <= 50 ? 'text-red-600 font-bold' : 'text-green-600'}>
                         {integrityScore}%
+                        {integrityThreshold > 0 && (
+                          <span className="ml-1 text-gray-400 font-normal">/ mín. {integrityThreshold}%</span>
+                        )}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2.5">
+                    <div className="relative w-full bg-gray-100 rounded-full h-2.5">
                       <div
                         className={`h-2.5 rounded-full transition-all duration-500 ${
                           integrityScore > 80 ? 'bg-green-500' : integrityScore > 50 ? 'bg-yellow-400' : 'bg-red-500'
                         }`}
                         style={{ width: `${integrityScore}%` }}
                       />
+                      {integrityThreshold > 0 && (
+                        <div className="absolute top-0 bottom-0 w-0.5 bg-amber-500 opacity-70"
+                          style={{ left: `${integrityThreshold}%` }} />
+                      )}
                     </div>
+                    {integrityThreshold > 0 && integrityScore < integrityThreshold && !isSubmitted && (
+                      <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
+                        <ShieldAlert className="w-3 h-3" />
+                        Integridad por debajo del mínimo requerido ({integrityThreshold}%).
+                      </p>
+                    )}
                   </div>
 
                   {/* Errores de validacion */}

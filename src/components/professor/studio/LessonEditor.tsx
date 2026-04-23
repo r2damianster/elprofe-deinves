@@ -33,6 +33,8 @@ interface ProductionRules {
   required_words: string;   // string separada por comas para el form
   prohibited_words: string;
   instructions: { es: string; en: string };
+  compliance_threshold: number;  // % mínimo requerido (0-100)
+  integrity_threshold: number;   // % mínimo de integridad (0 = sin límite)
 }
 
 interface Lesson {
@@ -283,7 +285,7 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
   // Producción
   const [hasProduction, setHasProduction] = useState(lesson?.has_production ?? false);
   const [unlockPct,  setUnlockPct]        = useState(lesson?.production_unlock_percentage ?? 80);
-  const [prodRules, setProdRules]         = useState<ProductionRules>({ min_words: 50, max_words: null, required_words: '', prohibited_words: '', instructions: { es: '', en: '' } });
+  const [prodRules, setProdRules]         = useState<ProductionRules>({ min_words: 50, max_words: null, required_words: '', prohibited_words: '', instructions: { es: '', en: '' }, compliance_threshold: 100, integrity_threshold: 0 });
   const [loadingRules, setLoadingRules]   = useState(false);
 
   const [saving, setSaving]   = useState(false);
@@ -303,6 +305,8 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
           max_words: data.max_words,
           required_words: (data.required_words ?? []).join(', '),
           prohibited_words: (data.prohibited_words ?? []).join(', '),
+          compliance_threshold: data.compliance_threshold ?? 100,
+          integrity_threshold:  data.integrity_threshold  ?? 0,
           instructions: (() => {
             const raw = data.instructions;
             if (!raw) return { es: '', en: '' };
@@ -429,6 +433,8 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
           required_words: prodRules.required_words.split(',').map(w => w.trim()).filter(Boolean),
           prohibited_words: prodRules.prohibited_words.split(',').map(w => w.trim()).filter(Boolean),
           instructions: prodRules.instructions,
+          compliance_threshold: prodRules.compliance_threshold,
+          integrity_threshold:  prodRules.integrity_threshold,
         };
         await db.from('production_rules').upsert(rulesPayload, { onConflict: 'lesson_id' });
       } else {
@@ -622,6 +628,46 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
                 <div>
                   <label className="label-sm">Máximo de palabras</label>
                   <input type="number" min={0} value={prodRules.max_words ?? ''} onChange={e => setProdRules(r => ({ ...r, max_words: e.target.value ? Number(e.target.value) : null }))} className="input-field" placeholder="Sin límite" />
+                </div>
+              </div>
+
+              {/* Umbrales de exigencia */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="label-sm">Exigencia de cumplimiento</label>
+                    <span className="text-sm font-bold text-purple-700">{prodRules.compliance_threshold}%</span>
+                  </div>
+                  <input
+                    type="range" min={0} max={100} step={5}
+                    value={prodRules.compliance_threshold}
+                    onChange={e => setProdRules(r => ({ ...r, compliance_threshold: Number(e.target.value) }))}
+                    className="w-full accent-purple-600"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    {prodRules.compliance_threshold === 100
+                      ? 'Todas las reglas obligatorias.'
+                      : `Solo el ${prodRules.compliance_threshold}% de las reglas es obligatorio.`}
+                  </p>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="label-sm">Umbral de integridad</label>
+                    <span className="text-sm font-bold text-amber-600">
+                      {prodRules.integrity_threshold === 0 ? 'Sin límite' : `${prodRules.integrity_threshold}%`}
+                    </span>
+                  </div>
+                  <input
+                    type="range" min={0} max={100} step={5}
+                    value={prodRules.integrity_threshold}
+                    onChange={e => setProdRules(r => ({ ...r, integrity_threshold: Number(e.target.value) }))}
+                    className="w-full accent-amber-500"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    {prodRules.integrity_threshold === 0
+                      ? 'Sin restricción de integridad.'
+                      : `Advertencia si integridad cae bajo ${prodRules.integrity_threshold}%.`}
+                  </p>
                 </div>
               </div>
 
