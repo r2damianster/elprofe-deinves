@@ -1,6 +1,6 @@
 # Próxima Sesión — Estado de Bugs y Tareas Pendientes
 
-**Actualizado:** 2026-04-22 (sesión tarde)  
+**Actualizado:** 2026-04-23  
 **Instrucción:** Empieza aquí. Las tareas están ordenadas por prioridad.
 
 ---
@@ -9,17 +9,48 @@
 
 | Bug | Descripción | Estado |
 |-----|-------------|--------|
-| Bug-001 | Validación producción / RLS | ✅ CERRADO (verificado 2026-04-21) |
-| Bug-002 | Doble anidamiento JSON en títulos | ✅ CERRADO (verificado 2026-04-21) |
-| Bug-003 | Recursión RLS en group_members | ✅ CERRADO (verificado 2026-04-21) |
-| Bug-004 | Módulo IA en ProductionEditor (401) | ❌ FALLA — fix pendiente |
-| Bug-005 | Instrucciones producción como JSON string | ❌ ABIERTO — fix BD + código pendiente |
-| Bug-006 | `<button>` anidado en GroupManager | ⚠️ ABIERTO — warning DOM, no bloquea |
-| Bug-007 | Producción grupal — solo el primero en entregar cuenta | 🆕 DISEÑO PENDIENTE — elegir opción e implementar |
-| Bug-008 | Essay bloqueado al volver del tab de producción | 🆕 ABIERTO — diagnóstico completo, fix pendiente |
-| Bug-009 | Producción invisible en lecciones sin actividades | ⚠️ PARCIAL — fix BD aplicado (21 estudiantes), fix de código pendiente |
-| Feature-001 | Calificación batch con IA en Producciones | 🗺️ DISEÑO — ver `.claude/roadmap/feature-001-ai-grading-productions.md` |
-| Feature-002 | Umbrales configurables de compliance e integridad | 🗺️ DISEÑO — ver `.claude/roadmap/feature-002-production-thresholds.md` |
+| Bug-001 | Validación producción / RLS | ✅ CERRADO |
+| Bug-002 | Doble anidamiento JSON en títulos | ✅ CERRADO |
+| Bug-003 | Recursión RLS en group_members | ✅ CERRADO |
+| Bug-004 | Botón IA en ProductionEditor | ✅ RESUELTO 2026-04-23 — pendiente verificar en despliegue |
+| Bug-005 | Instrucciones como JSON string | ✅ RESUELTO 2026-04-23 — migración JSONB |
+| Bug-006 | `<button>` anidado en GroupManager | ✅ RESUELTO 2026-04-23 |
+| Bug-007 | Producción grupal — lock al primer envío | ✅ RESUELTO 2026-04-23 — group_production_locks |
+| Bug-008 | Essay bloqueado al volver del tab de producción | ✅ RESUELTO 2026-04-23 |
+| Bug-009 | Producción invisible sin actividades | ✅ RESUELTO 2026-04-23 |
+| Feature-001 | Calificación batch con IA en Producciones | 🔴 PENDIENTE — próxima sesión |
+| Feature-002 | Umbrales configurables de compliance e integridad | ✅ IMPLEMENTADO |
+
+---
+
+## PRIORIDAD 1 — Feature-001: Calificación batch con IA en ProductionReviewer
+
+**Descripción:** El profesor selecciona producciones enviadas y las califica todas con IA de una sola vez.
+
+**Flujo:**
+1. Checkbox en cada fila de la lista
+2. Botón "Calificar con IA" (activo cuando hay ≥1 seleccionada)
+3. Barra de progreso mientras se procesan en secuencia
+4. Cada producción recibe `score` (0-10) y `feedback` de IA → status pasa a `reviewed`
+
+**Archivos:**
+- `src/components/professor/ProductionReviewer.tsx` — UI + lógica batch
+- Edge Function `ai-enhance` ya tiene la tarea `review_production` (0-10)
+
+---
+
+## PRIORIDAD 2 — Feature: Filtro por curso en ProductionReviewer
+
+**Descripción:** Actualmente el profesor ve TODAS las producciones mezcladas. Necesita filtrar por curso y por lección.
+
+**Flujo:**
+1. Selector de curso en la cabecera del revisor
+2. Selector de lección (opcional, dentro del curso seleccionado)
+3. Opción "Todos los cursos"
+
+**Archivos:**
+- `src/components/professor/ProductionReviewer.tsx`
+- Hay que agregar JOIN: `lessons → lesson_courses → courses` en la query principal
 
 ---
 

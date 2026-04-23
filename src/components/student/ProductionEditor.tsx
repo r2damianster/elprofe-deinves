@@ -1051,25 +1051,28 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
                 )}
               </div>
 
-              {/* Botones */}
+              {/* Botón IA — siempre visible cuando hay contenido */}
+              {wordCount > 0 && (
+                <div className="mt-4">
+                  <button
+                    onClick={analyzeWithAI}
+                    disabled={aiLoading || aiCooldownMin !== null}
+                    title={aiCooldownMin ? `Disponible en ${aiCooldownMin} min` : 'Analizar con IA'}
+                    className="w-full border-2 border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 hover:border-purple-500 py-2.5 rounded-xl transition font-semibold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {aiLoading
+                      ? 'Analizando...'
+                      : aiCooldownMin
+                      ? `IA disponible en ${aiCooldownMin} min`
+                      : 'Analizar con IA (orientativo)'}
+                  </button>
+                </div>
+              )}
+
+              {/* Botones de guardar/enviar */}
               {!isSubmitted && (
-                <div className="flex flex-col gap-3 mt-5">
-                  {/* Botón IA — solo visible cuando hay suficientes palabras */}
-                  {wordCount >= (rules?.min_words ?? 50) && !focusMode && (
-                    <button
-                      onClick={analyzeWithAI}
-                      disabled={aiLoading || aiCooldownMin !== null}
-                      title={aiCooldownMin ? `Disponible en ${aiCooldownMin} min` : 'Analizar con IA'}
-                      className="w-full border-2 border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 hover:border-purple-500 py-2.5 rounded-xl transition font-semibold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      {aiLoading
-                        ? 'Analizando...'
-                        : aiCooldownMin
-                        ? `IA disponible en ${aiCooldownMin} min`
-                        : 'Analizar con IA (orientativo)'}
-                    </button>
-                  )}
+                <div className="flex flex-col gap-3 mt-3">
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button
                       onClick={saveProduction}
