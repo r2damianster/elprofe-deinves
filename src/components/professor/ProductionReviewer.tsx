@@ -298,7 +298,10 @@ export default function ProductionReviewer() {
         })
       });
       const json = await res.json();
-      setBatchResults(json.result?.results ?? []);
+      if (json.error) throw new Error(json.error + (json.raw ? `\n\nRespuesta del modelo:\n${json.raw}` : ''));
+      const results = json.result?.results ?? [];
+      if (results.length === 0) throw new Error('La IA no devolvió resultados. Intenta de nuevo.');
+      setBatchResults(results);
     } catch (err: any) {
       alert('Error al calificar: ' + err.message);
     } finally {

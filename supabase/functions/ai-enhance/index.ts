@@ -188,7 +188,8 @@ serve(async (req) => {
 
     const messages = buildMessages(task, lang, data);
 
-    const maxTokens = task === 'batch_grade' ? 1500 : task === 'suggest_rubric' ? 600 : 400;
+    const maxTokens = task === 'batch_grade' ? 2000 : task === 'suggest_rubric' ? 600 : 400;
+    const jsonTasks2: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production', 'suggest_rubric', 'batch_grade'];
 
     const groqRes = await fetch(GROQ_ENDPOINT, {
       method: 'POST',
@@ -201,6 +202,7 @@ serve(async (req) => {
         messages,
         temperature: 0.4,
         max_tokens: maxTokens,
+        ...(jsonTasks2.includes(task) ? { response_format: { type: 'json_object' } } : {}),
       }),
     });
 
@@ -212,16 +214,20 @@ serve(async (req) => {
     const groqData = await groqRes.json();
     const result = groqData.choices[0]?.message?.content?.trim() ?? '';
 
-    // Para tareas que esperan JSON, intentar parsear
     const jsonTasks: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production', 'suggest_rubric', 'batch_grade'];
     if (jsonTasks.includes(task)) {
+      // Extraer JSON aunque venga envuelto en bloques markdown ```json...```
+      const jsonStr = result.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
       try {
-        const parsed = JSON.parse(result);
+        const parsed = JSON.parse(jsonStr);
         return new Response(JSON.stringify({ result: parsed }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } catch {
-        // Si no es JSON válido, devolver como texto igual
+        return new Response(JSON.stringify({ error: 'Invalid JSON from model', raw: jsonStr }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     }
 
