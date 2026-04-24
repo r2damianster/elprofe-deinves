@@ -11,11 +11,14 @@ import type { ActivityType } from '../../../lib/database.types';
 interface Activity {
   id: string;
   type: ActivityType;
-  title: any; // Soporta JSON para ES/EN
-  content: any; // { es: {...}, en: {...} }
+  title: any;
+  content: any;
   points: number;
   media_url: string | null;
   created_by: string | null;
+  description?: string | null;
+  tags?: string[];
+  difficulty?: number | null;
 }
 
 interface Props {
@@ -507,9 +510,13 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
   const [titleEs, setTitleEs] = useState(_initTitles.es);
   const [titleEn, setTitleEn] = useState(_initTitles.en);
 
-  const [points, setPoints] = useState(activity?.points ?? 1);
-  const [mediaUrl, setMediaUrl] = useState(activity?.media_url ?? '');
-  const [tags, setTags] = useState<string[]>(activity?.content?.tags ?? []);
+  const [points, setPoints]           = useState(activity?.points ?? 1);
+  const [mediaUrl, setMediaUrl]       = useState(activity?.media_url ?? '');
+  const [description, setDescription] = useState(activity?.description ?? '');
+  const [difficulty, setDifficulty]   = useState<number>(activity?.difficulty ?? 2);
+  const [tags, setTags]               = useState<string[]>(
+    activity?.tags?.length ? activity.tags : (activity?.content?.es?.tags ?? activity?.content?.tags ?? [])
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -537,8 +544,9 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
     setSaving(true);
     setError('');
 
-    const contentPayload = { es: { ...contentEs, tags }, en: { ...contentEn, tags } };
-    const titlePayload = { es: titleEs, en: titleEn };
+    const contentPayload = { es: { ...contentEs }, en: { ...contentEn } };
+    const titlePayload   = { es: titleEs, en: titleEn };
+    const meta = { description: description.trim() || null, tags, difficulty };
 
     try {
       const db = supabase as any;
@@ -546,7 +554,7 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
       if (activity?.id) {
         const { data, error: err } = await db
           .from('activities')
-          .update({ type, title: titlePayload, content: contentPayload, points, media_url: mediaUrl || null })
+          .update({ type, title: titlePayload, content: contentPayload, points, media_url: mediaUrl || null, ...meta })
           .eq('id', activity.id)
           .select()
           .single();
@@ -555,7 +563,7 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
       } else {
         const { data, error: err } = await db
           .from('activities')
-          .insert({ type, title: titlePayload, content: contentPayload, points, media_url: mediaUrl || null, created_by: profile?.id })
+          .insert({ type, title: titlePayload, content: contentPayload, points, media_url: mediaUrl || null, created_by: profile?.id, ...meta })
           .select()
           .single();
         if (err) throw err;
@@ -624,6 +632,38 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
           </div>
 
           <div className="border-t border-dashed border-gray-200"></div>
+
+          {/* Descripción y dificultad */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label-sm">Descripción breve (opcional)</label>
+              <textarea
+                rows={2}
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Ej: Seleccionar la forma correcta del verbo en pasado simple."
+                className="input-field resize-none"
+              />
+            </div>
+            <div>
+              <label className="label-sm">Dificultad</label>
+              <div className="flex gap-3 mt-1">
+                {([1, 2, 3] as const).map(d => (
+                  <label key={d} className={`flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-lg border text-sm font-medium transition ${
+                    difficulty === d
+                      ? d === 1 ? 'bg-green-100 border-green-400 text-green-700'
+                        : d === 2 ? 'bg-yellow-100 border-yellow-400 text-yellow-700'
+                        : 'bg-red-100 border-red-400 text-red-700'
+                      : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                  }`}>
+                    <input type="radio" name="difficulty" value={d} checked={difficulty === d}
+                      onChange={() => setDifficulty(d)} className="sr-only" />
+                    {d === 1 ? 'Fácil' : d === 2 ? 'Medio' : 'Difícil'}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
 
           {/* Etiquetas */}
           <div>

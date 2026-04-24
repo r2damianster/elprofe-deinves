@@ -15,6 +15,9 @@ interface Activity {
   media_url: string | null;
   created_by: string | null;
   created_at: string;
+  description: string | null;
+  tags: string[];
+  difficulty: number | null;
 }
 
 interface Props {
@@ -80,8 +83,15 @@ export default function ActivityBank({ onSelectForLesson, linkedIds }: Props) {
   useEffect(() => { load(); }, [load]);
 
   function getTags(a: Activity): string[] {
-    return (a.content?.es?.tags || a.content?.tags || []) as string[];
+    return (a.tags?.length ? a.tags : a.content?.es?.tags || a.content?.tags || []) as string[];
   }
+
+  const DIFFICULTY_LABEL: Record<number, string> = { 1: 'Fácil', 2: 'Medio', 3: 'Difícil' };
+  const DIFFICULTY_COLOR: Record<number, string> = {
+    1: 'text-green-600 bg-green-50',
+    2: 'text-yellow-600 bg-yellow-50',
+    3: 'text-red-600 bg-red-50',
+  };
 
   const filtered = activities.filter(a => {
     if (filterType && a.type !== filterType) return false;
@@ -90,8 +100,9 @@ export default function ActivityBank({ onSelectForLesson, linkedIds }: Props) {
       const q = search.toLowerCase();
       const titleMatch = resolveField(a.title, 'es').toLowerCase().includes(q) ||
                          resolveField(a.title, 'en').toLowerCase().includes(q);
-      const tagMatch = getTags(a).some(t => t.toLowerCase().includes(q));
-      if (!titleMatch && !tagMatch) return false;
+      const descMatch  = (a.description ?? '').toLowerCase().includes(q);
+      const tagMatch   = getTags(a).some(t => t.toLowerCase().includes(q));
+      if (!titleMatch && !descMatch && !tagMatch) return false;
     }
     return true;
   });
@@ -203,14 +214,22 @@ export default function ActivityBank({ onSelectForLesson, linkedIds }: Props) {
                 }`}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
                       {TYPE_LABELS[activity.type]}
                     </span>
+                    {activity.difficulty && (
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${DIFFICULTY_COLOR[activity.difficulty] ?? ''}`}>
+                        {DIFFICULTY_LABEL[activity.difficulty]}
+                      </span>
+                    )}
                     <span className="text-xs text-gray-400">{activity.points} pt{activity.points !== 1 ? 's' : ''}</span>
                     {isOwn && <span className="text-xs text-blue-500">✎ mía</span>}
                   </div>
                   <p className="text-sm font-medium text-gray-800 truncate">{resolveField(activity.title, 'es')}</p>
+                  {activity.description && (
+                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{activity.description}</p>
+                  )}
                   {getTags(activity).length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
                       {getTags(activity).slice(0, 4).map(tag => (
