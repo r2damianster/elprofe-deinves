@@ -4,8 +4,25 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   Users, Plus, Trash2, BookOpen, ChevronDown, ChevronUp,
   Loader2, UserPlus, Shuffle, ToggleLeft, ToggleRight, MoveRight,
-  Heart, FolderOpen, Layers, Power,
+  Heart, FolderOpen, Layers, Power, GripVertical,
 } from 'lucide-react';
+
+// ── Nombres creativos para grupos ────────────────────────────────────────────
+const GROUP_NAME_SETS = [
+  ['Mercurio','Venus','Marte','Júpiter','Saturno','Urano','Neptuno','Plutón','Ceres','Eris'],
+  ['Jade','Coral','Ámbar','Índigo','Topacio','Rubí','Zafiro','Esmeralda','Cuarzo','Ópalo'],
+  ['Halcón','Delfín','Jaguar','Cóndor','Mantis','Gaviota','Iguana','Puma','Tapir','Guacamayo'],
+  ['Andes','Titicaca','Orinoco','Amazonas','Chimborazo','Cotopaxi','Galápagos','Patagonia'],
+  ['Alfa','Beta','Gamma','Delta','Épsilon','Zeta','Eta','Theta','Iota','Kappa'],
+  ['Aquiles','Ulises','Héctor','Penélope','Atenea','Artemisa','Apolo','Hermes','Iris','Eos'],
+];
+
+function pickGroupNames(n: number): string[] {
+  const set = GROUP_NAME_SETS[Math.floor(Math.random() * GROUP_NAME_SETS.length)];
+  return Array.from({ length: n }, (_, i) =>
+    i < set.length ? set[i] : `${set[i % set.length]} ${Math.floor(i / set.length) + 1}`
+  );
+}
 
 interface GroupSet {
   id: string;
@@ -71,10 +88,16 @@ export default function GroupManager({ courseId }: Props) {
   const [newSetName, setNewSetName]         = useState('');
   const [createMode, setCreateMode]         = useState<CreateMode>('random');
   const [randomSize, setRandomSize]         = useState(4);
+  const [affinityMode, setAffinityMode]     = useState<'count' | 'max'>('count');
   const [affinityCount, setAffinityCount]   = useState(4);
-  const [affinityMax, setAffinityMax]       = useState<number | ''>('');
+  const [affinityMax, setAffinityMax]       = useState<number>(4);
+  const [manualCount, setManualCount]       = useState(3);
   const [randomPreview, setRandomPreview]   = useState<{ name: string; members: CourseStudent[] }[] | null>(null);
   const [creatingSet, setCreatingSet]       = useState(false);
+
+  // Drag-and-drop para asignación manual
+  const [dndSetId, setDndSetId]             = useState<string | null>(null);
+  const [draggedStudentId, setDraggedStudentId] = useState<string | null>(null);
 
   // Per-set lesson assignment
   const [addingLessonToSet, setAddingLessonToSet] = useState<Record<string, string>>({});
@@ -163,16 +186,20 @@ export default function GroupManager({ courseId }: Props) {
 
   async function loadAvailableLessons() {
     const { data, error } = await supabase
-      .from('lessons')
-      .select('id, title')
-      .order('created_at', { ascending: true });
-    if (error) {
-      console.error('[GroupManager] Error cargando lecciones:', error);
-    }
-    setAvailableLessons((data || []).map((l: any) => {
-      const t = l.title;
-      return { id: l.id, title: typeof t === 'string' ? t : (t?.es || t?.en || 'Sin título') };
-    }));
+      .from('lesson_assignments')
+      .select('lesson_id, lessons!lesson_id(id, title)')
+      .eq('course_id', courseId);
+    if (error) console.error('[GroupManager] Error cargando lecciones:', error);
+    const seen = new Set<string>();
+    const lessons: Lesson[] = [];
+    (data || []).forEach((r: any) => {
+      if (!seen.has(r.lesson_id) && r.lessons) {
+        seen.add(r.lesson_id);
+        const t = r.lessons.title;
+        lessons.push({ id: r.lesson_id, title: typeof t === 'string' ? t : (t?.es || t?.en || 'Sin título') });
+      }
+    });
+    setAvailableLessons(lessons);
   }
 
   // ── Generar preview aleatorio ──────────────────────────────
@@ -181,11 +208,12 @@ export default function GroupManager({ courseId }: Props) {
     const shuffled = [...courseStudents].sort(() => Math.random() - 0.5);
     const n = shuffled.length;
     const numGroups = Math.ceil(n / randomSize);
+    const names = pickGroupNames(numGroups);
     const preview: { name: string; members: CourseStudent[] }[] = [];
     let idx = 0;
     for (let i = 0; i < numGroups; i++) {
       const size = Math.ceil((n - idx) / (numGroups - i));
-      preview.push({ name: `Grupo ${i + 1}`, members: shuffled.slice(idx, idx + size) });
+      preview.push({ name: names[i], members: shuffled.slice(idx, idx + size) });
       idx += size;
     }
     setRandomPreview(preview);
@@ -219,18 +247,30 @@ export default function GroupManager({ courseId }: Props) {
         }
         setRandomPreview(null);
       } else if (createMode === 'affinity') {
-        const max = affinityMax === '' ? null : Number(affinityMax);
-        for (let i = 1; i <= affinityCount; i++) {
-          const { data: gData, error: affErr } = await supabase.from('groups').insert({
-            course_id: courseId, name: `Grupo ${i}`,
+        const count = affinityMode === 'count'
+          ? affinityCount
+          : Math.ceil(courseStudents.length / affinityMax) || affinityCount;
+        const maxM = affinityMode === 'max' ? affinityMax : null;
+        const names = pickGroupNames(count);
+        for (let i = 0; i < count; i++) {
+          const { error: affErr } = await supabase.from('groups').insert({
+            course_id: courseId, name: names[i],
             created_by: profile?.id, group_set_id: setData.id,
-            enrollment_open: true, max_members: max,
-          }).select().single();
-          console.log(`[createSet] grupo ${i}:`, gData, affErr);
+            enrollment_open: true, max_members: maxM,
+          });
           if (affErr) throw affErr;
         }
+      } else if (createMode === 'manual') {
+        const names = pickGroupNames(manualCount);
+        for (let i = 0; i < manualCount; i++) {
+          const { error: manErr } = await supabase.from('groups').insert({
+            course_id: courseId, name: names[i],
+            created_by: profile?.id, group_set_id: setData.id,
+            enrollment_open: false, max_members: null,
+          });
+          if (manErr) throw manErr;
+        }
       }
-      // manual: empty set, professor adds groups inside
 
       setNewSetName('');
       await loadAll();
@@ -334,6 +374,16 @@ export default function GroupManager({ courseId }: Props) {
     await supabase.from('group_members').insert({ group_id: toGroupId, student_id: studentId });
     setMoveTarget(prev => ({ ...prev, [key]: '' }));
     await Promise.all([loadGroupMembers(fromGroupId), loadGroupMembers(toGroupId)]);
+  }
+
+  async function dropStudentToGroup(groupId: string) {
+    if (!draggedStudentId) return;
+    await supabase.from('group_members').upsert(
+      { group_id: groupId, student_id: draggedStudentId },
+      { onConflict: 'group_id,student_id', ignoreDuplicates: true }
+    );
+    setDraggedStudentId(null);
+    await loadGroupMembers(groupId);
   }
 
   async function toggleEnrollment(group: Group) {
@@ -511,25 +561,56 @@ export default function GroupManager({ courseId }: Props) {
           )}
 
           {createMode === 'affinity' && (
-            <div className="flex items-center gap-3 flex-wrap text-sm">
-              <div className="flex items-center gap-2">
-                <label className="text-gray-700">Grupos:</label>
-                <input type="number" min={1} max={30} value={affinityCount}
-                  onChange={e => setAffinityCount(Number(e.target.value))}
-                  className="w-16 border border-gray-300 rounded px-2 py-1 text-sm" />
+            <div className="space-y-3 text-sm">
+              <div className="flex gap-2">
+                <button onClick={() => setAffinityMode('count')}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition ${affinityMode === 'count' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+                  Número de grupos
+                </button>
+                <button onClick={() => setAffinityMode('max')}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition ${affinityMode === 'max' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+                  Máximo por grupo
+                </button>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-gray-700">Máx. miembros:</label>
-                <input type="number" min={1} placeholder="∞" value={affinityMax}
-                  onChange={e => setAffinityMax(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-16 border border-gray-300 rounded px-2 py-1 text-sm" />
-              </div>
-              <p className="text-xs text-pink-600">Los estudiantes elegirán su grupo</p>
+              {affinityMode === 'count' ? (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <label className="text-gray-700">Grupos a crear:</label>
+                    <input type="number" min={1} max={30} value={affinityCount}
+                      onChange={e => setAffinityCount(Number(e.target.value))}
+                      className="w-16 border border-gray-300 rounded px-2 py-1 text-sm" />
+                  </div>
+                  <span className="text-xs text-gray-500">Los estudiantes eligen su grupo</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <label className="text-gray-700">Máximo por grupo:</label>
+                    <input type="number" min={1} value={affinityMax}
+                      onChange={e => setAffinityMax(Number(e.target.value))}
+                      className="w-16 border border-gray-300 rounded px-2 py-1 text-sm" />
+                  </div>
+                  {courseStudents.length > 0 && (
+                    <span className="text-xs text-gray-500">
+                      → ~{Math.ceil(courseStudents.length / affinityMax)} grupos para {courseStudents.length} estudiantes
+                    </span>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-pink-600">Los estudiantes verán los grupos y elegirán dónde inscribirse</p>
             </div>
           )}
 
           {createMode === 'manual' && (
-            <p className="text-xs text-gray-500">Se creará la agrupación vacía. Luego agregas grupos y miembros manualmente.</p>
+            <div className="flex items-center gap-3 flex-wrap text-sm">
+              <div className="flex items-center gap-2">
+                <label className="text-gray-700">Número de grupos:</label>
+                <input type="number" min={1} max={30} value={manualCount}
+                  onChange={e => setManualCount(Number(e.target.value))}
+                  className="w-16 border border-gray-300 rounded px-2 py-1 text-sm" />
+              </div>
+              <p className="text-xs text-gray-500">Los grupos se crean con nombres automáticos. Luego arrastras estudiantes a cada grupo.</p>
+            </div>
           )}
 
           {/* Preview aleatoria */}
@@ -679,6 +760,71 @@ export default function GroupManager({ courseId }: Props) {
                         </div>
                       )}
                     </div>
+
+                    {/* ── Panel DnD de asignación ── */}
+                    {groups.length > 0 && (
+                      <div>
+                        <button
+                          onClick={() => {
+                            if (dndSetId === set.id) { setDndSetId(null); return; }
+                            setDndSetId(set.id);
+                            groups.forEach(g => { if (!membersByGroup[g.id]) loadGroupMembers(g.id); });
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-indigo-300 text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                          <GripVertical className="w-3.5 h-3.5" />
+                          {dndSetId === set.id ? 'Cerrar distribución' : 'Distribuir estudiantes (arrastrar)'}
+                        </button>
+
+                        {dndSetId === set.id && (
+                          <div className="mt-3 border border-indigo-200 rounded-xl overflow-hidden">
+                            <div className="grid grid-cols-[180px_1fr] divide-x divide-indigo-100">
+                              {/* Columna: sin grupo */}
+                              <div className="bg-indigo-50 p-3">
+                                <p className="text-xs font-bold text-indigo-700 mb-2">Sin grupo</p>
+                                <div className="space-y-1">
+                                  {courseStudents
+                                    .filter(s => !groups.some(g => (membersByGroup[g.id] || []).some(m => m.student_id === s.id)))
+                                    .map(s => (
+                                      <div key={s.id}
+                                        draggable
+                                        onDragStart={() => setDraggedStudentId(s.id)}
+                                        className="flex items-center gap-1.5 bg-white border border-indigo-200 rounded-lg px-2 py-1 cursor-grab text-xs text-gray-700 hover:border-indigo-400 transition">
+                                        <GripVertical className="w-3 h-3 text-gray-400 shrink-0" />
+                                        <span className="truncate">{s.full_name}</span>
+                                      </div>
+                                    ))}
+                                  {courseStudents.filter(s => !groups.some(g => (membersByGroup[g.id] || []).some(m => m.student_id === s.id))).length === 0 && (
+                                    <p className="text-xs text-indigo-400 italic">Todos asignados</p>
+                                  )}
+                                </div>
+                              </div>
+                              {/* Columna: grupos como zonas de drop */}
+                              <div className="p-3 grid grid-cols-2 gap-2 bg-white">
+                                {groups.map(g => (
+                                  <div key={g.id}
+                                    onDragOver={e => e.preventDefault()}
+                                    onDrop={() => dropStudentToGroup(g.id)}
+                                    className={`min-h-[80px] border-2 border-dashed rounded-xl p-2 transition ${draggedStudentId ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200'}`}>
+                                    <p className="text-xs font-bold text-gray-700 mb-1.5">{g.name}</p>
+                                    {(membersByGroup[g.id] || []).map(m => (
+                                      <div key={m.student_id} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-2 py-0.5 text-xs text-gray-600 mb-1">
+                                        <span className="truncate">{m.full_name}</span>
+                                        <button onClick={() => removeMember(g.id, m.student_id)} className="text-gray-300 hover:text-red-400 ml-1">
+                                          <Trash2 className="w-2.5 h-2.5" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                    {(membersByGroup[g.id] || []).length === 0 && (
+                                      <p className="text-xs text-gray-300 italic">Suelta aquí</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Grupos del set */}
                     <div className="space-y-2">
