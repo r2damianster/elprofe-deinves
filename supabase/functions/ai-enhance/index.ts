@@ -18,7 +18,8 @@ type EnhanceTask =
   | 'review_production'
   | 'translate'
   | 'suggest_rubric'
-  | 'batch_grade';
+  | 'batch_grade'
+  | 'complete_activity';
 
 interface RequestBody {
   task: EnhanceTask;
@@ -168,6 +169,25 @@ ${data.content}`,
         },
       ];
 
+    case 'complete_activity':
+      return [
+        {
+          role: 'system',
+          content: `Eres un diseñador experto de actividades para plataformas de enseñanza de idiomas. Recibes el contenido de una actividad en español y debes devolver SOLO JSON con este formato exacto (sin markdown):
+{"title_es":"<título corto en español>","title_en":"<título corto en inglés>","content_en":<mismo JSON que content_es pero con textos traducidos al inglés>,"tags":["tag1","tag2","tag3"],"description":"<1 oración en español describiendo qué practica el estudiante>","difficulty":<1|2|3>}
+
+Reglas para content_en:
+- Mantén EXACTAMENTE la misma estructura JSON que content_es
+- Traduce solo los valores de texto (questions, statements, options text, hints, instruction, etc.)
+- NO cambies IDs, correct_id, correct, números, booleanos ni campos de referencia
+- difficulty: 1=fácil, 2=medio, 3=difícil según el vocabulario y complejidad del tema`,
+        },
+        {
+          role: 'user',
+          content: `Tipo de actividad: ${data.type}\nContenido en español:\n${JSON.stringify(data.content_es, null, 2)}`,
+        },
+      ];
+
     default:
       throw new Error(`Unknown task: ${task}`);
   }
@@ -188,8 +208,8 @@ serve(async (req) => {
 
     const messages = buildMessages(task, lang, data);
 
-    const maxTokens = task === 'batch_grade' ? 2000 : task === 'suggest_rubric' ? 600 : 400;
-    const jsonTasks2: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production', 'suggest_rubric', 'batch_grade'];
+    const jsonTasks: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production', 'suggest_rubric', 'batch_grade', 'complete_activity'];
+    const maxTokens = task === 'batch_grade' ? 2000 : task === 'suggest_rubric' ? 600 : task === 'complete_activity' ? 1200 : 400;
 
     const groqRes = await fetch(GROQ_ENDPOINT, {
       method: 'POST',
@@ -202,7 +222,7 @@ serve(async (req) => {
         messages,
         temperature: 0.4,
         max_tokens: maxTokens,
-        ...(jsonTasks2.includes(task) ? { response_format: { type: 'json_object' } } : {}),
+        ...(jsonTasks.includes(task) ? { response_format: { type: 'json_object' } } : {}),
       }),
     });
 
@@ -213,8 +233,6 @@ serve(async (req) => {
 
     const groqData = await groqRes.json();
     const result = groqData.choices[0]?.message?.content?.trim() ?? '';
-
-    const jsonTasks: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production', 'suggest_rubric', 'batch_grade'];
     if (jsonTasks.includes(task)) {
       // Extraer JSON aunque venga envuelto en bloques markdown ```json...```
       const jsonStr = result.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();

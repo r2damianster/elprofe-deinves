@@ -539,6 +539,20 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
     }
   }
 
+  async function handleCompleteWithAI() {
+    const result = await enhance('complete_activity', 'es', {
+      type,
+      content_es: contentEs,
+    });
+    if (!result) return;
+    if (result.title_es) setTitleEs(result.title_es);
+    if (result.title_en) setTitleEn(result.title_en);
+    if (result.content_en) setContentEn({ _lang: 'en', ...result.content_en });
+    if (result.tags?.length) setTags(result.tags);
+    if (result.description) setDescription(result.description);
+    if (result.difficulty) setDifficulty(result.difficulty);
+  }
+
   async function handleSave() {
     if (!titleEs.trim() && !titleEn.trim()) { setError('Declara un título en al menos un idioma.'); return; }
     setSaving(true);
@@ -593,57 +607,105 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
         </div>
 
         {/* Body — scrollable */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Opciones Globales */}
-            <div className="space-y-4">
-              {/* Tipo */}
-              <div>
-                <label className="label-sm">Tipo de actividad</label>
-                <select
-                  value={type}
-                  onChange={e => handleTypeChange(e.target.value as ActivityType)}
-                  disabled={!!activity?.id}
-                  className="input-field"
-                >
-                  {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-                {activity?.id && <p className="text-xs text-gray-400 mt-1">El tipo no se puede cambiar en una actividad existente.</p>}
-              </div>
-              <div className="w-32">
-                <label className="label-sm">Puntos</label>
-                <input type="number" min={0} max={100} value={points} onChange={e => setPoints(Number(e.target.value))} className="input-field" />
-              </div>
-            </div>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
 
-            {/* Media (imagen/audio) */}
-            {needsMedia && (
-              <div className="space-y-4">
-                <MediaUploader
-                  value={mediaUrl}
-                  onChange={setMediaUrl}
-                  accept={type === 'image_question' ? 'image' : 'audio'}
-                  label={type === 'image_question' ? 'Imagen de la actividad' : 'Archivo de audio'}
-                />
-              </div>
-            )}
-            
+          {/* Tipo + Puntos */}
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <label className="label-sm">Tipo de actividad</label>
+              <select
+                value={type}
+                onChange={e => handleTypeChange(e.target.value as ActivityType)}
+                disabled={!!activity?.id}
+                className="input-field"
+              >
+                {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              {activity?.id && <p className="text-xs text-gray-400 mt-1">El tipo no se puede cambiar en una actividad existente.</p>}
+            </div>
+            <div className="w-24">
+              <label className="label-sm">Puntos</label>
+              <input type="number" min={0} max={100} value={points} onChange={e => setPoints(Number(e.target.value))} className="input-field" />
+            </div>
           </div>
 
-          <div className="border-t border-dashed border-gray-200"></div>
+          {/* Media */}
+          {needsMedia && (
+            <MediaUploader
+              value={mediaUrl}
+              onChange={setMediaUrl}
+              accept={type === 'image_question' ? 'image' : 'audio'}
+              label={type === 'image_question' ? 'Imagen de la actividad' : 'Archivo de audio'}
+            />
+          )}
 
-          {/* Descripción y dificultad */}
+          {/* Contenido ES — el profesor llena esto primero */}
+          <div className="border border-blue-100 rounded-xl p-4 bg-blue-50/20 shadow-sm relative pt-10">
+            <div className="absolute top-0 left-0 right-0 bg-blue-100/60 py-1.5 px-4 rounded-t-xl border-b border-blue-100 flex items-center gap-2">
+              <span className="text-base">🇪🇸</span>
+              <h3 className="font-bold text-sm text-blue-900">Pregunta y respuestas en español</h3>
+            </div>
+            <ContentFormForLang type={type} content={contentEs} onChange={setContentEs} />
+          </div>
+
+          {/* Botón único de IA */}
+          <button
+            type="button"
+            onClick={handleCompleteWithAI}
+            disabled={!!aiLoading}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-bold hover:from-purple-700 hover:to-indigo-700 transition disabled:opacity-50 shadow-sm"
+          >
+            {aiLoading === 'complete_activityes'
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Generando traducción, títulos y etiquetas...</>
+              : <><Wand2 className="w-4 h-4" /> Completar con IA — traducir, titular y etiquetar</>
+            }
+          </button>
+
+          {/* Versión EN — auto-rellenada por IA, editable */}
+          <div className="border border-red-100 rounded-xl p-4 bg-red-50/20 shadow-sm relative pt-10">
+            <div className="absolute top-0 left-0 right-0 bg-red-100/60 py-1.5 px-4 rounded-t-xl border-b border-red-100 flex items-center gap-2">
+              <span className="text-base">🇺🇸</span>
+              <h3 className="font-bold text-sm text-red-900">English version (auto-filled by AI, editable)</h3>
+            </div>
+            <ContentFormForLang type={type} content={contentEn} onChange={setContentEn} />
+          </div>
+
+          <div className="border-t border-dashed border-gray-200" />
+
+          {/* Títulos bilingües */}
+          <div>
+            <label className="label-sm">Título / Instrucción para el estudiante</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex gap-2">
+                <input type="text" value={titleEs} onChange={e => setTitleEs(e.target.value)}
+                  className="input-field flex-1" placeholder="Ej: Selecciona la respuesta correcta (ES)" />
+                <button type="button" onClick={() => handleImproveTitle('es')}
+                  disabled={!titleEs || aiLoading === 'improve_titlees'}
+                  title="Mejorar con IA"
+                  className="px-2.5 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition disabled:opacity-40">
+                  {aiLoading === 'improve_titlees' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input type="text" value={titleEn} onChange={e => setTitleEn(e.target.value)}
+                  className="input-field flex-1" placeholder="E.g.: Select the correct answer (EN)" />
+                <button type="button" onClick={() => handleImproveTitle('en')}
+                  disabled={!titleEn || aiLoading === 'improve_titleen'}
+                  title="Improve with AI"
+                  className="px-2.5 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition disabled:opacity-40">
+                  {aiLoading === 'improve_titleen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Descripción + Dificultad */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label-sm">Descripción breve (opcional)</label>
-              <textarea
-                rows={2}
-                value={description}
-                onChange={e => setDescription(e.target.value)}
+              <label className="label-sm">Descripción breve</label>
+              <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)}
                 placeholder="Ej: Seleccionar la forma correcta del verbo en pasado simple."
-                className="input-field resize-none"
-              />
+                className="input-field resize-none" />
             </div>
             <div>
               <label className="label-sm">Dificultad</label>
@@ -667,79 +729,8 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
 
           {/* Etiquetas */}
           <div>
-            <label className="label-sm">Palabras clave / Etiquetas de la Actividad</label>
+            <label className="label-sm">Etiquetas</label>
             <TagInput tags={tags} onChange={setTags} placeholder="Ej: [vocabulario] [lectura] [deportes]" />
-          </div>
-
-          <div className="border-t border-dashed border-gray-200"></div>
-
-          {/* Títulos */}
-          <div>
-            <label className="label-sm">Títulos / Instrucción para el estudiante</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={titleEs}
-                  onChange={e => setTitleEs(e.target.value)}
-                  className="input-field flex-1"
-                  placeholder="Ej: Selecciona la respuesta (ES)"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleImproveTitle('es')}
-                  disabled={!titleEs || aiLoading === 'improve_titlees'}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 transition disabled:opacity-40"
-                >
-                  {aiLoading === 'improve_titlees' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
-                </button>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={titleEn}
-                  onChange={e => setTitleEn(e.target.value)}
-                  className="input-field flex-1"
-                  placeholder="E.g.: Select the correct answer (EN)"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleImproveTitle('en')}
-                  disabled={!titleEn || aiLoading === 'improve_titleen'}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 transition disabled:opacity-40"
-                >
-                  {aiLoading === 'improve_titleen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Formularios Simultáneos (Side by side) */}
-          <div className="space-y-3">
-             <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-700">Contenido Dinámico de la Actividad</span>
-                <span className="text-xs text-gray-400">Puedes llenar un solo idioma o ambos para modo bilingüe.</span>
-             </div>
-             
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-               {/* Columna ES */}
-               <div className="border border-blue-100 rounded-xl p-4 bg-blue-50/20 shadow-sm relative pt-10">
-                 <div className="absolute top-0 left-0 right-0 bg-blue-100/50 py-1.5 px-4 rounded-t-xl border-b border-blue-100 flex items-center gap-2">
-                    <span className="text-base">🇪🇸</span>
-                    <h3 className="font-bold text-sm text-blue-900">Versión Español</h3>
-                 </div>
-                 <ContentFormForLang type={type} content={contentEs} onChange={setContentEs} />
-               </div>
-
-               {/* Columna EN */}
-               <div className="border border-red-100 rounded-xl p-4 bg-red-50/20 shadow-sm relative pt-10">
-                 <div className="absolute top-0 left-0 right-0 bg-red-100/50 py-1.5 px-4 rounded-t-xl border-b border-red-100 flex items-center gap-2">
-                    <span className="text-base">🇺🇸</span>
-                    <h3 className="font-bold text-sm text-red-900">English Version</h3>
-                 </div>
-                 <ContentFormForLang type={type} content={contentEn} onChange={setContentEn} />
-               </div>
-             </div>
           </div>
 
           {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
