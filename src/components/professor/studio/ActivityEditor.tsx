@@ -512,8 +512,9 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
 
   const [points, setPoints]           = useState(activity?.points ?? 1);
   const [mediaUrl, setMediaUrl]       = useState(activity?.media_url ?? '');
-  const [description, setDescription] = useState(activity?.description ?? '');
-  const [difficulty, setDifficulty]   = useState<number>(activity?.difficulty ?? 2);
+  const [description, setDescription]     = useState((activity as any)?.description ?? '');
+  const [descriptionEn, setDescriptionEn] = useState((activity as any)?.description_en ?? '');
+  const [difficulty, setDifficulty]       = useState<number>((activity as any)?.difficulty ?? 2);
   const [tags, setTags]               = useState<string[]>(
     activity?.tags?.length ? activity.tags : (activity?.content?.es?.tags ?? activity?.content?.tags ?? [])
   );
@@ -550,6 +551,7 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
     if (result.content_en) setContentEn({ _lang: 'en', ...result.content_en });
     if (result.tags?.length) setTags(result.tags);
     if (result.description) setDescription(result.description);
+    if (result.description_en) setDescriptionEn(result.description_en);
     if (result.difficulty) setDifficulty(result.difficulty);
   }
 
@@ -560,7 +562,7 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
 
     const contentPayload = { es: { ...contentEs }, en: { ...contentEn } };
     const titlePayload   = { es: titleEs, en: titleEn };
-    const meta = { description: description.trim() || null, tags, difficulty };
+    const meta = { description: description.trim() || null, description_en: descriptionEn.trim() || null, tags, difficulty };
 
     try {
       const db = supabase as any;
@@ -701,11 +703,19 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
 
           {/* Descripción + Dificultad */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="label-sm">Descripción breve</label>
-              <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)}
-                placeholder="Ej: Seleccionar la forma correcta del verbo en pasado simple."
-                className="input-field resize-none" />
+            <div className="space-y-2">
+              <div>
+                <label className="label-sm">Descripción breve 🇪🇸</label>
+                <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)}
+                  placeholder="Ej: Seleccionar la forma correcta del verbo en pasado simple."
+                  className="input-field resize-none" />
+              </div>
+              <div>
+                <label className="label-sm">Brief description 🇺🇸</label>
+                <textarea rows={2} value={descriptionEn} onChange={e => setDescriptionEn(e.target.value)}
+                  placeholder="E.g.: Select the correct form of the verb in simple past."
+                  className="input-field resize-none" />
+              </div>
             </div>
             <div>
               <label className="label-sm">Dificultad</label>

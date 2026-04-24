@@ -174,7 +174,7 @@ ${data.content}`,
         {
           role: 'system',
           content: `Eres un diseñador experto de actividades para plataformas de enseñanza de idiomas. Recibes el contenido de una actividad en español y debes devolver SOLO JSON con este formato exacto (sin markdown):
-{"title_es":"<título corto en español>","title_en":"<título corto en inglés>","content_en":<mismo JSON que content_es pero con textos traducidos al inglés>,"tags":["tag1","tag2","tag3"],"description":"<1 oración en español describiendo qué practica el estudiante>","difficulty":<1|2|3>}
+{"title_es":"<título corto en español>","title_en":"<título corto en inglés>","content_en":<mismo JSON que content_es pero con textos traducidos al inglés>,"tags":["tag1","tag2","tag3"],"description":"<1 oración en español describiendo qué practica el estudiante>","description_en":"<same sentence translated to English>","difficulty":<1|2|3>}
 
 Reglas para content_en:
 - Mantén EXACTAMENTE la misma estructura JSON que content_es
