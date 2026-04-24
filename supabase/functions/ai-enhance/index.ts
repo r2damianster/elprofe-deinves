@@ -16,7 +16,9 @@ type EnhanceTask =
   | 'generate_activity_options'
   | 'suggest_required_words'
   | 'review_production'
-  | 'translate';
+  | 'translate'
+  | 'suggest_rubric'
+  | 'batch_grade';
 
 interface RequestBody {
   task: EnhanceTask;
@@ -142,6 +144,30 @@ ${data.content}`,
         },
       ];
 
+    case 'suggest_rubric':
+      return [
+        {
+          role: 'system',
+          content: `Eres un experto en evaluación educativa. Analiza los ensayos de estudiantes y propón UN criterio de evaluación claro y específico para calificarlos (máximo 150 palabras). El criterio debe mencionar: coherencia, vocabulario, gramática, y cumplimiento del tema. Responde SOLO en JSON: {"rubric_prompt": "..."}`,
+        },
+        {
+          role: 'user',
+          content: `Tema de la lección: ${data.lesson_context}. Analiza estos ${data.productions.length} ensayos y propón el criterio. Ensayos:\n${(data.productions as Array<{ content: string }>).map((p, i) => `${i + 1}. ${p.content}`).join('\n')}`,
+        },
+      ];
+
+    case 'batch_grade':
+      return [
+        {
+          role: 'system',
+          content: `Eres un evaluador experto. Evalúa cada ensayo según el criterio dado y devuelve SOLO JSON con este formato exacto (sin markdown, sin bloques de código): {"results":[{"id":"<id>","score":<0-10>,"feedback":"<1-2 oraciones>"},...]}`,
+        },
+        {
+          role: 'user',
+          content: `Criterio de evaluación: ${data.rubric_prompt}. Evalúa estos ${(data.productions as Array<{ id: string; content: string; word_count: number; compliance_score: number }>).length} ensayos:\n${(data.productions as Array<{ id: string; content: string; word_count: number; compliance_score: number }>).map((p) => `ID: ${p.id}\nPalabras: ${p.word_count}\nCumplimiento: ${p.compliance_score}%\nEnsayo: ${p.content}`).join('\n\n')}`,
+        },
+      ];
+
     default:
       throw new Error(`Unknown task: ${task}`);
   }
@@ -162,6 +188,8 @@ serve(async (req) => {
 
     const messages = buildMessages(task, lang, data);
 
+    const maxTokens = task === 'batch_grade' ? 1500 : task === 'suggest_rubric' ? 600 : 400;
+
     const groqRes = await fetch(GROQ_ENDPOINT, {
       method: 'POST',
       headers: {
@@ -172,7 +200,7 @@ serve(async (req) => {
         model: MODEL,
         messages,
         temperature: 0.4,
-        max_tokens: 400,
+        max_tokens: maxTokens,
       }),
     });
 
@@ -185,7 +213,7 @@ serve(async (req) => {
     const result = groqData.choices[0]?.message?.content?.trim() ?? '';
 
     // Para tareas que esperan JSON, intentar parsear
-    const jsonTasks: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production'];
+    const jsonTasks: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production', 'suggest_rubric', 'batch_grade'];
     if (jsonTasks.includes(task)) {
       try {
         const parsed = JSON.parse(result);

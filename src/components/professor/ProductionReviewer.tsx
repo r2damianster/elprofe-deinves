@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { resolveField } from '../../lib/i18n';
 import {
   ShieldAlert, BarChart, Clock, ChevronDown, ChevronUp,
-  CheckCircle, AlertCircle, Loader2, Send
+  CheckCircle, AlertCircle, Loader2, Send,
+  Sparkles, CheckSquare, Square, X, Save
 } from 'lucide-react';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -31,6 +32,12 @@ interface ProductionRow {
   submitted_at: string | null;
   student: { full_name: string; email: string };
   lesson: { title: string };
+}
+
+interface BatchResult {
+  id: string;
+  score: number;
+  feedback: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -73,14 +80,64 @@ export default function ProductionReviewer() {
   const [submitting, setSubmitting]   = useState<string | null>(null);
   const [filter, setFilter]           = useState<'all' | 'submitted' | 'reviewed'>('submitted');
 
-  useEffect(() => { loadProductions(); }, [profile?.id]);
+  const [courses, setCourses]                 = useState<{ id: string; name: string }[]>([]);
+  const [courseLessons, setCourseLessons]     = useState<{ id: string; title: string }[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<string>('');
+  const [selectedLessonId, setSelectedLessonId] = useState<string>('');
 
-  async function loadProductions() {
+  const [selectedIds, setSelectedIds]         = useState<Set<string>>(new Set());
+  const [rubricPrompt, setRubricPrompt]       = useState('');
+  const [generatingRubric, setGeneratingRubric] = useState(false);
+  const [batchResults, setBatchResults]       = useState<BatchResult[]>([]);
+  const [batchLoading, setBatchLoading]       = useState(false);
+  const [saving, setSaving]                   = useState(false);
+
+  useEffect(() => { loadCourses(); }, [profile?.id]);
+
+  useEffect(() => {
+    if (selectedCourseId) loadCourseLessons(selectedCourseId);
+    else setCourseLessons([]);
+    setSelectedLessonId('');
+  }, [selectedCourseId]);
+
+  useEffect(() => { loadProductions(); }, [profile?.id, selectedLessonId, selectedCourseId]);
+
+  async function loadCourses() {
+    if (!profile?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('courses')
+        .select('id, name')
+        .eq('professor_id', profile.id)
+        .order('name');
+      if (error) throw error;
+      setCourses(data || []);
+    } catch (err: any) {
+      console.error(err.message);
+    }
+  }
+
+  async function loadCourseLessons(courseId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('lesson_courses')
+        .select('lesson:lessons!lesson_id (id, title)')
+        .eq('course_id', courseId);
+      if (error) throw error;
+      const lessons = (data || [])
+        .map((row: any) => row.lesson)
+        .filter(Boolean) as { id: string; title: string }[];
+      setCourseLessons(lessons);
+    } catch (err: any) {
+      console.error(err.message);
+    }
+  }
+
+  const loadProductions = useCallback(async () => {
     if (!profile?.id) return;
     setLoading(true);
     try {
-      // Traer producciones de estudiantes en cursos del profesor
-      const { data, error } = await supabase
+      let query = supabase
         .from('productions')
         .select(`
           id, status, content, word_count, score, feedback,
@@ -94,6 +151,24 @@ export default function ProductionReviewer() {
         `)
         .order('submitted_at', { ascending: false });
 
+      if (selectedLessonId) {
+        query = query.eq('lesson_id', selectedLessonId);
+      } else if (selectedCourseId) {
+        const { data: lcData } = await supabase
+          .from('lesson_courses')
+          .select('lesson_id')
+          .eq('course_id', selectedCourseId);
+        const lessonIds = (lcData || []).map((r: any) => r.lesson_id);
+        if (lessonIds.length > 0) {
+          query = query.in('lesson_id', lessonIds);
+        } else {
+          setProductions([]);
+          setLoading(false);
+          return;
+        }
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       setProductions((data as any) || []);
     } catch (err: any) {
@@ -101,7 +176,7 @@ export default function ProductionReviewer() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [profile?.id, selectedCourseId, selectedLessonId]);
 
   async function submitReview(productionId: string) {
     const score    = parseInt(scores[productionId] || '0');
@@ -134,21 +209,320 @@ export default function ProductionReviewer() {
 
   const filtered = productions.filter(p => filter === 'all' || p.status === filter);
 
+  const submittedFiltered = filtered.filter(p => p.status === 'submitted');
+  const allSubmittedSelected =
+    submittedFiltered.length > 0 &&
+    submittedFiltered.every(p => selectedIds.has(p.id));
+
+  function toggleSelectAll() {
+    if (allSubmittedSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(submittedFiltered.map(p => p.id)));
+    }
+  }
+
+  function toggleSelect(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  const selectedProductions = productions.filter(p => selectedIds.has(p.id));
+
+  const selectedLessonTitle = selectedLessonId
+    ? courseLessons.find(l => l.id === selectedLessonId)?.title
+    : selectedProductions[0]
+      ? resolveField(selectedProductions[0].lesson?.title, 'es')
+      : 'Producción escrita';
+
+  async function generateRubric() {
+    if (selectedProductions.length === 0) return;
+    setGeneratingRubric(true);
+    try {
+      const supabaseUrl = (supabase as any).supabaseUrl as string;
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/ai-enhance`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          task: 'suggest_rubric',
+          lang: 'es',
+          data: {
+            productions: selectedProductions.map(p => ({ content: p.content })),
+            lesson_context: selectedLessonTitle || 'Producción escrita'
+          }
+        })
+      });
+      const json = await res.json();
+      setRubricPrompt(json.result?.rubric_prompt ?? '');
+    } catch (err: any) {
+      alert('Error al generar rúbrica: ' + err.message);
+    } finally {
+      setGeneratingRubric(false);
+    }
+  }
+
+  async function runBatchGrade() {
+    if (!rubricPrompt.trim() || selectedProductions.length === 0) return;
+    setBatchLoading(true);
+    try {
+      const supabaseUrl = (supabase as any).supabaseUrl as string;
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/ai-enhance`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          task: 'batch_grade',
+          lang: 'es',
+          data: {
+            rubric_prompt: rubricPrompt,
+            productions: selectedProductions.map(p => ({
+              id: p.id,
+              content: p.content,
+              word_count: p.word_count,
+              compliance_score: p.compliance_score
+            }))
+          }
+        })
+      });
+      const json = await res.json();
+      setBatchResults(json.result?.results ?? []);
+    } catch (err: any) {
+      alert('Error al calificar: ' + err.message);
+    } finally {
+      setBatchLoading(false);
+    }
+  }
+
+  async function saveBatch() {
+    setSaving(true);
+    try {
+      for (const result of batchResults) {
+        await supabase.from('productions')
+          .update({
+            status: 'reviewed',
+            score: result.score,
+            feedback: result.feedback,
+            reviewed_at: new Date().toISOString()
+          })
+          .eq('id', result.id);
+      }
+      setBatchResults([]);
+      setSelectedIds(new Set());
+      setRubricPrompt('');
+      await loadProductions();
+    } catch (err: any) {
+      alert('Error al guardar: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function updateBatchResult(id: string, field: 'score' | 'feedback', value: string) {
+    setBatchResults(prev => prev.map(r =>
+      r.id === id
+        ? { ...r, [field]: field === 'score' ? parseFloat(value) || 0 : value }
+        : r
+    ));
+  }
+
+  const showCheckboxes = filter === 'submitted' || filter === 'all';
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
 
-      {/* Filtros */}
-      <div className="flex gap-2 flex-wrap">
+      {/* Filtros de curso y lección */}
+      <div className="flex gap-3 flex-wrap items-center bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-gray-500 font-medium">Curso</label>
+          <select
+            value={selectedCourseId}
+            onChange={e => setSelectedCourseId(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-w-[180px]"
+          >
+            <option value="">Todos los cursos</option>
+            {courses.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        {selectedCourseId && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500 font-medium">Lección</label>
+            <select
+              value={selectedLessonId}
+              onChange={e => setSelectedLessonId(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-w-[200px]"
+            >
+              <option value="">Todas las lecciones</option>
+              {courseLessons.map(l => (
+                <option key={l.id} value={l.id}>{resolveField(l.title, 'es')}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Filtros de estado */}
+      <div className="flex gap-2 flex-wrap items-center">
         {(['submitted', 'reviewed', 'all'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)}
+          <button key={f} onClick={() => { setFilter(f); setSelectedIds(new Set()); }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === f ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
             {f === 'submitted' ? 'Pendientes de revisión' : f === 'reviewed' ? 'Revisadas' : 'Todas'}
           </button>
         ))}
         <span className="ml-auto text-sm text-gray-500 self-center">{filtered.length} producciones</span>
       </div>
+
+      {/* Panel IA batch */}
+      {selectedIds.size > 0 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-5 space-y-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-purple-800 flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              Calificación con IA
+              <span className="text-sm font-normal bg-purple-200 text-purple-700 px-2 py-0.5 rounded-full">
+                {selectedIds.size} seleccionadas
+              </span>
+            </h3>
+            <button onClick={() => setSelectedIds(new Set())}
+              className="text-gray-400 hover:text-gray-600 transition">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {batchResults.length === 0 && (
+            <>
+              <button
+                onClick={generateRubric}
+                disabled={generatingRubric}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition disabled:opacity-50"
+              >
+                {generatingRubric
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Generando rúbrica...</>
+                  : <><Sparkles className="w-4 h-4" /> Generar rúbrica con IA</>
+                }
+              </button>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-purple-700">Criterio de evaluación</label>
+                <textarea
+                  rows={4}
+                  value={rubricPrompt}
+                  onChange={e => setRubricPrompt(e.target.value)}
+                  placeholder="Escribe o genera con IA los criterios de evaluación para estas producciones..."
+                  className="w-full border border-purple-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none bg-white"
+                />
+              </div>
+
+              <button
+                onClick={runBatchGrade}
+                disabled={!rubricPrompt.trim() || batchLoading}
+                className="flex items-center gap-2 px-5 py-2 bg-purple-700 text-white rounded-lg text-sm font-bold hover:bg-purple-800 transition disabled:opacity-40"
+              >
+                {batchLoading
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Calificando...</>
+                  : <><Sparkles className="w-4 h-4" /> Calificar con IA</>
+                }
+              </button>
+            </>
+          )}
+
+          {batchResults.length > 0 && (
+            <div className="space-y-4">
+              <p className="text-sm font-semibold text-purple-700">Resultados propuestos — edita antes de confirmar</p>
+              <div className="overflow-x-auto rounded-lg border border-purple-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-purple-100 text-purple-700">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-semibold">Estudiante</th>
+                      <th className="text-left px-3 py-2 font-semibold">Lección</th>
+                      <th className="text-left px-3 py-2 font-semibold w-24">Nota (0-10)</th>
+                      <th className="text-left px-3 py-2 font-semibold">Feedback</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-purple-100">
+                    {batchResults.map(result => {
+                      const prod = productions.find(p => p.id === result.id);
+                      return (
+                        <tr key={result.id}>
+                          <td className="px-3 py-2 font-medium text-gray-800 whitespace-nowrap">
+                            {prod?.student?.full_name ?? '—'}
+                          </td>
+                          <td className="px-3 py-2 text-gray-600 whitespace-nowrap max-w-[160px] truncate">
+                            {prod ? resolveField(prod.lesson?.title, 'es') : '—'}
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number" min="0" max="10" step="0.1"
+                              value={result.score}
+                              onChange={e => updateBatchResult(result.id, 'score', e.target.value)}
+                              className="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <textarea
+                              rows={2}
+                              value={result.feedback}
+                              onChange={e => updateBatchResult(result.id, 'feedback', e.target.value)}
+                              className="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={saveBatch}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition disabled:opacity-50"
+                >
+                  {saving
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</>
+                    : <><Save className="w-4 h-4" /> Confirmar y guardar todo</>
+                  }
+                </button>
+                <button
+                  onClick={() => setBatchResults([])}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-300 transition"
+                >
+                  Volver a editar rúbrica
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Cabecera "Seleccionar todos" */}
+      {showCheckboxes && submittedFiltered.length > 0 && (
+        <div className="flex items-center gap-2 px-1">
+          <button onClick={toggleSelectAll} className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 transition">
+            {allSubmittedSelected
+              ? <CheckSquare className="w-4 h-4 text-blue-600" />
+              : <Square className="w-4 h-4" />
+            }
+            Seleccionar todas las pendientes ({submittedFiltered.length})
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-20 text-gray-400">
@@ -168,6 +542,17 @@ export default function ProductionReviewer() {
               <button className="w-full text-left p-4 hover:bg-gray-50 transition"
                 onClick={() => setExpanded(expanded === p.id ? null : p.id)}>
                 <div className="flex flex-wrap items-center gap-3">
+
+                  {/* Checkbox */}
+                  {showCheckboxes && p.status === 'submitted' && (
+                    <span onClick={e => toggleSelect(p.id, e)} className="shrink-0 cursor-pointer">
+                      {selectedIds.has(p.id)
+                        ? <CheckSquare className="w-5 h-5 text-blue-600" />
+                        : <Square className="w-5 h-5 text-gray-400 hover:text-blue-500 transition" />
+                      }
+                    </span>
+                  )}
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-gray-800 truncate">{p.student?.full_name}</p>

@@ -18,7 +18,7 @@
 | Bug-007 | Producción grupal — lock al primer envío | ✅ RESUELTO 2026-04-23 — group_production_locks |
 | Bug-008 | Essay bloqueado al volver del tab de producción | ✅ RESUELTO 2026-04-23 |
 | Bug-009 | Producción invisible sin actividades | ✅ RESUELTO 2026-04-23 |
-| Feature-001 | Calificación batch con IA en Producciones | 🔴 PENDIENTE — próxima sesión |
+| Feature-001 | Calificación batch con IA en Producciones | ✅ IMPLEMENTADO 2026-04-24 |
 | Feature-002 | Umbrales configurables de compliance e integridad | ✅ IMPLEMENTADO |
 
 ---
