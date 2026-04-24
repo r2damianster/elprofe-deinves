@@ -1,25 +1,24 @@
 # Próxima Sesión — Estado de Bugs y Tareas Pendientes
 
-**Actualizado:** 2026-04-24  
+**Actualizado:** 2026-04-24 (sesión completa)
 **Instrucción:** Empieza aquí. Las tareas están ordenadas por prioridad.
 
 ---
 
 ## Resumen de estado
 
-| Bug | Descripción | Estado |
-|-----|-------------|--------|
+| Item | Descripción | Estado |
+|------|-------------|--------|
 | Bug-001 | Validación producción / RLS | ✅ CERRADO |
 | Bug-002 | Doble anidamiento JSON en títulos | ✅ CERRADO |
 | Bug-003 | Recursión RLS en group_members | ✅ CERRADO |
-| Bug-004 | Botón IA en ProductionEditor | ✅ RESUELTO 2026-04-23 — pendiente verificar en despliegue |
-| Bug-005 | Instrucciones como JSON string | ✅ RESUELTO 2026-04-23 — migración JSONB |
-| Bug-006 | `<button>` anidado en GroupManager | ✅ RESUELTO 2026-04-23 |
-| Bug-007 | Producción grupal — lock al primer envío | ✅ RESUELTO 2026-04-23 — group_production_locks |
-| Bug-008 | Essay bloqueado al volver del tab de producción | ✅ RESUELTO 2026-04-23 |
-| Bug-009 | Producción invisible sin actividades | ✅ RESUELTO 2026-04-23 |
+| Bug-004..009 | Bugs de sesión 2026-04-23 | ✅ TODOS CERRADOS |
 | Feature-001 | Calificación batch con IA en Producciones | ✅ IMPLEMENTADO 2026-04-24 |
 | Feature-002 | Umbrales configurables de compliance e integridad | ✅ IMPLEMENTADO |
+| Feature-003 | Taxonomía Fase A: description, tags, difficulty | ✅ IMPLEMENTADO 2026-04-24 |
+| Fix | Editar calificación en producciones ya revisadas | ✅ 2026-04-24 |
+| Fix | GroupManager: lecciones filtradas por curso | ✅ 2026-04-24 |
+| Fix | Flujo IA ActivityEditor: ES → botón único → todo | ✅ 2026-04-24 |
 
 ---
 
