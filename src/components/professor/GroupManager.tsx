@@ -186,7 +186,7 @@ export default function GroupManager({ courseId }: Props) {
 
   async function loadAvailableLessons() {
     const { data, error } = await supabase
-      .from('lesson_assignments')
+      .from('lesson_courses')
       .select('lesson_id, lessons!lesson_id(id, title)')
       .eq('course_id', courseId);
     if (error) console.error('[GroupManager] Error cargando lecciones:', error);
