@@ -1051,8 +1051,8 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
                 )}
               </div>
 
-              {/* Botón IA — siempre visible cuando hay contenido */}
-              {wordCount > 0 && (
+              {/* Botón IA — visible al cumplir mínimo de palabras */}
+              {wordCount >= (rules?.min_words ?? 50) && (
                 <div className="mt-4">
                   <button
                     onClick={analyzeWithAI}
