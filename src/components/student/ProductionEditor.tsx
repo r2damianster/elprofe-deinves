@@ -395,7 +395,7 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
       word_count: countWords(content),
       compliance_score: complianceScore,
       integrity_score: integrityScore,
-      integrity_events: integrityEvents,
+      integrity_events: integrityEvents as unknown as import('../../lib/database.types').Json,
       time_on_task: timeOnTask,
       ...(status ? { status, submitted_at: new Date().toISOString() } : {}),
     };
