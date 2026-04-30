@@ -1,4 +1,23 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+
+class ActivityErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: any) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-xl text-center space-y-1">
+          <p className="text-yellow-700 font-semibold text-sm">Esta actividad no pudo cargarse.</p>
+          <p className="text-xs text-yellow-600">Intenta recargar la página o contacta a tu profesor.</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, ArrowRight, CheckCircle, Lock, BookOpen, Video, FileText, Layers, Users, Monitor, BarChart2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -623,6 +642,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
           <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
             {productionActivities.map((activity) => (
               <div key={activity.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+                <ActivityErrorBoundary>
                 <ActivityRenderer
                   activity={activity}
                   isCompleted={completedActivities.has(activity.id)}
@@ -631,6 +651,7 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
                   }}
                   lang={lang}
                 />
+                </ActivityErrorBoundary>
               </div>
             ))}
           </main>
@@ -784,12 +805,14 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
                 </p>
               </div>
             ) : currentStep.isActivity ? (
-              <ActivityRenderer
-                activity={currentStep as Activity}
-                isCompleted={completedActivities.has((currentStep as Activity).id)}
-                onComplete={() => handleActivityComplete((currentStep as Activity).id)}
-                lang={lang}
-              />
+              <ActivityErrorBoundary>
+                <ActivityRenderer
+                  activity={currentStep as Activity}
+                  isCompleted={completedActivities.has((currentStep as Activity).id)}
+                  onComplete={() => handleActivityComplete((currentStep as Activity).id)}
+                  lang={lang}
+                />
+              </ActivityErrorBoundary>
             ) : (
               <ContentStepRenderer step={currentStep as ContentStep} readingTaskLabel={ui.readingTask} />
             )}

@@ -1,71 +1,68 @@
 import { useState } from 'react';
 import { GripVertical } from 'lucide-react';
 
-interface DragDropProps {
-  content: {
-    instruction: string;
-    items: string[];
-    correctOrder: number[];
-  };
-  onSubmit: (response: any, score: number) => void;
-  disabled: boolean;
-  points: number;
-}
+interface Category { id: string; name: string; items: string[]; }
 
-export default function DragDrop({ content, onSubmit, disabled, points }: DragDropProps) {
-  const [items, setItems] = useState(content.items);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+export default function DragDrop({ content, onSubmit, disabled, points }: {
+  content: any; onSubmit: (r: any, s: number) => void; disabled: boolean; points: number;
+}) {
+  const safe: { instruction: string; categories: Category[] } = content ?? { instruction: '', categories: [] };
+  const categories = safe.categories ?? [];
 
-  function handleDragStart(index: number) {
-    setDraggedIndex(index);
-  }
+  const allItems = categories.flatMap((cat) =>
+    (cat.items ?? []).filter(Boolean).map((text: string) => ({ text, correctCat: cat.id }))
+  );
 
-  function handleDragOver(e: React.DragEvent, index: number) {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
+  const [assignments, setAssignments] = useState<Record<number, string | null>>(
+    Object.fromEntries(allItems.map((_, i) => [i, null]))
+  );
 
-    const newItems = [...items];
-    const draggedItem = newItems[draggedIndex];
-    newItems.splice(draggedIndex, 1);
-    newItems.splice(index, 0, draggedItem);
-
-    setItems(newItems);
-    setDraggedIndex(index);
+  function assign(itemIdx: number, catId: string) {
+    if (disabled) return;
+    setAssignments(prev => ({ ...prev, [itemIdx]: prev[itemIdx] === catId ? null : catId }));
   }
 
   function handleSubmit() {
-    const userOrder = items.map((item) => content.items.indexOf(item));
-    const correctCount = userOrder.filter((idx, i) => idx === content.correctOrder[i]).length;
-    const score = Math.round((correctCount / content.items.length) * points);
+    let correct = 0;
+    allItems.forEach((item, i) => { if (assignments[i] === item.correctCat) correct++; });
+    const total = allItems.length || 1;
+    onSubmit({ assignments, correct, total }, Math.round((correct / total) * points));
+  }
 
-    onSubmit({ order: userOrder, correctCount }, score);
+  const allAssigned = allItems.length > 0 && Object.values(assignments).every(v => v !== null);
+
+  if (allItems.length === 0) {
+    return <p className="text-gray-400 italic text-sm py-4 text-center">Esta actividad no tiene elementos configurados.</p>;
   }
 
   return (
-    <div className="space-y-4">
-      <p className="text-gray-700 font-medium">{content.instruction}</p>
-
-      <div className="space-y-2">
-        {items.map((item, index) => (
-          <div
-            key={index}
-            draggable={!disabled}
-            onDragStart={() => handleDragStart(index)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            className="flex items-center p-4 border-2 border-gray-200 rounded-lg bg-white cursor-move hover:border-blue-300 transition"
-          >
-            <GripVertical className="w-5 h-5 text-gray-400 mr-3" />
-            <span className="text-gray-800">{item}</span>
+    <div className="space-y-5">
+      {safe.instruction && <p className="text-gray-700 font-medium">{safe.instruction}</p>}
+      <div className="space-y-3">
+        {allItems.map((item, idx) => (
+          <div key={idx} className="p-3 bg-gray-50 border rounded-xl space-y-2">
+            <div className="flex items-center gap-2">
+              <GripVertical className="w-4 h-4 text-gray-400 shrink-0" />
+              <span className="text-sm font-medium text-gray-800">{item.text}</span>
+            </div>
+            <div className="flex gap-2 flex-wrap pl-6">
+              {categories.map((cat) => (
+                <button key={cat.id} type="button" disabled={disabled}
+                  onClick={() => assign(idx, cat.id)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold border transition ${
+                    assignments[idx] === cat.id
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                  }`}
+                >{cat.name || cat.id}</button>
+              ))}
+            </div>
           </div>
         ))}
       </div>
-
-      <button
-        onClick={handleSubmit}
-        disabled={disabled}
-        className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-      >
-        {disabled ? 'Enviando...' : 'Enviar Respuesta'}
+      <button onClick={handleSubmit} disabled={disabled || !allAssigned}
+        className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold text-sm disabled:bg-gray-300 transition">
+        Confirmar clasificación
       </button>
     </div>
   );

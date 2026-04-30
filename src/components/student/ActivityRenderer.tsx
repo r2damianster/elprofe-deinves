@@ -151,7 +151,16 @@ export default function ActivityRenderer({
           />
         )}
 
-        {(activity.type === 'drag_drop' || activity.type === 'ordering') && (
+        {activity.type === 'drag_drop' && (
+          <DragDrop
+            content={content}
+            onSubmit={handleSubmit}
+            disabled={submitting || isCompleted}
+            points={activity.points}
+          />
+        )}
+
+        {activity.type === 'ordering' && (
           <Ordering
             content={content}
             onSubmit={handleSubmit}
