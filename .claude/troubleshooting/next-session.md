@@ -1,6 +1,6 @@
 # Próxima Sesión — Estado de Bugs y Tareas Pendientes
 
-**Actualizado:** 2026-04-24 (sesión completa)
+**Actualizado:** 2026-04-30
 **Instrucción:** Empieza aquí. Las tareas están ordenadas por prioridad.
 
 ---
@@ -9,217 +9,124 @@
 
 | Item | Descripción | Estado |
 |------|-------------|--------|
-| Bug-001 | Validación producción / RLS | ✅ CERRADO |
-| Bug-002 | Doble anidamiento JSON en títulos | ✅ CERRADO |
-| Bug-003 | Recursión RLS en group_members | ✅ CERRADO |
-| Bug-004..009 | Bugs de sesión 2026-04-23 | ✅ TODOS CERRADOS |
-| Feature-001 | Calificación batch con IA en Producciones | ✅ IMPLEMENTADO 2026-04-24 |
-| Feature-002 | Umbrales configurables de compliance e integridad | ✅ IMPLEMENTADO |
-| Feature-003 | Taxonomía Fase A: description, tags, difficulty | ✅ IMPLEMENTADO 2026-04-24 |
-| Fix | Editar calificación en producciones ya revisadas | ✅ 2026-04-24 |
-| Fix | GroupManager: lecciones filtradas por curso | ✅ 2026-04-24 |
-| Fix | Flujo IA ActivityEditor: ES → botón único → todo | ✅ 2026-04-24 |
+| Bug-001..003 | RLS, JSON anidado, recursión | ✅ CERRADO |
+| Bug-004..009 | Sesión 2026-04-23 | ✅ TODOS CERRADOS |
+| Bug-010 | Pantalla en blanco en actividades (drag_drop + Error Boundary) | ✅ CERRADO 2026-04-30 |
+| Feature-001 | Calificación batch con IA en Producciones | ✅ IMPLEMENTADO |
+| Feature-002 | Umbrales configurables compliance e integridad | ✅ IMPLEMENTADO |
+| Feature-003 Fase A | Taxonomía: description, tags, difficulty en activities | ✅ IMPLEMENTADO |
+| Bug-011 | Integridad demasiado estricta — bloqueos en móvil | 🔴 PENDIENTE |
+| Feature-004 | Texto de ejemplo configurable en producción | 🔴 PENDIENTE |
+| Feature-005 | Etiquetas bilingües con IA en lecciones y actividades | 🔴 PENDIENTE |
+| Feature-006 | Preview de actividad en banco al asignar a lección | 🔴 PENDIENTE |
+| Feature-003 Fase B | Filtros por etiqueta/dificultad + vista tarjetas en banco | ⏸ BACKLOG |
 
 ---
 
-## PRIORIDAD 1 — Feature-001: Calificación batch con IA en ProductionReviewer
+## PRIORIDAD 1 — Bug-011: Integridad demasiado estricta en móvil
 
-**Descripción:** El profesor selecciona producciones enviadas y las califica todas con IA de una sola vez.
+**Problema:** Los estudiantes en celular reciben penalizaciones de integridad por acciones legítimas:
+- Hacer scroll natural dentro de la misma pantalla se detecta como salida del campo
+- Copiar y pegar del mismo texto del ensayo (auto-corrección) se cuenta como "paste externo"
+- En general el umbral está muy bajo — estudiantes honestos terminan bloqueados
+
+**Archivos a revisar:**
+- `src/components/student/ProductionEditor.tsx` — lógica de `integrity_events` y `integrityScore`
+- Buscar los event listeners de `blur`, `visibilitychange`, `paste`, `copy`
+
+**Fixes sugeridos:**
+1. **Scroll interno:** ignorar eventos `blur` cuando el foco se pierde por scroll dentro del mismo componente (usar `relatedTarget` para discriminar)
+2. **Copy-paste del mismo texto:** comparar el texto pegado con el contenido actual del textarea; si ya existe en el ensayo → no penalizar
+3. **Rango de penalización:** revisar que `penalty` por evento sea proporcional; eventos de scroll no deben tener penalty > 0
+4. **Visibilitychange en móvil:** el sistema operativo móvil llama `visibilitychange` al bajar la barra de notificaciones — ignorar eventos de < 2 segundos
+
+---
+
+## PRIORIDAD 2 — Feature-004: Texto de ejemplo en producción
+
+**Descripción:** El profesor puede configurar un texto de ejemplo que los estudiantes ven como referencia antes (o mientras) escriben su producción. Útil para modelar el tipo de respuesta esperada.
 
 **Flujo:**
-1. Checkbox en cada fila de la lista
-2. Botón "Calificar con IA" (activo cuando hay ≥1 seleccionada)
-3. Barra de progreso mientras se procesan en secuencia
-4. Cada producción recibe `score` (0-10) y `feedback` de IA → status pasa a `reviewed`
+1. En Content Studio → Reglas de Producción: agregar campo "Texto de ejemplo" (textarea bilingüe ES/EN, opcional)
+2. Se guarda en `production_rules.example_text` (JSONB `{es: "...", en: "..."}`)
+3. En `ProductionEditor.tsx` (vista estudiante): si `example_text` tiene valor, mostrar un panel colapsable "Ver ejemplo del profesor" antes del área de escritura
+4. El panel de ejemplo tiene un ícono de ojo, fondo azul claro, y se puede colapsar
+
+**BD:**
+```sql
+ALTER TABLE production_rules ADD COLUMN IF NOT EXISTS example_text jsonb;
+```
 
 **Archivos:**
-- `src/components/professor/ProductionReviewer.tsx` — UI + lógica batch
-- Edge Function `ai-enhance` ya tiene la tarea `review_production` (0-10)
+- `src/components/professor/studio/ContentStudio.tsx` o donde se editan production_rules → agregar textarea bilingüe + botón IA traducir
+- `src/components/student/ProductionEditor.tsx` → mostrar panel colapsable con el ejemplo
 
 ---
 
-## PRIORIDAD 2 — Feature: Filtro por curso en ProductionReviewer
+## PRIORIDAD 3 — Feature-005: Etiquetas bilingüe + IA en lecciones y actividades
 
-**Descripción:** Actualmente el profesor ve TODAS las producciones mezcladas. Necesita filtrar por curso y por lección.
+### 5A — Etiquetas de actividades bilingüe (tags[] en activities)
+**Problema actual:** `activities.tags` es `text[]` con etiquetas en un solo idioma. No hay versión EN.
 
-**Flujo:**
-1. Selector de curso en la cabecera del revisor
-2. Selector de lección (opcional, dentro del curso seleccionado)
-3. Opción "Todos los cursos"
+**Solución simple (sin migración de BD):** Las etiquetas son términos técnicos/pedagógicos — en general las mismas palabras sirven en ambos idiomas. Lo que falta es:
+1. Al generar etiquetas con IA (`complete_activity`), el modelo ya devuelve tags en inglés. Mostrarlas también en español (traducir con IA o dejar bilingüe)
+2. En el banco de actividades: buscar tags en ES y EN simultáneamente
+
+**Solución alternativa (con migración):**
+```sql
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS tags_en text[] DEFAULT '{}';
+```
+Y agregar `tags_en` al flujo de `complete_activity` en la Edge Function.
+
+### 5B — Etiquetas de lecciones con IA + bilingüe
+**Problema actual:** En `LessonEditor.tsx`, las etiquetas de lección no tienen:
+- Botón de IA para sugerirlas basadas en el contenido de la lección
+- Versión EN de las etiquetas
+
+**Fix:**
+1. Agregar botón "Sugerir con IA" junto al campo de tags en LessonEditor
+2. Llamar a Edge Function con task `suggest_tags` (nueva task) que analiza título + descripción de la lección y sugiere 3-5 etiquetas
+3. Mostrar campo de tags EN separado (o usar el mismo array bilingüe)
+
+### 5C — Traducción IA del título de recurso (video/presentación/PDF)
+**Problema actual:** Cuando el profesor agrega un paso de tipo VIDEO o READING_FOCUS a una lección, el título del recurso solo está en un idioma.
+
+**Fix:** Agregar botón "Traducir título con IA" en el editor de pasos de LessonEditor, usando la task `translate` ya existente en `ai-enhance`.
 
 **Archivos:**
-- `src/components/professor/ProductionReviewer.tsx`
-- Hay que agregar JOIN: `lessons → lesson_courses → courses` en la query principal
+- `src/components/professor/studio/LessonEditor.tsx` — agregar tag input bilingüe + botón IA
+- `supabase/functions/ai-enhance/index.ts` — agregar task `suggest_tags`
 
 ---
 
-## Tarea 1 — Bug-005: Limpiar `instructions` en Supabase (PRIORITARIA)
+## PRIORIDAD 4 — Feature-006: Preview de actividad en banco al asignar
 
-El campo `production_rules.instructions` está guardado como string TEXT serializado: `'{"es":"...","en":"..."}'` en lugar de JSONB real.
+**Problema:** Cuando el profesor asigna actividades a una lección desde el banco, ve el título y las etiquetas pero no puede saber de qué trata la actividad sin abrirla en el editor.
 
-**Ejecutar en Supabase Dashboard → SQL Editor:**
+**Solución:** Al hacer click (o hover en desktop) sobre una tarjeta del banco, mostrar un tooltip/popover sutil con:
+- La instrucción principal o primera pregunta de la actividad
+- Solo texto, sin editar — solo lectura
+- Se extrae del `content.es` del tipo de actividad correspondiente
 
-```sql
--- Paso 1: Verificar qué tipo tiene la columna y ver los valores
-SELECT id, lesson_id,
-  pg_typeof(instructions) AS col_type,
-  jsonb_typeof(instructions) AS jsonb_type,
-  instructions
-FROM production_rules
-LIMIT 20;
-```
+**Lógica de extracción por tipo:**
 
-Según el resultado:
+| Tipo | Campo a mostrar |
+|---|---|
+| `multiple_choice`, `true_false`, `image_question`, `listening` | `content.es.question` |
+| `fill_blank` | `content.es.text` (primeras 80 caracteres) |
+| `short_answer` | `content.es.question` |
+| `matching` | `content.es.instruction` |
+| `ordering`, `drag_drop` | `content.es.instruction` |
+| `essay`, `open_writing`, `long_response`, `structured_essay` | `content.es.prompt` |
+| `category_sorting`, `matrix_grid`, `error_spotting` | `content.es.question` o `instruction` |
 
-**Si `jsonb_typeof` devuelve `'string'`** (la columna es JSONB pero contiene un string):
-```sql
-UPDATE production_rules
-SET instructions = (instructions #>> '{}')::jsonb
-WHERE jsonb_typeof(instructions) = 'string';
-```
+**UI:** Un pequeño popover gris claro que aparece al hacer click en la tarjeta (no en el botón "Agregar"). Máximo 2 líneas de texto. En desktop también puede activarse con hover.
 
-**Si `pg_typeof` devuelve `'text'`** (la columna es TEXT):
-```sql
-UPDATE production_rules
-SET instructions = instructions::jsonb
-WHERE instructions IS NOT NULL
-  AND instructions LIKE '{%';
-```
-
-Después de ejecutar, verificar que el campo ya no muestra JSON crudo en la pestaña "Instrucciones" del editor de producción del estudiante.
+**Archivos:**
+- `src/components/professor/studio/ActivityBank.tsx` — agregar lógica de preview y el popover
 
 ---
 
-## Tarea 2 — Bug-004: Configurar secret GROQ_URL en Supabase
+## Feature-003 Fase B (backlog, no urgente)
 
-La Edge Function `ai-enhance` devuelve **401 Unauthorized**.
-
-1. Ir a: Supabase Dashboard → Project Settings → Edge Functions → Secrets
-2. Verificar que existe `GROQ_URL` con la clave API de GROQ
-3. Si no existe, crearlo con el valor del archivo `.env` local (variable `VITE_GROQ_URL` o similar)
-4. Si existe pero falla igual, revisar `supabase/functions/ai-enhance/index.ts` — verificar que lee `Deno.env.get('GROQ_URL')`
-
----
-
-## Tarea 3 — Bug-006: Corregir `<button>` anidado en GroupManager
-
-Warning: `<button> cannot appear as a descendant of <button>` en `GroupManager.tsx:39`.
-
-Reestructurar el layout para que los botones de acción sean hermanos en lugar de hijos. Ver detalles en `bug-006-button-nesting-groupmanager.md`.
-
----
-
-## Tarea 4 (código) — Parche defensivo `resolveField` para JSON strings
-
-Aunque se limpie la BD (Tarea 1), conviene que `resolveField` maneje el caso JSON string por si vuelve a ocurrir.
-
-Agregar en `src/lib/i18n.ts`, dentro de `resolveField`, antes del `return raw` final:
-
-```typescript
-// Caso: string que es un objeto JSON serializado '{"es":"...","en":"..."}'
-if (raw.startsWith('{')) {
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') {
-      const primary = parsed[lang];
-      const fallback = parsed[lang === 'en' ? 'es' : 'en'];
-      return (primary && primary.trim()) ? primary : (fallback ?? raw);
-    }
-  } catch { /* no es JSON válido */ }
-}
-```
-
----
-
-## Fix TypeScript pendiente (cosmético, no bloquea runtime)
-
-Errores en `ProductionEditor.tsx` líneas ~144, 147, 252-256, 369, 372, 392, 394, 412:  
-`integrity_events: IntegrityEvent[]` no asignable a `Json | null` con PostgREST 14.5.
-
-**Fix rápido** en `buildPayload()`:
-```typescript
-integrity_events: integrityEvents as unknown as import('../lib/database.types').Json,
-```
-
----
-
-## Tarea 5 — Bug-007: Producción grupal (primero en entregar = entrega del grupo)
-
-**Decisión previa requerida:** elegir entre Opción A (documento compartido) u Opción B (lock al primer envío). Ver detalles en `bug-007-group-production-first-submit.md`.
-
-**Recomendación:** Opción B — más simple, menos invasiva. Solo requiere una tabla nueva `group_production_locks` y lógica de detección en `ProductionEditor.tsx`.
-
-Al decidir la opción, delegar al agente `agente-estudiantes` para el frontend y a `especialista-bd` para la migración.
-
----
-
-## Tarea 6 — Bug-008: Essay bloqueado al volver del tab de producción
-
-Ver detalles completos en `bug-008-essay-locked-after-production-nav.md`.
-
-**Dos fixes independientes, aplicar los dos:**
-
-**Fix A** — `src/components/student/ActivityRenderer.tsx:131`  
-No aplicar `pointer-events-none` a actividades de tipo producción. Cambiar `insert` por `upsert` para permitir re-edición de essay/long_response/structured_essay/open_writing.
-
-**Fix B** — `src/components/student/LessonViewer.tsx:379-383`  
-Agregar `.in('activity_id', activityIds)` al query de `activity_responses` para filtrar solo las actividades de la lección actual.
-
-Delegar a `agente-estudiantes` o `agente-frontend`.
-
----
-
-## Tarea 7 — Bug-009: Producción invisible en lecciones sin actividades
-
-Ver detalles en `bug-009-lesson-no-activities-production-invisible.md`.
-
-**Fix de emergencia ya aplicado en BD** (INSERT manual de `student_progress` para ZAMORA y TIGUA).
-
-**Cuatro fixes de código pendientes (en orden de prioridad):**
-
-1. **Fix A** — `ProductionEditor.tsx`: al hacer submit, upsert en `student_progress` con `completion_percentage = 100`
-2. **Fix B** — `LessonViewer.tsx`: mostrar botón "Ver mis resultados" también cuando hay producción enviada, no solo cuando `progress > 0`
-3. **Fix C** — `StudentResults.tsx`: consultar `productions` directamente además de `student_progress`, para incluir lecciones sin actividades
-4. **Fix D** — `LessonResults.tsx`: mostrar el texto de la producción (`productions.content`) para que el estudiante pueda releer su ensayo
-
-Delegar Fix A + B a `agente-estudiantes`, Fix C + D a `agente-frontend`.
-
----
-
-## Feature-001 — Calificación batch con IA en Producciones
-
-Ver diseño completo en `.claude/roadmap/feature-001-ai-grading-productions.md`.
-
-**Resumen del flujo:**
-1. Profesor filtra producciones por curso/lección
-2. IA analiza todos los ensayos y propone rúbrica de evaluación
-3. Profesor edita el prompt/rúbrica
-4. IA califica cada ensayo (score 0-100 + feedback)
-5. Profesor revisa tabla propuesta → confirma → guarda en Supabase
-6. Score se guarda en `productions.score/feedback/status` → aparece como "Calificación del profesor" para el estudiante (sin cambios en BD ni en vistas)
-
-**Prerrequisito:** Bug-004 (GROQ_URL secret) debe estar resuelto.
-
-**Tareas:**
-- Agregar filtro por curso a `ProductionReviewer.tsx`
-- Dos tasks nuevas en Edge Function `ai-enhance`: `suggest_rubric` y `batch_grade`
-- UI de revisión batch (tabla editable) en `ProductionReviewer.tsx`
-
-Delegar a `agente-ia` (Edge Function) + `agente-frontend` (UI).
-
----
-
-## Feature-002 — Umbrales configurables de compliance e integridad
-
-Ver diseño completo en `.claude/roadmap/feature-002-production-thresholds.md`.
-
-**Resumen:** El profesor configura `compliance_threshold` e `integrity_threshold` por lección. Ejemplo: 20 palabras requeridas + 50% threshold → solo 10 obligatorias.
-
-**Tareas:**
-- Migración: `ADD COLUMN compliance_threshold int2 DEFAULT 100` y `integrity_threshold int2 DEFAULT 0` en `production_rules`
-- `ProductionEditor.tsx`: usar `compliance_threshold` en la validación del submit
-- `ProductionEditor.tsx`: mostrar advertencia si `integrity < integrity_threshold`
-- Content Studio: agregar sliders en el editor de reglas de producción
-- UI estudiante: mostrar `X% / mín. Y%` en el panel de métricas
-
-Delegar migración a `especialista-bd`, UI a `agente-frontend`, validación a `agente-estudiantes`.
+Filtros por etiqueta y dificultad en el panel de asignación de actividades + toggle vista lista/tarjetas. Ver diseño en `.claude/roadmap/feature-003-activity-taxonomy.md`.
