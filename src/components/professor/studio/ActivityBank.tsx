@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
-import { Search, Plus, Edit2, Trash2, Loader2, Filter, BookOpen, AlertCircle } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Loader2, Filter, BookOpen, AlertCircle, Eye } from 'lucide-react';
 import ActivityEditor from './ActivityEditor';
 import type { ActivityType } from '../../../lib/database.types';
 import { resolveField } from '../../../lib/i18n';
@@ -69,6 +69,7 @@ export default function ActivityBank({ onSelectForLesson, linkedIds }: Props) {
   const [editingActivity, setEditing]   = useState<Activity | null | undefined>(undefined);
   const [deletingId, setDeletingId]     = useState<string | null>(null);
   const [deleteError, setDeleteError]   = useState('');
+  const [previewId, setPreviewId]       = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,6 +85,29 @@ export default function ActivityBank({ onSelectForLesson, linkedIds }: Props) {
 
   function getTags(a: Activity): string[] {
     return (a.tags?.length ? a.tags : a.content?.es?.tags || a.content?.tags || []) as string[];
+  }
+
+  function getPreview(a: Activity): string {
+    const c = a.content?.es ?? a.content ?? {};
+    switch (a.type) {
+      case 'multiple_choice':
+      case 'true_false':
+      case 'image_question':
+      case 'listening':        return c.question ?? '';
+      case 'fill_blank':       return c.text ?? '';
+      case 'short_answer':     return c.question ?? '';
+      case 'matching':
+      case 'ordering':
+      case 'drag_drop':        return c.instruction ?? '';
+      case 'essay':
+      case 'open_writing':
+      case 'long_response':
+      case 'structured_essay': return c.prompt ?? '';
+      case 'category_sorting':
+      case 'matrix_grid':
+      case 'error_spotting':   return c.question ?? c.instruction ?? '';
+      default: return '';
+    }
   }
 
   const DIFFICULTY_LABEL: Record<number, string> = { 1: 'Fácil', 2: 'Medio', 3: 'Difícil' };
@@ -209,38 +233,46 @@ export default function ActivityBank({ onSelectForLesson, linkedIds }: Props) {
             return (
               <div
                 key={activity.id}
-                className={`flex items-start gap-3 p-3 rounded-xl border transition ${
+                className={`rounded-xl border transition ${
                   isLinked ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200 hover:border-blue-200'
                 }`}
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
-                      {TYPE_LABELS[activity.type]}
-                    </span>
-                    {activity.difficulty && (
-                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${DIFFICULTY_COLOR[activity.difficulty] ?? ''}`}>
-                        {DIFFICULTY_LABEL[activity.difficulty]}
+                <div className="flex items-start gap-3 p-3">
+                  {/* Zona clickable para preview */}
+                  <button
+                    type="button"
+                    onClick={() => setPreviewId(previewId === activity.id ? null : activity.id)}
+                    className="flex-1 min-w-0 text-left group"
+                    title="Ver pregunta/instrucción"
+                  >
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
+                        {TYPE_LABELS[activity.type]}
                       </span>
-                    )}
-                    <span className="text-xs text-gray-400">{activity.points} pt{activity.points !== 1 ? 's' : ''}</span>
-                    {isOwn && <span className="text-xs text-blue-500">✎ mía</span>}
-                  </div>
-                  <p className="text-sm font-medium text-gray-800 truncate">{resolveField(activity.title, 'es')}</p>
-                  {activity.description && (
-                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{activity.description}</p>
-                  )}
-                  {getTags(activity).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {getTags(activity).slice(0, 4).map(tag => (
-                        <span key={tag} className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{tag}</span>
-                      ))}
-                      {getTags(activity).length > 4 && (
-                        <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded">+{getTags(activity).length - 4}</span>
+                      {activity.difficulty && (
+                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${DIFFICULTY_COLOR[activity.difficulty] ?? ''}`}>
+                          {DIFFICULTY_LABEL[activity.difficulty]}
+                        </span>
                       )}
+                      <span className="text-xs text-gray-400">{activity.points} pt{activity.points !== 1 ? 's' : ''}</span>
+                      {isOwn && <span className="text-xs text-blue-500">✎ mía</span>}
+                      <Eye className={`w-3 h-3 ml-auto shrink-0 transition ${previewId === activity.id ? 'text-blue-500' : 'text-gray-300 group-hover:text-gray-400'}`} />
                     </div>
-                  )}
-                </div>
+                    <p className="text-sm font-medium text-gray-800 truncate">{resolveField(activity.title, 'es')}</p>
+                    {activity.description && (
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{activity.description}</p>
+                    )}
+                    {getTags(activity).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {getTags(activity).slice(0, 4).map(tag => (
+                          <span key={tag} className="text-[9px] uppercase tracking-wide px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{tag}</span>
+                        ))}
+                        {getTags(activity).length > 4 && (
+                          <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded">+{getTags(activity).length - 4}</span>
+                        )}
+                      </div>
+                    )}
+                  </button>
 
                 <div className="flex items-center gap-1 flex-shrink-0">
                   {onSelectForLesson ? (
@@ -281,6 +313,21 @@ export default function ActivityBank({ onSelectForLesson, linkedIds }: Props) {
                     </>
                   )}
                 </div>
+                </div>
+
+                {/* Panel de preview — visible al hacer click en la tarjeta */}
+                {previewId === activity.id && (() => {
+                  const preview = getPreview(activity);
+                  if (!preview) return null;
+                  return (
+                    <div className="px-3 pb-3 border-t border-blue-100">
+                      <p className="text-xs text-blue-600 font-medium mt-2 mb-1 flex items-center gap-1">
+                        <Eye className="w-3 h-3" /> Pregunta / Instrucción
+                      </p>
+                      <p className="text-xs text-gray-600 italic leading-relaxed line-clamp-3">{preview}</p>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })
