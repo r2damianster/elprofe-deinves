@@ -14,6 +14,30 @@ npm run preview      # Preview del build de producción
 
 No hay tests automatizados. La verificación es manual en el navegador + `typecheck` para errores de tipos.
 
+## lean-ctx — Optimización de contexto
+
+Este proyecto usa [lean-ctx](https://leanctx.com) para comprimir tokens en las sesiones de Claude Code (ahorro 60-99%).
+
+**Reglas de preferencia:** ver `.claude/lean-ctx.md` — resumen: preferir `ctx_read`, `ctx_shell`, `ctx_search`, `ctx_tree` sobre los equivalentes nativos cuando lean-ctx esté disponible.
+
+**Estado:** las reglas están en `.claude/lean-ctx.md`. Los hooks de Claude Code se activan con:
+
+```bash
+# 1. Instalar el binario (una sola vez, sin necesidad de Rust)
+npm install -g lean-ctx-bin
+
+# 2. Verificar instalación
+lean-ctx doctor
+
+# 3. Activar hooks para Claude Code en este proyecto
+lean-ctx init --agent claude
+
+# 4. Ver ahorros en tiempo real
+lean-ctx gain --live
+```
+
+El código fuente de lean-ctx está en `C:\Users\User\Downloads\lean-ctx-main\` y NO forma parte de este repositorio.
+
 ## Arquitectura general
 
 Plataforma educativa para ULEAM. SPA React con Supabase como backend completo (PostgreSQL + Auth + Realtime + Edge Functions).
