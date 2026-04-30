@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__supabase__list_edge_functions",
+      "Read(//c/Users/User/Documents/Desarrollo/ Web/elprofe-deinves/**)",
+      "Read(//c/Users/User/Documents/Desarrollo Web/**)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\User\\.claude\\projects\\c--Users-User-Documents-Desarrollo-Web-elprofe-deinves\\memory"
+    ]
+  }
+}
