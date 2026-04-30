@@ -96,14 +96,24 @@ const STEP_LABELS: Record<StepType, string> = {
 // ─── Editor de un paso individual ────────────────────────────────────────────
 
 function StepCard({
-  step, index, total, onChange, onRemove, onMove
+  step, index, total, onChange, onRemove, onMove, onTranslateCaption
 }: {
   step: ContentStep; index: number; total: number;
   onChange: (s: ContentStep) => void;
   onRemove: () => void;
   onMove: (dir: 'up' | 'down') => void;
+  onTranslateCaption?: (text: string) => Promise<string>;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const [translating, setTranslating] = useState(false);
+
+  async function handleTranslateCaption() {
+    if (!onTranslateCaption || !step.caption?.es) return;
+    setTranslating(true);
+    const result = await onTranslateCaption(step.caption.es);
+    if (result) onChange({ ...step, caption: { ...step.caption, en: result } as any });
+    setTranslating(false);
+  }
 
   return (
     <div className="border border-gray-200 rounded-xl bg-white overflow-hidden shadow-sm">
@@ -165,7 +175,13 @@ function StepCard({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="label-sm">Pie de video (🇪🇸)</label>
-                  <input type="text" value={step.caption?.es ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, es: e.target.value } as any })} className="input-field" placeholder="Ver el siguiente video..." />
+                  <div className="flex gap-2">
+                    <input type="text" value={step.caption?.es ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, es: e.target.value } as any })} className="input-field flex-1" placeholder="Ver el siguiente video..." />
+                    <button type="button" onClick={handleTranslateCaption} disabled={translating || !step.caption?.es}
+                      className="px-2.5 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-40 transition shrink-0" title="Traducir al inglés">
+                      {translating ? <Loader2 className="w-3 h-3 animate-spin" /> : '→ EN'}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="label-sm">Caption (🇺🇸)</label>
@@ -191,7 +207,13 @@ function StepCard({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="label-sm">Título (🇪🇸)</label>
-                  <input type="text" value={step.caption?.es ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, es: e.target.value } as any })} className="input-field" placeholder="Título de la presentación" />
+                  <div className="flex gap-2">
+                    <input type="text" value={step.caption?.es ?? ''} onChange={e => onChange({ ...step, caption: { ...step.caption, es: e.target.value } as any })} className="input-field flex-1" placeholder="Título de la presentación" />
+                    <button type="button" onClick={handleTranslateCaption} disabled={translating || !step.caption?.es}
+                      className="px-2.5 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-40 transition shrink-0" title="Traducir al inglés">
+                      {translating ? <Loader2 className="w-3 h-3 animate-spin" /> : '→ EN'}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="label-sm">Title (🇺🇸)</label>
@@ -282,10 +304,15 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
   // Pasos
   const [steps, setSteps] = useState<ContentStep[]>(Array.isArray(lesson?.content) ? lesson.content : (lesson?.content?.steps ?? []));
 
+  // Extra Meta — tags bilingüe
+  const [tagsEn, setTagsEn] = useState<string[]>(lesson?.content?.tags_en ?? []);
+
   // Producción
   const [hasProduction, setHasProduction] = useState(lesson?.has_production ?? false);
   const [unlockPct,  setUnlockPct]        = useState(lesson?.production_unlock_percentage ?? 80);
   const [prodRules, setProdRules]         = useState<ProductionRules>({ min_words: 50, max_words: null, required_words: { es: '', en: '' }, prohibited_words: { es: '', en: '' }, instructions: { es: '', en: '' }, compliance_threshold: 100, integrity_threshold: 0 });
+  const [exampleTextEs, setExampleTextEs] = useState('');
+  const [exampleTextEn, setExampleTextEn] = useState('');
   const [loadingRules, setLoadingRules]   = useState(false);
 
   const [saving, setSaving]   = useState(false);
@@ -323,6 +350,8 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
             return { es: raw, en: '' };
           })(),
         });
+        if (data.example_text?.es) setExampleTextEs(data.example_text.es);
+        if (data.example_text?.en) setExampleTextEn(data.example_text.en);
       } finally {
         setLoadingRules(false);
       }
@@ -406,7 +435,7 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
       const payload = {
         title: { es: titleEs, en: titleEn },
         description: { es: descEs, en: descEn },
-        content: { steps: cleanSteps, tags },
+        content: { steps: cleanSteps, tags, tags_en: tagsEn },
         has_production: hasProduction,
         production_unlock_percentage: unlockPct,
         order_index: orderIndex,
@@ -453,6 +482,9 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
           instructions: prodRules.instructions,
           compliance_threshold: prodRules.compliance_threshold,
           integrity_threshold:  prodRules.integrity_threshold,
+          example_text: (exampleTextEs.trim() || exampleTextEn.trim())
+            ? { es: exampleTextEs.trim(), en: exampleTextEn.trim() }
+            : null,
         };
         await db.from('production_rules').upsert(rulesPayload, { onConflict: 'lesson_id' });
       } else {
@@ -580,9 +612,32 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
             </div>
           </div>
 
-          <div>
-            <label className="label-sm">Palabras clave / Etiquetas de la Lección</label>
-            <TagInput tags={tags} onChange={setTags} placeholder="Ej: [gramática] [básico] [conversación]" />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="label-sm">Palabras clave / Etiquetas</label>
+              <button
+                type="button"
+                onClick={async () => {
+                  const res = await enhance('suggest_tags', 'es', { title: titleEs, description: descEs });
+                  if (res?.tags_es?.length) setTags(res.tags_es);
+                  if (res?.tags_en?.length) setTagsEn(res.tags_en);
+                }}
+                disabled={aiLoading === 'suggest_tagses' || (!titleEs && !descEs)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs hover:bg-purple-100 disabled:opacity-40 transition"
+              >
+                {aiLoading === 'suggest_tagses' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />} Sugerir con IA
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs text-gray-400 mb-1">🇪🇸 Español</p>
+                <TagInput tags={tags} onChange={setTags} placeholder="[gramática] [básico] [conversación]" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-1">🇺🇸 English</p>
+                <TagInput tags={tagsEn} onChange={setTagsEn} placeholder="[grammar] [basic] [conversation]" />
+              </div>
+            </div>
           </div>
 
           <div className="w-32">
@@ -615,6 +670,10 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
                 onChange={updated => setSteps(prev => prev.map((s, i) => i === idx ? updated : s))}
                 onRemove={() => setSteps(prev => prev.filter((_, i) => i !== idx))}
                 onMove={dir => moveStep(idx, dir)}
+                onTranslateCaption={async (text) => {
+                  const result = await enhance('translate', 'es', { text, from_lang: 'es' });
+                  return result ?? '';
+                }}
               />
             ))}
           </div>
@@ -756,6 +815,25 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
                       {aiLoading === 'improve_instructionsen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} IA
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* Texto de ejemplo — opcional */}
+              <div className="space-y-2">
+                <label className="label-sm text-blue-700">Texto de ejemplo para estudiantes (opcional)</label>
+                <p className="text-xs text-gray-400">Si lo rellenas, los estudiantes verán un panel colapsable con este ejemplo antes de escribir.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex gap-2">
+                    <textarea rows={3} value={exampleTextEs} onChange={e => setExampleTextEs(e.target.value)}
+                      className="input-field flex-1 text-sm" placeholder="🇪🇸 Escribe un ejemplo de respuesta en español..." />
+                    <button onClick={() => translate(exampleTextEs, 'es', setExampleTextEn)}
+                      disabled={aiLoading === 'translatees' || !exampleTextEs}
+                      className="self-start px-2.5 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs hover:bg-blue-100 disabled:opacity-40 transition" title="Traducir al inglés">
+                      {aiLoading === 'translatees' ? <Loader2 className="w-3 h-3 animate-spin" /> : '→ EN'}
+                    </button>
+                  </div>
+                  <textarea rows={3} value={exampleTextEn} onChange={e => setExampleTextEn(e.target.value)}
+                    className="input-field text-sm" placeholder="🇺🇸 Example answer in English..." />
                 </div>
               </div>
 

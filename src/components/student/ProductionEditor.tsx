@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
   ArrowLeft, AlertCircle, CheckCircle, Save, Send,
@@ -59,6 +59,27 @@ interface Toast {
   id: number;
   msg: string;
   type: 'success' | 'error' | 'warning';
+}
+
+// ── Panel de ejemplo (opcional) ───────────────────────────────────────────────
+
+function ExamplePanel({ text }: { text: string }) {
+  const [open, setOpen] = React.useState(false);
+  if (!text) return null;
+  return (
+    <div className="mb-4 border border-blue-200 rounded-xl overflow-hidden">
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-2.5 bg-blue-50 hover:bg-blue-100 transition text-sm font-semibold text-blue-700">
+        <span className="flex items-center gap-2">👁 Ver ejemplo del profesor</span>
+        <span className="text-xs text-blue-500">{open ? 'Ocultar' : 'Mostrar'}</span>
+      </button>
+      {open && (
+        <div className="px-4 py-3 bg-white text-sm text-gray-700 leading-relaxed whitespace-pre-wrap border-t border-blue-100">
+          {text}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -177,27 +198,37 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
     setIntegrityScore(prev => Math.max(0, prev - penalty));
   }, []);
 
-  // Cambio de pestaña
+  // Cambio de pestaña — debounce 2s para ignorar teclado móvil / barra de notificaciones
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
     const onVisibility = () => {
-      if (document.hidden && !isSubmitted && !submitting) {
-        addEvent('tab_switch', 10);
-        showToast('Cambio de pestaña detectado. -10 integridad.', 'warning');
-      }
+      if (!document.hidden || isSubmitted || submitting) return;
+      timer = setTimeout(() => {
+        if (document.hidden && !isSubmitted && !submitting) {
+          addEvent('tab_switch', 10);
+          showToast('Cambio de pestaña detectado. -10 integridad.', 'warning');
+        }
+      }, 2000);
     };
     document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
+    return () => { document.removeEventListener('visibilitychange', onVisibility); clearTimeout(timer); };
   }, [isSubmitted, submitting, addEvent, showToast]);
 
-  // Salir de la ventana (blur)
+  // Salir de la ventana (blur) — debounce 1.5s; no penalizar si el foco va al teclado virtual
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
     const onBlur = () => {
-      if (!isSubmitted && !submitting && !document.hidden) {
-        addEvent('window_blur', 5);
-      }
+      if (isSubmitted || submitting || document.hidden) return;
+      timer = setTimeout(() => {
+        if (!document.hasFocus() && !document.hidden && !isSubmitted && !submitting) {
+          addEvent('window_blur', 5);
+        }
+      }, 1500);
     };
+    const onFocus = () => clearTimeout(timer);
     window.addEventListener('blur', onBlur);
-    return () => window.removeEventListener('blur', onBlur);
+    window.addEventListener('focus', onFocus);
+    return () => { window.removeEventListener('blur', onBlur); window.removeEventListener('focus', onFocus); clearTimeout(timer); };
   }, [isSubmitted, submitting, addEvent]);
 
   // Clic derecho
@@ -212,23 +243,12 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
     return () => document.removeEventListener('contextmenu', onContext);
   }, [isSubmitted, addEvent]);
 
-  // Atajos de teclado sospechosos
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (isSubmitted) return;
-      if (e.ctrlKey && e.key === 'c') addEvent('ctrl_c', 5, 'Intento de copiar texto');
-      if (e.ctrlKey && e.key === 'a') addEvent('ctrl_a', 3, 'Selección total del texto');
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [isSubmitted, addEvent]);
-
-  // Detección de DevTools (cambio brusco de ancho de ventana)
+  // Detección de DevTools — solo cambios de ANCHO > 200px (el teclado móvil cambia altura, no ancho)
   useEffect(() => {
     const onResize = () => {
-      const diff = Math.abs(window.outerWidth - devtoolsRef.current);
-      if (diff > 160 && !isSubmitted) {
-        addEvent('devtools_suspected', 20, `Cambio de ancho: ${diff}px`);
+      const widthDiff = Math.abs(window.outerWidth - devtoolsRef.current);
+      if (widthDiff > 200 && !isSubmitted) {
+        addEvent('devtools_suspected', 20, `Cambio de ancho: ${widthDiff}px`);
         showToast('DevTools detectado. -20 integridad.', 'warning');
       }
       devtoolsRef.current = window.outerWidth;
@@ -379,12 +399,14 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handlePaste = (e: React.ClipboardEvent) => {
-    if (!isSubmitted) {
-      e.preventDefault();
-      addEvent('paste_attempt', 15, 'Intento de pegar texto externo');
-      setPasteBanner(true);
-      setTimeout(() => setPasteBanner(false), 2500);
-    }
+    if (isSubmitted) return;
+    const pasted = e.clipboardData?.getData('text') ?? '';
+    // Permitir si el texto pegado ya está en el ensayo (re-ordenar propio texto)
+    if (pasted.trim() && content.includes(pasted.trim())) return;
+    e.preventDefault();
+    addEvent('paste_attempt', 15, 'Intento de pegar texto externo');
+    setPasteBanner(true);
+    setTimeout(() => setPasteBanner(false), 2500);
   };
 
   // ── Persistencia ──────────────────────────────────────────────────────────
@@ -736,6 +758,10 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
                         {resolveField(rules.instructions, 'es')}
                       </p>
                     </div>
+                  )}
+                  {/* Texto de ejemplo — solo si el profesor lo configuró */}
+                  {((rules as any)?.example_text?.es || (rules as any)?.example_text?.en) && (
+                    <ExamplePanel text={resolveField((rules as any).example_text, 'es')} />
                   )}
                   {rules ? (
                     <>

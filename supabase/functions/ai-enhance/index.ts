@@ -19,7 +19,8 @@ type EnhanceTask =
   | 'translate'
   | 'suggest_rubric'
   | 'batch_grade'
-  | 'complete_activity';
+  | 'complete_activity'
+  | 'suggest_tags';
 
 interface RequestBody {
   task: EnhanceTask;
@@ -188,6 +189,18 @@ Reglas para content_en:
         },
       ];
 
+    case 'suggest_tags':
+      return [
+        {
+          role: 'system',
+          content: `Eres un experto en diseño curricular. Sugiere 4-6 etiquetas cortas (1-2 palabras cada una) para clasificar una lección educativa de idiomas. Devuelve SOLO JSON: {"tags_es":["etiqueta1","etiqueta2",...],"tags_en":["tag1","tag2",...]}`,
+        },
+        {
+          role: 'user',
+          content: `Título: ${data.title ?? ''}\nDescripción: ${data.description ?? ''}`,
+        },
+      ];
+
     default:
       throw new Error(`Unknown task: ${task}`);
   }
@@ -208,7 +221,7 @@ serve(async (req) => {
 
     const messages = buildMessages(task, lang, data);
 
-    const jsonTasks: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production', 'suggest_rubric', 'batch_grade', 'complete_activity'];
+    const jsonTasks: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production', 'suggest_rubric', 'batch_grade', 'complete_activity', 'suggest_tags'];
     const maxTokens = task === 'batch_grade' ? 2000 : task === 'suggest_rubric' ? 600 : task === 'complete_activity' ? 1200 : 400;
 
     const groqRes = await fetch(GROQ_ENDPOINT, {
