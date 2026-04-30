@@ -20,7 +20,29 @@ Este proyecto usa [lean-ctx](https://leanctx.com) para comprimir tokens en las s
 
 **Reglas de preferencia:** ver `.claude/lean-ctx.md` — resumen: preferir `ctx_read`, `ctx_shell`, `ctx_search`, `ctx_tree` sobre los equivalentes nativos cuando lean-ctx esté disponible.
 
-**Estado:** las reglas están en `.claude/lean-ctx.md`. Los hooks de Claude Code se activan con:
+### Reglas críticas para este proyecto
+
+```
+# Al inicio de cada sesión:
+ctx_overview(task="<descripción>")   # mapa filtrado ~500 tok vs ~50K
+
+# Leer archivos (NO usar Read nativo salvo que Edit lo requiera):
+ctx_read(path, mode="map")           # para entender estructura — 85-95% ahorro
+ctx_read(path, mode="lines:N-M")     # antes de Edit, solo las líneas relevantes
+ctx_read(path, mode="full")          # solo si vas a editar el archivo completo
+
+# TypeScript — NUNCA correr tsc sin filtro:
+ctx_shell("npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep 'error TS' | grep -v 'node_modules' | head -30")
+
+# Git y npm — siempre via ctx_shell:
+ctx_shell("git status")
+ctx_shell("git diff --stat")
+ctx_shell("npm install")
+```
+
+> Los errores TypeScript preexistentes son ~150 líneas de ruido — siempre filtrar con `grep -v 'node_modules' | head -30`.
+
+**Estado:** lean-ctx instalado en `AppData\Roaming\npm\lean-ctx.exe`. Hooks activos. Los hooks de Claude Code se activan con:
 
 ```bash
 # 1. Instalar el binario (una sola vez, sin necesidad de Rust)
