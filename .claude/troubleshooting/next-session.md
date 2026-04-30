@@ -15,11 +15,28 @@
 | Feature-001 | Calificación batch con IA en Producciones | ✅ IMPLEMENTADO |
 | Feature-002 | Umbrales configurables compliance e integridad | ✅ IMPLEMENTADO |
 | Feature-003 Fase A | Taxonomía: description, tags, difficulty en activities | ✅ IMPLEMENTADO |
-| Bug-011 | Integridad demasiado estricta — bloqueos en móvil | 🔴 PENDIENTE |
-| Feature-004 | Texto de ejemplo configurable en producción | 🔴 PENDIENTE |
-| Feature-005 | Etiquetas bilingües con IA en lecciones y actividades | 🔴 PENDIENTE |
+| Bug-011 | Integridad demasiado estricta — bloqueos en móvil | ✅ IMPLEMENTADO 2026-04-30 — ver nota deploy |
+| Feature-004 | Texto de ejemplo configurable en producción | ✅ IMPLEMENTADO 2026-04-30 — ver nota deploy |
+| Feature-005 | Etiquetas bilingüe + IA en lecciones (suggest_tags, tags_en, traducir captions) | ✅ IMPLEMENTADO 2026-04-30 — ver nota deploy |
 | Feature-006 | Preview de actividad en banco al asignar a lección | 🔴 PENDIENTE |
 | Feature-003 Fase B | Filtros por etiqueta/dificultad + vista tarjetas en banco | ⏸ BACKLOG |
+
+---
+
+## ⚠️ ACCIÓN MANUAL PENDIENTE — Deploy Edge Function + Migración BD
+
+Los cambios de código están en master (commit `74ddc2b`). Faltan 2 pasos manuales:
+
+### 1. Migración BD — agregar `example_text` a production_rules
+En Supabase Dashboard → SQL Editor:
+```sql
+ALTER TABLE production_rules ADD COLUMN IF NOT EXISTS example_text jsonb;
+```
+
+### 2. Deploy Edge Function ai-enhance (nueva task `suggest_tags`)
+En Supabase Dashboard → Edge Functions → ai-enhance → Deploy:
+- Subir el archivo `supabase/functions/ai-enhance/index.ts` actualizado
+- O reconectar el MCP de Supabase y ejecutar deploy desde Claude Code
 
 ---
 
