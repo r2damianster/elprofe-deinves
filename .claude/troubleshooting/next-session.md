@@ -44,13 +44,13 @@
 
 ## PRIORIDAD 2 — Feature-004: Texto de ejemplo en producción
 
-**Descripción:** El profesor puede configurar un texto de ejemplo que los estudiantes ven como referencia antes (o mientras) escriben su producción. Útil para modelar el tipo de respuesta esperada.
+**Descripción:** El profesor puede —opcionalmente— escribir un texto de ejemplo que sirva de modelo para los estudiantes. Si lo configura, los estudiantes lo ven antes de escribir su producción. Si no lo configura, no aparece nada (el flujo actual no cambia).
 
 **Flujo:**
-1. En Content Studio → Reglas de Producción: agregar campo "Texto de ejemplo" (textarea bilingüe ES/EN, opcional)
-2. Se guarda en `production_rules.example_text` (JSONB `{es: "...", en: "..."}`)
-3. En `ProductionEditor.tsx` (vista estudiante): si `example_text` tiene valor, mostrar un panel colapsable "Ver ejemplo del profesor" antes del área de escritura
-4. El panel de ejemplo tiene un ícono de ojo, fondo azul claro, y se puede colapsar
+1. En Content Studio → Reglas de Producción: agregar campo "Texto de ejemplo (opcional)" — textarea bilingüe ES/EN, vacío por defecto
+2. Se guarda en `production_rules.example_text` (JSONB `{es: "...", en: "..."}`), NULL si no se rellena
+3. En `ProductionEditor.tsx` (vista estudiante): **solo si** `example_text` tiene contenido, mostrar panel colapsable "Ver ejemplo del profesor"
+4. El panel tiene ícono de ojo, fondo azul claro, colapsable — no interfiere con el área de escritura
 
 **BD:**
 ```sql
