@@ -18,7 +18,7 @@
 | Bug-011 | Integridad demasiado estricta — bloqueos en móvil | ✅ IMPLEMENTADO 2026-04-30 — ver nota deploy |
 | Feature-004 | Texto de ejemplo configurable en producción | ✅ IMPLEMENTADO 2026-04-30 — ver nota deploy |
 | Feature-005 | Etiquetas bilingüe + IA en lecciones (suggest_tags, tags_en, traducir captions) | ✅ IMPLEMENTADO 2026-04-30 — ver nota deploy |
-| Feature-006 | Preview de actividad en banco al asignar a lección | 🔴 PENDIENTE |
+| Feature-006 | Preview de actividad en banco al asignar a lección | ✅ IMPLEMENTADO 2026-04-30 |
 | Feature-003 Fase B | Filtros por etiqueta/dificultad + vista tarjetas en banco | ⏸ BACKLOG |
 
 ---
