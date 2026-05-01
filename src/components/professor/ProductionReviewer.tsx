@@ -89,6 +89,7 @@ export default function ProductionReviewer() {
   const [selectedIds, setSelectedIds]         = useState<Set<string>>(new Set());
   const [rubricPrompt, setRubricPrompt]       = useState('');
   const [generatingRubric, setGeneratingRubric] = useState(false);
+  const [improvingRubric, setImprovingRubric] = useState(false);
   const [batchResults, setBatchResults]       = useState<BatchResult[]>([]);
   const [batchLoading, setBatchLoading]       = useState(false);
   const [saving, setSaving]                   = useState(false);
@@ -272,6 +273,26 @@ export default function ProductionReviewer() {
     }
   }
 
+  async function improveRubric() {
+    if (!rubricPrompt.trim()) return;
+    setImprovingRubric(true);
+    try {
+      const supabaseUrl = (supabase as any).supabaseUrl as string;
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${supabaseUrl}/functions/v1/ai-enhance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ task: 'improve_rubric', lang: 'es', data: { rubric_draft: rubricPrompt } })
+      });
+      const json = await res.json();
+      if (json.result) setRubricPrompt(json.result);
+    } catch (err: any) {
+      alert('Error al mejorar rúbrica: ' + err.message);
+    } finally {
+      setImprovingRubric(false);
+    }
+  }
+
   async function runBatchGrade() {
     if (!rubricPrompt.trim() || selectedProductions.length === 0) return;
     setBatchLoading(true);
@@ -412,26 +433,40 @@ export default function ProductionReviewer() {
 
           {batchResults.length === 0 && (
             <>
-              <button
-                onClick={generateRubric}
-                disabled={generatingRubric}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition disabled:opacity-50"
-              >
-                {generatingRubric
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Generando rúbrica...</>
-                  : <><Sparkles className="w-4 h-4" /> Generar rúbrica con IA</>
-                }
-              </button>
-
               <div className="space-y-1">
                 <label className="text-xs font-medium text-purple-700">Criterio de evaluación</label>
                 <textarea
                   rows={4}
                   value={rubricPrompt}
                   onChange={e => setRubricPrompt(e.target.value)}
-                  placeholder="Escribe o genera con IA los criterios de evaluación para estas producciones..."
+                  placeholder="Escribe tu propio borrador de criterios, o usa los botones de IA para generarlos o mejorarlos..."
                   className="w-full border border-purple-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none bg-white"
                 />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={generateRubric}
+                  disabled={generatingRubric || selectedProductions.length === 0}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-purple-100 text-purple-700 border border-purple-300 rounded-lg text-sm font-medium hover:bg-purple-200 transition disabled:opacity-50"
+                  title="Analiza los trabajos seleccionados y genera un criterio desde cero"
+                >
+                  {generatingRubric
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Generando...</>
+                    : <><Sparkles className="w-4 h-4" /> Sugerir desde producciones</>
+                  }
+                </button>
+                <button
+                  onClick={improveRubric}
+                  disabled={improvingRubric || !rubricPrompt.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition disabled:opacity-50"
+                  title="Mejora la redacción del criterio que escribiste"
+                >
+                  {improvingRubric
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Mejorando...</>
+                    : <><Sparkles className="w-4 h-4" /> Mejorar borrador</>
+                  }
+                </button>
               </div>
 
               <button

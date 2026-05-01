@@ -20,7 +20,8 @@ type EnhanceTask =
   | 'suggest_rubric'
   | 'batch_grade'
   | 'complete_activity'
-  | 'suggest_tags';
+  | 'suggest_tags'
+  | 'improve_rubric';
 
 interface RequestBody {
   task: EnhanceTask;
@@ -198,6 +199,18 @@ Reglas para content_en:
         {
           role: 'user',
           content: `Título: ${data.title ?? ''}\nDescripción: ${data.description ?? ''}`,
+        },
+      ];
+
+    case 'improve_rubric':
+      return [
+        {
+          role: 'system',
+          content: `Eres un experto en evaluación educativa. El profesor te proporciona un borrador de criterio de evaluación para producción escrita. Tu tarea es mejorar su redacción: hazlo más claro, específico y operativo (máximo 180 palabras). Mantén la intención original del profesor. Responde SOLO con el criterio mejorado, sin explicaciones, sin comillas, sin prefijos.`,
+        },
+        {
+          role: 'user',
+          content: `Borrador del criterio:\n${data.rubric_draft}`,
         },
       ];
 
