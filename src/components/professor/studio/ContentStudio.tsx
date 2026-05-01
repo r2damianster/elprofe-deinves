@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
@@ -10,11 +10,29 @@ import ActivityBank from './ActivityBank';
 import LessonAssembler from './LessonAssembler';
 import { resolveField } from '../../../lib/i18n';
 
+class EditorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: string | null }
+> {
+  constructor(props: any) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e: Error) { return { error: e.message }; }
+  render() {
+    if (this.state.error) return (
+      <div className="p-6 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+        <strong>Error al abrir el editor:</strong><br />
+        <code className="block mt-2 text-xs bg-red-100 p-2 rounded whitespace-pre-wrap">{this.state.error}</code>
+        <button className="mt-3 text-xs underline" onClick={() => this.setState({ error: null })}>Reintentar</button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 interface Lesson {
   id: string;
   title: any;
   description: any;
-  content: any[];
+  content: any;
   has_production: boolean;
   production_unlock_percentage: number;
   order_index: number;
@@ -248,11 +266,15 @@ export default function ContentStudio() {
 
       {/* ── Vista: Editor de lección ── */}
       {view === 'lessons' && editingLesson !== undefined && (
-        <LessonEditor
-          lesson={editingLesson as any}
-          onSaved={handleSaved as any}
-          onCancel={() => setEditing(undefined)}
-        />
+        <EditorBoundary>
+          <div className="min-h-[600px]">
+            <LessonEditor
+              lesson={editingLesson as any}
+              onSaved={handleSaved as any}
+              onCancel={() => setEditing(undefined)}
+            />
+          </div>
+        </EditorBoundary>
       )}
 
       {/* ── Vista: Banco de actividades ── */}

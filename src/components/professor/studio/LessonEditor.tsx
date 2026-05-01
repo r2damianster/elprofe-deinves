@@ -41,7 +41,7 @@ interface Lesson {
   id: string;
   title: any;
   description: any;
-  content: any[];
+  content: any;
   has_production: boolean;
   production_unlock_percentage: number;
   order_index: number;
@@ -371,9 +371,9 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
     const activityIds = contentSteps.filter((s: any) => s.type === 'activity' && s.activity_id).map((s: any) => s.activity_id);
     if (activityIds.length === 0) return;
     (async () => {
-      const { data } = await supabase.from('activities').select('id, title').in('id', activityIds);
+      const { data } = await (supabase as any).from('activities').select('id, title').in('id', activityIds);
       if (data) {
-        const titleMap = new Map(data.map(a => [a.id, a.title]));
+        const titleMap = new Map((data as any[]).map((a: any) => [a.id, a.title]));
         setSteps(prev => prev.map(step => 
           step.type === 'activity' && step.activity_id ? { ...step, _activity_title: titleMap.get(step.activity_id) } : step
         ));
@@ -500,7 +500,7 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white relative">
+    <div className="flex flex-col min-h-[600px] bg-white relative">
       {/* Header */}
       <div className="flex items-center justify-between mb-5 px-1">
         <div>
@@ -521,7 +521,7 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto space-y-8 pr-2 custom-scrollbar">
+      <div className="space-y-8 pr-2 custom-scrollbar">
         {/* ── Metadatos ── */}
         <section className="space-y-4">
           <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide border-b border-gray-100 pb-2">Metadatos Principales</h3>
