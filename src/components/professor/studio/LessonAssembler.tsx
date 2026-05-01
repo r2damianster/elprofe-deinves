@@ -101,11 +101,28 @@ export default function LessonAssembler() {
     if (profile?.id) loadData();
   }, [profile?.id]);
 
+  // Cuando se selecciona una lección, enriquecer los pasos de actividad con _activity_type
+  useEffect(() => {
+    if (!selectedLesson || !activities.length) return;
+    const steps = getLessonSteps(selectedLesson);
+    const activitySteps = steps.filter((s: any) => s.type === 'activity' && s.activity_id && !s._activity_type);
+    if (!activitySteps.length) return;
+    const enriched = steps.map((s: any) => {
+      if (s.type !== 'activity' || !s.activity_id || s._activity_type) return s;
+      const found = activities.find((a: any) => a.id === s.activity_id);
+      return found ? { ...s, _activity_type: found.type } : s;
+    });
+    const baseContent = Array.isArray(selectedLesson.content)
+      ? { steps: [], tags: [] }
+      : (selectedLesson.content || { steps: [], tags: [] });
+    setSelectedLesson({ ...selectedLesson, content: { ...baseContent, steps: enriched } });
+  }, [selectedLesson?.id, activities.length]);
+
   const handleAddActivity = async (activity: Activity) => {
     if (!selectedLesson) return;
     
     const steps = getLessonSteps(selectedLesson);
-    const newStep = { type: 'activity', activity_id: activity.id, _activity_title: activity.title };
+    const newStep = { type: 'activity', activity_id: activity.id, _activity_title: activity.title, _activity_type: activity.type };
     const updatedSteps = [...steps, newStep];
     
     const baseContent = Array.isArray(selectedLesson.content) ? { steps: [], tags: [] } : (selectedLesson.content || { steps: [], tags: [] });
@@ -160,7 +177,7 @@ export default function LessonAssembler() {
     try {
       const steps = getLessonSteps(lesson);
       const cleanSteps = steps.map((s: any) => {
-        const { _activity_title, ...rest } = s;
+        const { _activity_title, _activity_type, ...rest } = s;
         return rest;
       });
 
@@ -325,7 +342,11 @@ export default function LessonAssembler() {
                               </span>
                               <span className="text-xs uppercase font-bold text-gray-400">
                                 {isActivity
-                                  ? (() => { const a = activities.find(ac => ac.id === step.activity_id); return a ? ({ multiple_choice:'Opción múltiple', fill_blank:'Completar', short_answer:'Resp. corta', matching:'Relacionar', ordering:'Ordenar', drag_drop:'Arrastrar', essay:'Ensayo', long_response:'Resp. larga', structured_essay:'Ensayo estr.', open_writing:'Escritura', image_question:'Imagen', listening:'Escucha', true_false:'V/F', category_sorting:'Categorizar' } as Record<string,string>)[a.type] || a.type : 'Actividad'; })()
+                                  ? (() => {
+                                      const LABELS: Record<string,string> = { multiple_choice:'Opción múltiple', fill_blank:'Completar', short_answer:'Resp. corta', matching:'Relacionar', ordering:'Ordenar', drag_drop:'Arrastrar', essay:'Ensayo', long_response:'Resp. larga', structured_essay:'Ensayo estr.', open_writing:'Escritura', image_question:'Imagen', listening:'Escucha', true_false:'V/F', category_sorting:'Categorizar' };
+                                      const t = (step as any)._activity_type || activities.find((ac: any) => ac.id === step.activity_id)?.type;
+                                      return t ? (LABELS[t] || t) : 'Actividad';
+                                    })()
                                   : ({ text:'Texto', video:'Video', slides:'Presentación', image:'Imagen', audio:'Audio', link:'Enlace' } as Record<string,string>)[step.type] || step.type}
                               </span>
                             </div>
