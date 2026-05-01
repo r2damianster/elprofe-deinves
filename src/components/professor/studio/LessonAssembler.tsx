@@ -229,7 +229,7 @@ export default function LessonAssembler() {
           {lessons.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">No has creado lecciones aún.</p>
           ) : (
-            lessons.map(lesson => {
+            lessons.map((lesson, idx) => {
               const isSelected = selectedLesson?.id === lesson.id;
               const steps = getLessonSteps(lesson);
               const activityCount = steps.filter(s => s.type === 'activity').length;
@@ -245,7 +245,7 @@ export default function LessonAssembler() {
                   <div className="flex items-start gap-3">
                     <div className={`w-8 h-8 flex-shrink-0 rounded-lg flex items-center justify-center text-sm font-bold
                       ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                      {lesson.order_index}
+                      {idx + 1}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`font-semibold truncate ${isSelected ? 'text-blue-900' : 'text-gray-700'}`}>
@@ -324,7 +324,9 @@ export default function LessonAssembler() {
                                 Paso {idx + 1}
                               </span>
                               <span className="text-xs uppercase font-bold text-gray-400">
-                                {isActivity ? 'Actividad' : step.type}
+                                {isActivity
+                                  ? (() => { const a = activities.find(ac => ac.id === step.activity_id); return a ? ({ multiple_choice:'Opción múltiple', fill_blank:'Completar', short_answer:'Resp. corta', matching:'Relacionar', ordering:'Ordenar', drag_drop:'Arrastrar', essay:'Ensayo', long_response:'Resp. larga', structured_essay:'Ensayo estr.', open_writing:'Escritura', image_question:'Imagen', listening:'Escucha', true_false:'V/F', category_sorting:'Categorizar' } as Record<string,string>)[a.type] || a.type : 'Actividad'; })()
+                                  : ({ text:'Texto', video:'Video', slides:'Presentación', image:'Imagen', audio:'Audio', link:'Enlace' } as Record<string,string>)[step.type] || step.type}
                               </span>
                             </div>
                             
