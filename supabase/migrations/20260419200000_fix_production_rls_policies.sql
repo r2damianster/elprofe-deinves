@@ -6,20 +6,23 @@
 -- ============================================================
 
 -- production_rules: permitir lectura a todos los usuarios autenticados
-CREATE POLICY IF NOT EXISTS "Students can view production rules"
+DROP POLICY IF EXISTS "Students can view production rules" ON production_rules;
+CREATE POLICY "Students can view production rules"
   ON production_rules FOR SELECT
   TO authenticated
   USING (true);
 
 -- productions: estudiantes gestionan sus propias producciones
-CREATE POLICY IF NOT EXISTS "Students manage own productions"
+DROP POLICY IF EXISTS "Students manage own productions" ON productions;
+CREATE POLICY "Students manage own productions"
   ON productions FOR ALL
   TO authenticated
   USING (student_id = auth.uid())
   WITH CHECK (student_id = auth.uid());
 
 -- productions: profesores y admins pueden leer todas las producciones
-CREATE POLICY IF NOT EXISTS "Professors view productions of their lessons"
+DROP POLICY IF EXISTS "Professors view productions of their lessons" ON productions;
+CREATE POLICY "Professors view productions of their lessons"
   ON productions FOR SELECT
   TO authenticated
   USING (
@@ -27,7 +30,8 @@ CREATE POLICY IF NOT EXISTS "Professors view productions of their lessons"
   );
 
 -- productions: profesores y admins pueden actualizar (score, feedback, status)
-CREATE POLICY IF NOT EXISTS "Professors update productions"
+DROP POLICY IF EXISTS "Professors update productions" ON productions;
+CREATE POLICY "Professors update productions"
   ON productions FOR UPDATE
   TO authenticated
   USING (
