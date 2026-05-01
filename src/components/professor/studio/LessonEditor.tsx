@@ -26,6 +26,7 @@ interface ContentStep {
   activity_id?: string;
   // local helpers (not saved)
   _activity_title?: string;
+  _activity_type?: string;
 }
 
 interface ProductionRules {
@@ -94,6 +95,23 @@ const STEP_LABELS: Record<StepType, string> = {
   activity: 'Actividad',
 };
 
+const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  multiple_choice:  'Opción múltiple',
+  true_false:       'V / F',
+  fill_blank:       'Completar',
+  short_answer:     'Resp. corta',
+  matching:         'Relacionar',
+  ordering:         'Ordenar',
+  drag_drop:        'Arrastrar',
+  image_question:   'Imagen',
+  listening:        'Escucha',
+  essay:            'Ensayo',
+  long_response:    'Resp. larga',
+  structured_essay: 'Ensayo estr.',
+  open_writing:     'Escritura libre',
+  category_sorting: 'Categorizar',
+};
+
 // ─── Editor de un paso individual ────────────────────────────────────────────
 
 function StepCard({
@@ -125,7 +143,9 @@ function StepCard({
       >
         <span className="text-gray-400">{STEP_ICONS[step.type]}</span>
         <span className="text-sm font-medium text-gray-700 flex-1">
-          {STEP_LABELS[step.type]}
+          {step.type === 'activity' && step._activity_type
+            ? ACTIVITY_TYPE_LABELS[step._activity_type] ?? 'Actividad'
+            : STEP_LABELS[step.type]}
           {step.type === 'activity' && step._activity_title && (
             <span className="ml-2 text-xs text-blue-600 font-normal">— {step._activity_title}</span>
           )}
@@ -372,11 +392,14 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
     const activityIds = contentSteps.filter((s: any) => s.type === 'activity' && s.activity_id).map((s: any) => s.activity_id);
     if (activityIds.length === 0) return;
     (async () => {
-      const { data } = await (supabase as any).from('activities').select('id, title').in('id', activityIds);
+      const { data } = await (supabase as any).from('activities').select('id, title, type').in('id', activityIds);
       if (data) {
         const titleMap = new Map((data as any[]).map((a: any) => [a.id, resolveField(a.title, 'es')]));
-        setSteps(prev => prev.map(step => 
-          step.type === 'activity' && step.activity_id ? { ...step, _activity_title: titleMap.get(step.activity_id) } : step
+        const typeMap  = new Map((data as any[]).map((a: any) => [a.id, a.type]));
+        setSteps(prev => prev.map(step =>
+          step.type === 'activity' && step.activity_id
+            ? { ...step, _activity_title: titleMap.get(step.activity_id), _activity_type: typeMap.get(step.activity_id) }
+            : step
         ));
       }
     })();
