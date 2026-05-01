@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { resolveField } from '../../../lib/i18n';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
@@ -373,7 +374,7 @@ export default function LessonEditor({ lesson, onSaved, onCancel }: Props) {
     (async () => {
       const { data } = await (supabase as any).from('activities').select('id, title').in('id', activityIds);
       if (data) {
-        const titleMap = new Map((data as any[]).map((a: any) => [a.id, a.title]));
+        const titleMap = new Map((data as any[]).map((a: any) => [a.id, resolveField(a.title, 'es')]));
         setSteps(prev => prev.map(step => 
           step.type === 'activity' && step.activity_id ? { ...step, _activity_title: titleMap.get(step.activity_id) } : step
         ));
