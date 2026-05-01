@@ -19,6 +19,7 @@ interface Activity {
   topic?: string;
   level?: string;
   content?: any;
+  tags?: string[];
 }
 
 export default function LessonAssembler() {
@@ -47,7 +48,7 @@ export default function LessonAssembler() {
   };
   
   const getActivityTags = (act: Activity) => {
-    return (act.content?.es?.tags || act.content?.tags || []) as string[];
+    return (act.tags?.length ? act.tags : act.content?.es?.tags || act.content?.tags || []) as string[];
   };
 
   const filteredActivities = activities.filter(act => {
@@ -402,6 +403,11 @@ export default function LessonAssembler() {
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {filterMode === 'recommended' && getLessonTags(selectedLesson).length === 0 && (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+                      Esta lección no tiene etiquetas. Agrégalas en el editor para ver actividades recomendadas.
+                    </p>
+                  )}
                   {filteredActivities.length === 0 ? (
                      <p className="text-sm text-gray-400 text-center py-8">No hay coincidencias.</p>
                   ) : (
