@@ -188,7 +188,7 @@ export default function ContentStudio() {
             </div>
           ) : (
             <div className="space-y-2">
-              {filtered.map(lesson => {
+              {filtered.map((lesson, idx) => {
                 const isOwn = lesson.created_by === profile?.id;
                 const contentSteps: any[] = Array.isArray(lesson.content) ? lesson.content : ((lesson.content as any)?.steps ?? []);
                 const stepCount = contentSteps.length;
@@ -200,7 +200,7 @@ export default function ContentStudio() {
                   >
                     {/* Orden */}
                     <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold flex-shrink-0">
-                      {lesson.order_index}
+                      {idx + 1}
                     </div>
 
                     {/* Info */}
