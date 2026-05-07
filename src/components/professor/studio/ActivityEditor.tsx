@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
-import { X, Plus, Trash2, Loader2, Wand2, GripVertical } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, Wand2, GripVertical, ArrowRight } from 'lucide-react';
 import MediaUploader from './MediaUploader';
 import TagInput from './TagInput';
 import type { ActivityType } from '../../../lib/database.types';
@@ -371,18 +371,54 @@ function DragDropForm({ c, onChange }: { c: any; onChange: (c: any) => void }) {
 }
 
 function EssayForm({ c, onChange, type }: { c: any; onChange: (c: any) => void; type: ActivityType }) {
+  const { enhance, loading: aiLoading } = useAI();
   const reqWords = (c.required_words || []).join(', ');
   const fobWords = (c.forbidden_words || []).join(', ');
 
-  const advancedFields = (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 pt-3 border-t border-gray-100">
-      <div>
-        <label className="label-sm text-green-700">Palabras Obligatorias (separadas por coma)</label>
-        <input type="text" value={reqWords} onChange={e => onChange({ ...c, required_words: e.target.value.split(',').map((w: string)=>w.trim()).filter(Boolean) })} className="input-field" placeholder="ej. investigación, conclusión" />
+  async function handleGenerateExample() {
+    const result = await enhance('generate_example', 'es', {
+      prompt: c.prompt,
+      min_words: c.min_words,
+      max_words: c.max_words,
+      required_words: c.required_words,
+      rubric: c.rubric,
+    });
+    if (result?.example_text) onChange({ ...c, example_text: result.example_text });
+  }
+
+  const productionFields = (
+    <div className="space-y-3 mt-4 pt-3 border-t border-gray-100">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="label-sm text-green-700">Palabras Obligatorias (separadas por coma)</label>
+          <input type="text" value={reqWords} onChange={e => onChange({ ...c, required_words: e.target.value.split(',').map((w: string) => w.trim()).filter(Boolean) })} className="input-field" placeholder="ej. investigación, conclusión" />
+        </div>
+        <div>
+          <label className="label-sm text-red-700">Palabras Prohibidas (separadas por coma)</label>
+          <input type="text" value={fobWords} onChange={e => onChange({ ...c, forbidden_words: e.target.value.split(',').map((w: string) => w.trim()).filter(Boolean) })} className="input-field" placeholder="ej. yo, wikipedia" />
+        </div>
       </div>
       <div>
-        <label className="label-sm text-red-700">Palabras Prohibidas (separadas por coma)</label>
-        <input type="text" value={fobWords} onChange={e => onChange({ ...c, forbidden_words: e.target.value.split(',').map((w: string)=>w.trim()).filter(Boolean) })} className="input-field" placeholder="ej. yo, wikipedia" />
+        <label className="label-sm text-purple-700">Criterio de evaluación (rubrica para IA)</label>
+        <textarea rows={2} value={c.rubric ?? ''} onChange={e => onChange({ ...c, rubric: e.target.value })} className="input-field" placeholder="Ej: Evalúa coherencia, uso de vocabulario académico y cumplimiento del tema..." />
+      </div>
+      <div className="flex gap-3 items-end">
+        <div className="w-48">
+          <label className="label-sm">% mínimo para enviar</label>
+          <input type="number" min={0} max={100} value={c.compliance_threshold ?? 100} onChange={e => onChange({ ...c, compliance_threshold: Number(e.target.value) })} className="input-field" />
+          <p className="text-xs text-gray-400 mt-0.5">0 = sin restricción · 100 = cumplir todo</p>
+        </div>
+      </div>
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="label-sm text-blue-700">Texto de ejemplo (visible para el estudiante)</label>
+          <button type="button" onClick={handleGenerateExample} disabled={!c.prompt || !!aiLoading}
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition disabled:opacity-40 text-xs font-medium">
+            {aiLoading === 'generate_examplees' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+            Generar con IA
+          </button>
+        </div>
+        <textarea rows={4} value={c.example_text ?? ''} onChange={e => onChange({ ...c, example_text: e.target.value })} className="input-field text-sm" placeholder="Escribe o genera un texto modelo que el estudiante podrá consultar..." />
       </div>
     </div>
   );
@@ -406,7 +442,7 @@ function EssayForm({ c, onChange, type }: { c: any; onChange: (c: any) => void; 
             ))}
           </div>
         </div>
-        {advancedFields}
+        {productionFields}
       </div>
     );
   }
@@ -429,7 +465,7 @@ function EssayForm({ c, onChange, type }: { c: any; onChange: (c: any) => void; 
         <div className="flex gap-3">
           <div className="flex-1"><label className="label-sm">Mín. palabras</label><input type="number" value={c.min_words ?? 80} onChange={e => onChange({ ...c, min_words: Number(e.target.value) })} className="input-field" /></div>
         </div>
-        {advancedFields}
+        {productionFields}
       </div>
     );
   }
@@ -441,7 +477,7 @@ function EssayForm({ c, onChange, type }: { c: any; onChange: (c: any) => void; 
         <div className="flex-1"><label className="label-sm">Mín. palabras</label><input type="number" value={c.min_words ?? 50} onChange={e => onChange({ ...c, min_words: Number(e.target.value) })} className="input-field" /></div>
         <div className="flex-1"><label className="label-sm">Máx. palabras</label><input type="number" value={c.max_words ?? 200} onChange={e => onChange({ ...c, max_words: Number(e.target.value) })} className="input-field" /></div>
       </div>
-      {advancedFields}
+      {productionFields}
     </div>
   );
 }
@@ -538,6 +574,12 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
       if (lang === 'es') setTitleEs(improved);
       else setTitleEn(improved);
     }
+  }
+
+  async function handleTranslateTitle() {
+    if (!titleEs) return;
+    const translated = await enhance('translate', 'es', { text: titleEs, from_lang: 'es' });
+    if (translated) setTitleEn(translated);
   }
 
   async function handleCompleteWithAI() {
@@ -677,22 +719,29 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
           {/* Títulos bilingües */}
           <div>
             <label className="label-sm">Título / Instrucción para el estudiante</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="flex gap-2">
+            <div className="flex flex-col md:flex-row gap-2 items-start md:items-center">
+              <div className="flex gap-2 flex-1">
                 <input type="text" value={titleEs} onChange={e => setTitleEs(e.target.value)}
                   className="input-field flex-1" placeholder="Ej: Selecciona la respuesta correcta (ES)" />
                 <button type="button" onClick={() => handleImproveTitle('es')}
-                  disabled={!titleEs || aiLoading === 'improve_titlees'}
+                  disabled={!titleEs || !!aiLoading}
                   title="Mejorar con IA"
                   className="px-2.5 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition disabled:opacity-40">
                   {aiLoading === 'improve_titlees' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
                 </button>
               </div>
-              <div className="flex gap-2">
+              <button type="button" onClick={handleTranslateTitle}
+                disabled={!titleEs || !!aiLoading}
+                title="Traducir ES → EN con IA"
+                className="flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition disabled:opacity-40 text-xs font-medium whitespace-nowrap">
+                {aiLoading === 'translatees' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
+                Traducir
+              </button>
+              <div className="flex gap-2 flex-1">
                 <input type="text" value={titleEn} onChange={e => setTitleEn(e.target.value)}
                   className="input-field flex-1" placeholder="E.g.: Select the correct answer (EN)" />
                 <button type="button" onClick={() => handleImproveTitle('en')}
-                  disabled={!titleEn || aiLoading === 'improve_titleen'}
+                  disabled={!titleEn || !!aiLoading}
                   title="Improve with AI"
                   className="px-2.5 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition disabled:opacity-40">
                   {aiLoading === 'improve_titleen' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}

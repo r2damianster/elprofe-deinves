@@ -21,7 +21,9 @@ type EnhanceTask =
   | 'batch_grade'
   | 'complete_activity'
   | 'suggest_tags'
-  | 'improve_rubric';
+  | 'improve_rubric'
+  | 'generate_example'
+  | 'review_essay';
 
 interface RequestBody {
   task: EnhanceTask;
@@ -39,14 +41,14 @@ function buildMessages(task: EnhanceTask, lang: 'es' | 'en', data: Record<string
         {
           role: 'system',
           content: isEs
-            ? `Eres un experto en diseño curricular. Mejora los títulos de lecciones educativas para que sean claros, atractivos y orientados al aprendizaje. Responde SOLO con el título mejorado, sin comillas, sin explicaciones.`
-            : `You are a curriculum design expert. Improve educational lesson titles to be clear, engaging, and learning-oriented. Reply ONLY with the improved title, no quotes, no explanations.`,
+            ? `Eres un experto en diseño de actividades educativas. Mejora el título de una actividad para que sea específico y diferenciador. Usa el formato "Categoría General: Diferenciador Específico" cuando aplique (ej: "Vacío de Investigación: Contradicción", "Presente Simple: Rutinas Diarias", "Caso Monkey Selfies"). El título debe ser corto (máx 7 palabras), evocador y único — no genérico. Responde SOLO con el título mejorado, sin comillas, sin explicaciones.`
+            : `You are an educational activity design expert. Improve the activity title to be specific and differentiating. Use the format "General Category: Specific Differentiator" when applicable (e.g. "Research Gap: Contradiction", "Simple Present: Daily Routines", "Monkey Selfies Case"). Title must be short (max 7 words), evocative and unique — not generic. Reply ONLY with the improved title, no quotes, no explanations.`,
         },
         {
           role: 'user',
           content: isEs
-            ? `Mejora este título de lección en ${langLabel}: "${data.title}"\nContexto: ${data.context ?? 'plataforma de enseñanza de idiomas'}`
-            : `Improve this lesson title in ${langLabel}: "${data.title}"\nContext: ${data.context ?? 'language teaching platform'}`,
+            ? `Mejora este título de actividad en ${langLabel}: "${data.title}"\nContexto: ${data.context ?? 'plataforma de enseñanza de idiomas'}`
+            : `Improve this activity title in ${langLabel}: "${data.title}"\nContext: ${data.context ?? 'language teaching platform'}`,
         },
       ];
 
@@ -178,10 +180,11 @@ ${data.content}`,
           content: `Eres un diseñador experto de actividades para plataformas de enseñanza de idiomas. Recibes el contenido de una actividad en español y debes devolver SOLO JSON con este formato exacto (sin markdown):
 {"title_es":"<título corto en español>","title_en":"<título corto en inglés>","content_en":<mismo JSON que content_es pero con textos traducidos al inglés>,"tags":["tag1","tag2","tag3"],"description":"<1 oración en español describiendo qué practica el estudiante>","description_en":"<same sentence translated to English>","difficulty":<1|2|3>}
 
-Reglas para content_en:
+Reglas CRÍTICAS para content_en:
 - Mantén EXACTAMENTE la misma estructura JSON que content_es
-- Traduce solo los valores de texto (questions, statements, options text, hints, instruction, etc.)
-- NO cambies IDs, correct_id, correct, números, booleanos ni campos de referencia
+- Si content_es tiene un array "options" con N elementos, content_en DEBE tener exactamente N elementos con los mismos IDs. NUNCA omitas ni combines opciones.
+- Traduce solo los valores de texto (questions, statements, options text, hints, instruction, prompt, etc.)
+- NO cambies IDs, correct_id, correct, números, booleanos, min_words, max_words ni campos de referencia
 - difficulty: 1=fácil, 2=medio, 3=difícil según el vocabulario y complejidad del tema`,
         },
         {
@@ -214,6 +217,37 @@ Reglas para content_en:
         },
       ];
 
+    case 'generate_example':
+      return [
+        {
+          role: 'system',
+          content: `Eres un docente experto en enseñanza de idiomas. Escribe un texto de ejemplo modelo que un estudiante podría entregar como respuesta a la consigna dada. El ejemplo debe ser claro, bien estructurado y cumplir todos los requisitos indicados. Devuelve SOLO JSON: {"example_text":"<texto ejemplo>"}`,
+        },
+        {
+          role: 'user',
+          content: `Consigna: ${data.prompt}\nMínimo de palabras: ${data.min_words ?? 50}${data.max_words ? `\nMáximo de palabras: ${data.max_words}` : ''}${data.required_words?.length ? `\nPalabras que debe incluir: ${data.required_words.join(', ')}` : ''}${data.rubric ? `\nCriterio de evaluación: ${data.rubric}` : ''}`,
+        },
+      ];
+
+    case 'review_essay':
+      return [
+        {
+          role: 'system',
+          content: `Eres un docente experto en evaluación de producción escrita. Analiza el texto del estudiante y devuelve SOLO JSON con este formato exacto (sin markdown):
+{"score":<0-10>,"summary":"<resumen en 1 oración>","strengths":["<fortaleza1>","<fortaleza2>"],"improvements":["<mejora1>","<mejora2>","<mejora3>"]}
+
+Criterios: coherencia, gramática, vocabulario, cumplimiento de consigna y requisitos.`,
+        },
+        {
+          role: 'user',
+          content: `Consigna: ${data.prompt ?? 'Redacción libre'}
+Mínimo: ${data.min_words ?? 0} palabras${data.max_words ? `, máximo ${data.max_words}` : ''}.${data.required_words?.length ? `\nPalabras requeridas: ${data.required_words.join(', ')}` : ''}${data.forbidden_words?.length ? `\nPalabras prohibidas: ${data.forbidden_words.join(', ')}` : ''}${data.rubric ? `\nCriterio de evaluación: ${data.rubric}` : ''}
+
+Texto del estudiante:
+${data.content}`,
+        },
+      ];
+
     default:
       throw new Error(`Unknown task: ${task}`);
   }
@@ -234,8 +268,8 @@ serve(async (req) => {
 
     const messages = buildMessages(task, lang, data);
 
-    const jsonTasks: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production', 'suggest_rubric', 'batch_grade', 'complete_activity', 'suggest_tags'];
-    const maxTokens = task === 'batch_grade' ? 2000 : task === 'suggest_rubric' ? 600 : task === 'complete_activity' ? 1200 : 400;
+    const jsonTasks: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production', 'suggest_rubric', 'batch_grade', 'complete_activity', 'suggest_tags', 'generate_example', 'review_essay'];
+    const maxTokens = task === 'batch_grade' ? 2000 : task === 'suggest_rubric' ? 600 : task === 'complete_activity' ? 2000 : task === 'generate_example' ? 600 : 400;
 
     const groqRes = await fetch(GROQ_ENDPOINT, {
       method: 'POST',
