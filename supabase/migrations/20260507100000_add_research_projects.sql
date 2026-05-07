@@ -1,6 +1,6 @@
 -- ============================================================
--- MODALIDAD: PROYECTO DE INVESTIGACIÓN
--- Permite al profesor programar objetos de investigación
+-- MODALIDAD: PROYECTO
+-- Permite al profesor programar objetos de un proyecto
 -- distribuidos en lecciones, con lógica ordinal/causal/estructural
 -- ============================================================
 
