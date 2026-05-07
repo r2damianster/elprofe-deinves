@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import { BookOpen, Users, ClipboardList, Loader2, FileText, PenSquare, Shield } from 'lucide-react';
+import { BookOpen, Users, ClipboardList, Loader2, FileText, PenSquare, Shield, FlaskConical } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import CourseManager from './CourseManager';
 import LessonAssignment from './LessonAssignment';
 import ProductionReviewer from './ProductionReviewer';
 import ContentStudio from './studio/ContentStudio';
+import ProjectManager from './ProjectManager';
 
 interface Course {
   id: string;
@@ -18,7 +19,7 @@ interface Course {
 export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: () => void }) {
   const { signOut, profile } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
-  const [activeTab, setActiveTab] = useState<'courses' | 'assignments' | 'productions' | 'studio'>('courses');
+  const [activeTab, setActiveTab] = useState<'courses' | 'assignments' | 'productions' | 'studio' | 'projects'>('courses');
   const [preselectedCourseId, setPreselectedCourseId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
 
@@ -128,6 +129,17 @@ export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: ()
             <PenSquare className="w-5 h-5 mr-2" />
             Crear Contenido
           </button>
+          <button
+            onClick={() => setActiveTab('projects')}
+            className={`flex items-center px-4 py-2 rounded-lg transition ${
+              activeTab === 'projects'
+                ? 'bg-teal-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+            }`}
+          >
+            <FlaskConical className="w-5 h-5 mr-2" />
+            Proyectos
+          </button>
         </div>
 
         {loading ? (
@@ -153,6 +165,17 @@ export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: ()
               />
             ) : activeTab === 'productions' ? (
               <ProductionReviewer />
+            ) : activeTab === 'projects' ? (
+              courses.length > 0 ? (
+                <ProjectManager
+                  courseId={preselectedCourseId ?? courses[0].id}
+                  onBack={() => setActiveTab('courses')}
+                />
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  Crea un curso primero para gestionar proyectos.
+                </div>
+              )
             ) : (
               <ContentStudio />
             )}

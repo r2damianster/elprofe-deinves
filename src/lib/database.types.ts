@@ -25,6 +25,10 @@ export type ActivityType =
   | 'matrix_grid'
   | 'open_writing';
 export type ProductionStatus = 'draft' | 'submitted' | 'reviewed';
+export type ProjectObjectLogic = 'ordinal' | 'causal' | 'structural';
+export type ProjectObjectEditPolicy = 'always' | 'requires_approval' | 'locked_after_submit';
+export type ProjectObjectStatus = 'draft' | 'submitted' | 'approved' | 'needs_revision';
+export type EditRequestStatus = 'pending' | 'approved' | 'denied';
 
 export type Database = {
   __InternalSupabase: {
@@ -548,6 +552,190 @@ export type Database = {
           student_id?: string
         }
       }
+      projects: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          professor_id: string
+          course_id: string
+          object_logic: ProjectObjectLogic
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          professor_id: string
+          course_id: string
+          object_logic?: ProjectObjectLogic
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          professor_id?: string
+          course_id?: string
+          object_logic?: ProjectObjectLogic
+          is_active?: boolean
+          created_at?: string
+        }
+      }
+      project_object_types: {
+        Row: {
+          id: string
+          project_id: string
+          name: string
+          description: string | null
+          instructions: string | null
+          order_index: number
+          parent_object_type_id: string | null
+          edit_policy: ProjectObjectEditPolicy
+          min_words: number
+          max_words: number | null
+          required_words: string[]
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          name: string
+          description?: string | null
+          instructions?: string | null
+          order_index?: number
+          parent_object_type_id?: string | null
+          edit_policy?: ProjectObjectEditPolicy
+          min_words?: number
+          max_words?: number | null
+          required_words?: string[]
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          name?: string
+          description?: string | null
+          instructions?: string | null
+          order_index?: number
+          parent_object_type_id?: string | null
+          edit_policy?: ProjectObjectEditPolicy
+          min_words?: number
+          max_words?: number | null
+          required_words?: string[]
+          created_at?: string
+        }
+      }
+      lesson_project_objects: {
+        Row: {
+          id: string
+          lesson_id: string
+          object_type_id: string
+          is_new_object: boolean
+          order_index: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          lesson_id: string
+          object_type_id: string
+          is_new_object?: boolean
+          order_index?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          lesson_id?: string
+          object_type_id?: string
+          is_new_object?: boolean
+          order_index?: number
+          created_at?: string
+        }
+      }
+      project_objects: {
+        Row: {
+          id: string
+          project_id: string
+          object_type_id: string
+          student_id: string
+          content: string
+          status: ProjectObjectStatus
+          word_count: number
+          version: number
+          feedback: string | null
+          score: number | null
+          submitted_at: string | null
+          reviewed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          object_type_id: string
+          student_id: string
+          content?: string
+          status?: ProjectObjectStatus
+          word_count?: number
+          version?: number
+          feedback?: string | null
+          score?: number | null
+          submitted_at?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          object_type_id?: string
+          student_id?: string
+          content?: string
+          status?: ProjectObjectStatus
+          word_count?: number
+          version?: number
+          feedback?: string | null
+          score?: number | null
+          submitted_at?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      project_object_edit_requests: {
+        Row: {
+          id: string
+          project_object_id: string
+          student_id: string
+          reason: string
+          status: EditRequestStatus
+          professor_note: string | null
+          created_at: string
+          resolved_at: string | null
+        }
+        Insert: {
+          id?: string
+          project_object_id: string
+          student_id: string
+          reason: string
+          status?: EditRequestStatus
+          professor_note?: string | null
+          created_at?: string
+          resolved_at?: string | null
+        }
+        Update: {
+          id?: string
+          project_object_id?: string
+          student_id?: string
+          reason?: string
+          status?: EditRequestStatus
+          professor_note?: string | null
+          created_at?: string
+          resolved_at?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -562,6 +750,10 @@ export type Database = {
       activity_type: ActivityType
       production_status: ProductionStatus
       user_role: UserRole
+      project_object_logic: ProjectObjectLogic
+      project_object_edit_policy: ProjectObjectEditPolicy
+      project_object_status: ProjectObjectStatus
+      edit_request_status: EditRequestStatus
     }
   }
 }
