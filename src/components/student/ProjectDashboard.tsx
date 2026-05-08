@@ -39,20 +39,25 @@ export default function ProjectDashboard() {
     setLoading(true);
     if (!user?.id) { setLoading(false); return; }
 
-    const { data: courseIds } = await sb.from('course_students')
-      .select('course_id')
-      .eq('student_id', user.id);
-
-    if (!courseIds || courseIds.length === 0) { setLoading(false); return; }
-    const ids = courseIds.map((c: any) => c.course_id);
-
+    // RLS filtra automáticamente los proyectos visibles para el estudiante
     const { data: projData } = await sb.from('projects')
-      .select('id, title, description, object_logic, course_id, courses(name)')
-      .in('course_id', ids)
+      .select('id, title, description, object_logic')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
-    if (!projData) { setLoading(false); return; }
+    if (!projData || projData.length === 0) { setLoading(false); return; }
+
+    // Obtener nombres de cursos desde project_assignments
+    const projIds = projData.map((p: any) => p.id);
+    const { data: assignments } = await sb.from('project_assignments')
+      .select('project_id, courses(name)')
+      .in('project_id', projIds)
+      .is('student_id', null);
+
+    const courseNameMap: Record<string, string> = {};
+    (assignments ?? []).forEach((a: any) => {
+      if (a.courses?.name) courseNameMap[a.project_id] = a.courses.name;
+    });
 
     const projectList = await Promise.all(
       projData.map(async (p: any) => {
@@ -76,7 +81,7 @@ export default function ProjectDashboard() {
           title: p.title,
           description: p.description,
           object_logic: p.object_logic,
-          course_name: p.courses?.name,
+          course_name: courseNameMap[p.id],
           total_objects: typeIds.length,
           completed_objects: completed,
         } as Project;
