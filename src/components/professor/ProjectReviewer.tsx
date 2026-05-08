@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as any;
-import { ArrowLeft, ChevronDown, ChevronUp, Check, RotateCcw, Users, Sparkles, Save, Clock } from 'lucide-react';
+import { ArrowLeft, Check, RotateCcw, Users, Sparkles, Clock } from 'lucide-react';
 
-type ObjectType = { id: string; name: string; order_index: number; description: string | null };
+type ObjectType = {
+  id: string; name: string; order_index: number; description: string | null;
+  min_words: number | null; max_words: number | null; required_words: string[] | null;
+};
 type ProjectObject = {
   id: string; object_type_id: string; content: string;
   word_count: number; version: number;
@@ -24,7 +27,6 @@ export default function ProjectReviewer({ projectId, onBack }: { projectId: stri
   const [editRequests, setEditRequests] = useState<EditRequest[]>([]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const [score, setScore] = useState('');
   const [feedback, setFeedback] = useState('');
@@ -47,7 +49,7 @@ export default function ProjectReviewer({ projectId, onBack }: { projectId: stri
 
     const [projRes, typesRes] = await Promise.all([
       sb.from('projects').select('title').eq('id', projectId).single(),
-      sb.from('project_object_types').select('id,name,order_index,description').eq('project_id', projectId).order('order_index'),
+      sb.from('project_object_types').select('id,name,order_index,description,min_words,max_words,required_words').eq('project_id', projectId).order('order_index'),
     ]);
     if (projRes.data) setProjectTitle(projRes.data.title);
     const typeList: ObjectType[] = typesRes.data ?? [];
@@ -100,7 +102,6 @@ export default function ProjectReviewer({ projectId, onBack }: { projectId: stri
     setSelectedId(sub.id);
     setScore(sub.score?.toString() ?? '');
     setFeedback(sub.feedback ?? '');
-    setExpandedIds(new Set());
     setAiResult(null);
   }
 
@@ -323,40 +324,64 @@ export default function ProjectReviewer({ projectId, onBack }: { projectId: stri
                 </div>
               </div>
 
-              {/* Acordeón read-only del proyecto completo */}
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-gray-500 px-1">Contenido del proyecto ({orderedObjs.reduce((s, { obj }) => s + (obj?.word_count ?? 0), 0)} palabras totales)</p>
-                {orderedObjs.map(({ type: t, obj }, i) => {
-                  const isExpanded = expandedIds.has(t.id);
-                  return (
-                    <div key={t.id} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                      <button onClick={() => {
-                        setExpandedIds(prev => {
-                          const next = new Set(prev);
-                          if (next.has(t.id)) next.delete(t.id); else next.add(t.id);
-                          return next;
-                        });
-                      }} className={`w-full text-left px-4 py-3 flex items-center gap-3 transition ${isExpanded ? 'bg-gray-50 border-b border-gray-100' : 'hover:bg-gray-50'}`}>
-                        <span className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 ${obj?.content?.trim() ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-400'}`}>{i + 1}</span>
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium text-sm text-gray-800">{t.name}</span>
-                          {obj && <span className="text-xs text-gray-400 ml-2">{obj.word_count} palabras</span>}
-                          {!obj && <span className="text-xs text-gray-400 ml-2">Sin contenido</span>}
+              {/* Documento completo continuo */}
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Proyecto completo</span>
+                  <span className="text-xs text-gray-400">
+                    {orderedObjs.reduce((s, { obj }) => s + (obj?.word_count ?? 0), 0)} palabras totales
+                  </span>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {orderedObjs.map(({ type: t, obj }, i) => {
+                    const hasContent = !!obj?.content?.trim();
+                    const wc = obj?.word_count ?? 0;
+                    const minOk = !t.min_words || wc >= t.min_words;
+                    const missing = (t.required_words ?? []).filter(
+                      w => !obj?.content?.toLowerCase().includes(w.toLowerCase())
+                    );
+                    return (
+                      <div key={t.id} className="px-6 py-5">
+                        {/* Título de sección */}
+                        <div className="flex items-baseline gap-3 mb-2">
+                          <span className="text-xs font-bold text-indigo-500 w-5 flex-shrink-0">{i + 1}.</span>
+                          <h3 className="font-bold text-gray-800 text-base">{t.name}</h3>
                         </div>
-                        {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-300 flex-shrink-0" />}
-                      </button>
-                      {isExpanded && (
-                        <div className="px-4 py-3">
-                          {obj?.content?.trim() ? (
-                            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{obj.content}</p>
-                          ) : (
-                            <p className="text-sm text-gray-400 italic">El estudiante no escribió contenido en este objeto.</p>
+
+                        {/* Requisitos configurados */}
+                        <div className="flex items-center gap-3 flex-wrap ml-8 mb-3">
+                          {t.min_words != null && t.min_words > 0 && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${minOk ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                              {wc}/{t.min_words} palabras mín.
+                            </span>
+                          )}
+                          {t.max_words != null && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                              máx. {t.max_words}
+                            </span>
+                          )}
+                          {(t.required_words ?? []).map(w => (
+                            <span key={w} className={`text-xs px-1.5 py-0.5 rounded ${!obj?.content?.toLowerCase().includes(w.toLowerCase()) ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'}`}>
+                              {w}
+                            </span>
+                          ))}
+                          {missing.length > 0 && (
+                            <span className="text-xs text-red-500">Faltan {missing.length} palabra(s) requerida(s)</span>
                           )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+
+                        {/* Contenido */}
+                        <div className="ml-8">
+                          {hasContent ? (
+                            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{obj!.content}</p>
+                          ) : (
+                            <p className="text-sm text-gray-400 italic">Sin contenido.</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           ) : (
