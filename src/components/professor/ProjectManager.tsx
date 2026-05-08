@@ -7,13 +7,13 @@ import { Plus, ArrowLeft, FolderOpen } from 'lucide-react';
 import ProjectObjectTypesEditor from './ProjectObjectTypesEditor';
 import ProjectLessonMapper from './ProjectLessonMapper';
 import ProjectReviewer from './ProjectReviewer';
+import ProjectAssignmentsEditor from './ProjectAssignmentsEditor';
 
 type Project = {
   id: string;
   title: string;
   description: string | null;
   professor_id: string;
-  course_id: string;
   object_logic: 'ordinal' | 'causal' | 'structural';
   is_active: boolean;
   created_at: string;
@@ -39,22 +39,20 @@ const BLANK_FORM = {
 type View =
   | { type: 'list' }
   | { type: 'object_types'; project: Project }
-  | { type: 'lesson_mapper'; project: Project }
+  | { type: 'assignments'; project: Project }
+  | { type: 'lesson_mapper'; project: Project; courseId: string }
   | { type: 'reviewer'; project: Project };
 
 type Course = { id: string; name: string };
 
 export default function ProjectManager({
-  courseId,
   courses = [],
   onBack,
 }: {
-  courseId: string;
   courses?: Course[];
   onBack: () => void;
 }) {
   const { profile } = useAuth();
-  const [selectedCourseId, setSelectedCourseId] = useState(courseId);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -63,14 +61,15 @@ export default function ProjectManager({
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>({ type: 'list' });
 
-  useEffect(() => { load(); }, [selectedCourseId]);
+  useEffect(() => { load(); }, [profile?.id]);
 
   async function load() {
+    if (!profile?.id) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('projects')
       .select('*')
-      .eq('course_id', selectedCourseId)
+      .eq('professor_id', profile.id)
       .order('created_at', { ascending: false });
     if (!error) setProjects(data ?? []);
     setLoading(false);
@@ -85,7 +84,6 @@ export default function ProjectManager({
       description: form.description.trim() || null,
       object_logic: form.object_logic,
       professor_id: profile!.id,
-      course_id: selectedCourseId,
     });
     if (error) { setError(error.message); setSaving(false); return; }
     setShowForm(false);
@@ -107,12 +105,22 @@ export default function ProjectManager({
       />
     );
   }
+  if (view.type === 'assignments') {
+    return (
+      <ProjectAssignmentsEditor
+        project={view.project}
+        courses={courses}
+        onMapLessons={(courseId) => setView({ type: 'lesson_mapper', project: view.project, courseId })}
+        onBack={() => setView({ type: 'list' })}
+      />
+    );
+  }
   if (view.type === 'lesson_mapper') {
     return (
       <ProjectLessonMapper
         project={view.project}
-        courseId={courseId}
-        onBack={() => setView({ type: 'list' })}
+        courseId={view.courseId}
+        onBack={() => setView({ type: 'assignments', project: view.project })}
       />
     );
   }
@@ -127,22 +135,11 @@ export default function ProjectManager({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-3">
         <button onClick={onBack} className="text-gray-500 hover:text-gray-700">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h3 className="font-semibold text-gray-800">Proyectos</h3>
-        {courses.length > 1 && (
-          <select
-            value={selectedCourseId}
-            onChange={e => { setSelectedCourseId(e.target.value); setView({ type: 'list' }); }}
-            className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {courses.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        )}
         <button
           onClick={() => { setShowForm(true); setError(null); setForm(BLANK_FORM); }}
           className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
@@ -222,7 +219,7 @@ export default function ProjectManager({
       ) : projects.length === 0 ? (
         <div className="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl">
           <FolderOpen className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p className="text-sm">No hay proyectos en este curso.</p>
+          <p className="text-sm">No tienes proyectos creados.</p>
           <p className="text-xs mt-1">Crea el primero con el botón de arriba.</p>
         </div>
       ) : (
@@ -258,10 +255,10 @@ export default function ProjectManager({
                   Editar objetos
                 </button>
                 <button
-                  onClick={() => setView({ type: 'lesson_mapper', project: p })}
-                  className="px-3 py-1.5 text-xs bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition"
+                  onClick={() => setView({ type: 'assignments', project: p })}
+                  className="px-3 py-1.5 text-xs bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition"
                 >
-                  Mapear a lecciones
+                  Asignar a cursos
                 </button>
                 <button
                   onClick={() => setView({ type: 'reviewer', project: p })}
