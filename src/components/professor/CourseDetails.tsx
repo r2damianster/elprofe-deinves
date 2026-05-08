@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Users, BookOpen, Clock, Loader2, Trash2, UsersRound, Monitor } from 'lucide-react';
+import { Plus, Users, BookOpen, Clock, Loader2, Trash2, UsersRound, Monitor, FolderOpen } from 'lucide-react';
 import StudentManager from './StudentManager';
 import GroupManager from './GroupManager';
 import ProfessorLessonView from './ProfessorLessonView';
@@ -19,10 +19,11 @@ interface CourseDetailsProps {
   courseName: string;
   courseLanguage?: Lang;
   onAssignLessons: () => void;
+  onManageProjects?: () => void;
   onClose: () => void;
 }
 
-export default function CourseDetails({ courseId, courseName, courseLanguage = 'es', onAssignLessons, onClose }: CourseDetailsProps) {
+export default function CourseDetails({ courseId, courseName, courseLanguage = 'es', onAssignLessons, onManageProjects, onClose }: CourseDetailsProps) {
   const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'lessons' | 'students' | 'groups' | 'present'>('lessons');
@@ -95,11 +96,19 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
             <h2 className="text-2xl font-bold text-gray-800">{courseName}</h2>
             <p className="text-sm text-gray-500 mt-1">Gestión del curso</p>
           </div>
-          {view === 'lessons' && view !== 'present' && (
-            <button onClick={onAssignLessons}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
-              <Plus className="w-4 h-4 mr-2" /> Asignar Lección
-            </button>
+          {view === 'lessons' && (
+            <div className="flex gap-2">
+              {onManageProjects && (
+                <button onClick={onManageProjects}
+                  className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-medium shadow-sm">
+                  <FolderOpen className="w-4 h-4 mr-2" /> Proyectos
+                </button>
+              )}
+              <button onClick={onAssignLessons}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
+                <Plus className="w-4 h-4 mr-2" /> Asignar Lección
+              </button>
+            </div>
           )}
         </div>
         {/* Tabs */}

@@ -150,12 +150,16 @@ export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: ()
         ) : (
           <>
             {activeTab === 'courses' ? (
-              <CourseManager 
-                courses={courses} 
-                onUpdate={loadCourses} 
+              <CourseManager
+                courses={courses}
+                onUpdate={loadCourses}
                 onAssignLessons={(courseId) => {
                   setPreselectedCourseId(courseId);
                   setActiveTab('assignments');
+                }}
+                onManageProjects={(courseId) => {
+                  setPreselectedCourseId(courseId);
+                  setActiveTab('projects');
                 }}
               />
             ) : activeTab === 'assignments' ? (

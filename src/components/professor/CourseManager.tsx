@@ -16,9 +16,10 @@ interface CourseManagerProps {
   courses: Course[];
   onUpdate: () => void;
   onAssignLessons: (courseId: string) => void;
+  onManageProjects: (courseId: string) => void;
 }
 
-export default function CourseManager({ courses, onUpdate, onAssignLessons }: CourseManagerProps) {
+export default function CourseManager({ courses, onUpdate, onAssignLessons, onManageProjects }: CourseManagerProps) {
   const { profile } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [courseName, setCourseName] = useState('');
@@ -168,6 +169,10 @@ export default function CourseManager({ courses, onUpdate, onAssignLessons }: Co
               onAssignLessons={() => {
                 setSelectedCourseId(null);
                 onAssignLessons(selectedCourse.id);
+              }}
+              onManageProjects={() => {
+                setSelectedCourseId(null);
+                onManageProjects(selectedCourse.id);
               }}
             />
           </div>
