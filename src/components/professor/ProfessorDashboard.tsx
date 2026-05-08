@@ -169,6 +169,7 @@ export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: ()
               courses.length > 0 ? (
                 <ProjectManager
                   courseId={preselectedCourseId ?? courses[0].id}
+                  courses={courses}
                   onBack={() => setActiveTab('courses')}
                 />
               ) : (

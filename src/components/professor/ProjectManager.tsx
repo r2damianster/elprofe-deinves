@@ -42,8 +42,19 @@ type View =
   | { type: 'lesson_mapper'; project: Project }
   | { type: 'reviewer'; project: Project };
 
-export default function ProjectManager({ courseId, onBack }: { courseId: string; onBack: () => void }) {
+type Course = { id: string; name: string };
+
+export default function ProjectManager({
+  courseId,
+  courses = [],
+  onBack,
+}: {
+  courseId: string;
+  courses?: Course[];
+  onBack: () => void;
+}) {
   const { profile } = useAuth();
+  const [selectedCourseId, setSelectedCourseId] = useState(courseId);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -52,14 +63,14 @@ export default function ProjectManager({ courseId, onBack }: { courseId: string;
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>({ type: 'list' });
 
-  useEffect(() => { load(); }, [courseId]);
+  useEffect(() => { load(); }, [selectedCourseId]);
 
   async function load() {
     setLoading(true);
     const { data, error } = await supabase
       .from('projects')
       .select('*')
-      .eq('course_id', courseId)
+      .eq('course_id', selectedCourseId)
       .order('created_at', { ascending: false });
     if (!error) setProjects(data ?? []);
     setLoading(false);
@@ -74,7 +85,7 @@ export default function ProjectManager({ courseId, onBack }: { courseId: string;
       description: form.description.trim() || null,
       object_logic: form.object_logic,
       professor_id: profile!.id,
-      course_id: courseId,
+      course_id: selectedCourseId,
     });
     if (error) { setError(error.message); setSaving(false); return; }
     setShowForm(false);
@@ -116,11 +127,22 @@ export default function ProjectManager({ courseId, onBack }: { courseId: string;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <button onClick={onBack} className="text-gray-500 hover:text-gray-700">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h3 className="font-semibold text-gray-800">Proyectos</h3>
+        {courses.length > 1 && (
+          <select
+            value={selectedCourseId}
+            onChange={e => { setSelectedCourseId(e.target.value); setView({ type: 'list' }); }}
+            className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {courses.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        )}
         <button
           onClick={() => { setShowForm(true); setError(null); setForm(BLANK_FORM); }}
           className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
