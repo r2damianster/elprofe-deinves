@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Plus, Users, BookOpen, Clock, Loader2, Trash2, UsersRound, Monitor, FolderOpen } from 'lucide-react';
 import StudentManager from './StudentManager';
 import GroupManager from './GroupManager';
+import CourseProjectsManager from './CourseProjectsManager';
 import ProfessorLessonView from './ProfessorLessonView';
 import { resolveField, type Lang } from '../../lib/i18n';
 
@@ -19,14 +20,13 @@ interface CourseDetailsProps {
   courseName: string;
   courseLanguage?: Lang;
   onAssignLessons: () => void;
-  onManageProjects?: () => void;
   onClose: () => void;
 }
 
-export default function CourseDetails({ courseId, courseName, courseLanguage = 'es', onAssignLessons, onManageProjects, onClose }: CourseDetailsProps) {
+export default function CourseDetails({ courseId, courseName, courseLanguage = 'es', onAssignLessons, onClose }: CourseDetailsProps) {
   const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'lessons' | 'students' | 'groups' | 'present'>('lessons');
+  const [view, setView] = useState<'lessons' | 'students' | 'groups' | 'present' | 'projects'>('lessons');
   const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -97,18 +97,10 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
             <p className="text-sm text-gray-500 mt-1">Gestión del curso</p>
           </div>
           {view === 'lessons' && (
-            <div className="flex gap-2">
-              {onManageProjects && (
-                <button onClick={onManageProjects}
-                  className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-medium shadow-sm">
-                  <FolderOpen className="w-4 h-4 mr-2" /> Proyectos
-                </button>
-              )}
-              <button onClick={onAssignLessons}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
-                <Plus className="w-4 h-4 mr-2" /> Asignar Lección
-              </button>
-            </div>
+            <button onClick={onAssignLessons}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
+              <Plus className="w-4 h-4 mr-2" /> Asignar Lección
+            </button>
           )}
         </div>
         {/* Tabs */}
@@ -117,6 +109,7 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
             { key: 'lessons',  label: 'Lecciones',   icon: BookOpen },
             { key: 'students', label: 'Estudiantes',  icon: Users },
             { key: 'groups',   label: 'Grupos',       icon: UsersRound },
+            { key: 'projects', label: 'Proyectos',    icon: FolderOpen },
             { key: 'present',  label: 'Presentar',    icon: Monitor },
           ].map(({ key, label, icon: Icon }) => (
             <button key={key}
@@ -132,6 +125,9 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
 
       {/* Contenido por tab */}
       <div className="p-6 flex-1 overflow-y-auto">
+
+        {/* Tab: Proyectos */}
+        {view === 'projects' && <CourseProjectsManager courseId={courseId} />}
 
         {/* Tab: Estudiantes */}
         {view === 'students' && <StudentManager courseId={courseId} />}
