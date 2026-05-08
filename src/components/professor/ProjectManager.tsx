@@ -69,6 +69,7 @@ export default function ProjectManager({
       .from('projects')
       .select('*')
       .order('created_at', { ascending: false });
+    console.log('[ProjectManager] load result:', { data, error });
     if (error) setError(error.message);
     else setProjects(data ?? []);
     setLoading(false);
@@ -146,6 +147,13 @@ export default function ProjectManager({
           <Plus className="w-4 h-4" /> Nuevo proyecto
         </button>
       </div>
+
+      {/* Error global visible siempre */}
+      {error && !showForm && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+          Error: {error}
+        </div>
+      )}
 
       {/* Formulario */}
       {showForm && (
