@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import { BookOpen, Users, ClipboardList, Loader2, FileText, PenSquare, Shield, FlaskConical } from 'lucide-react';
+import { BookOpen, Users, ClipboardList, Loader2, BarChart2, PenSquare, Shield } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import CourseManager from './CourseManager';
-import LessonAssignment from './LessonAssignment';
-import ProductionReviewer from './ProductionReviewer';
-import ContentStudio from './studio/ContentStudio';
-import ProjectManager from './ProjectManager';
+import StudioPanel from './StudioPanel';
+import Asignaciones from './Asignaciones';
+import Evaluaciones from './Evaluaciones';
 
 interface Course {
   id: string;
@@ -16,17 +15,17 @@ interface Course {
   created_at: string;
 }
 
+type ActiveTab = 'courses' | 'studio' | 'assignments' | 'evaluations';
+
 export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: () => void }) {
   const { signOut, profile } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
-  const [activeTab, setActiveTab] = useState<'courses' | 'assignments' | 'productions' | 'studio' | 'projects'>('courses');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('courses');
   const [preselectedCourseId, setPreselectedCourseId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
 
-  // Usamos useCallback para que la función sea estable y se pueda reutilizar
   const loadCourses = useCallback(async () => {
     if (!profile?.id) return;
-
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -34,9 +33,8 @@ export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: ()
         .select('*')
         .eq('professor_id', profile.id)
         .order('created_at', { ascending: false });
-
       if (error) throw error;
-      if (data) setCourses(data);
+      if (data) setCourses(data as Course[]);
     } catch (error: any) {
       console.error('Error cargando cursos:', error.message);
     } finally {
@@ -44,13 +42,36 @@ export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: ()
     }
   }, [profile?.id]);
 
-  // Este useEffect es la clave: se dispara cuando el componente monta 
-  // Y CADA VEZ que el profile cambie (de null a cargado)
   useEffect(() => {
-    if (profile?.id) {
-      loadCourses();
-    }
+    if (profile?.id) loadCourses();
   }, [profile?.id, loadCourses]);
+
+  const tabs: { id: ActiveTab; label: string; icon: React.ReactNode; color: string }[] = [
+    {
+      id: 'courses',
+      label: 'Mis Cursos',
+      icon: <Users className="w-5 h-5 mr-2" />,
+      color: 'bg-blue-600',
+    },
+    {
+      id: 'studio',
+      label: 'Studio',
+      icon: <PenSquare className="w-5 h-5 mr-2" />,
+      color: 'bg-purple-600',
+    },
+    {
+      id: 'assignments',
+      label: 'Asignaciones',
+      icon: <ClipboardList className="w-5 h-5 mr-2" />,
+      color: 'bg-indigo-600',
+    },
+    {
+      id: 'evaluations',
+      label: 'Evaluaciones',
+      icon: <BarChart2 className="w-5 h-5 mr-2" />,
+      color: 'bg-emerald-600',
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -85,61 +106,20 @@ export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: ()
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-wrap gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('courses')}
-            className={`flex items-center px-4 py-2 rounded-lg transition ${
-              activeTab === 'courses'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-            }`}
-          >
-            <Users className="w-5 h-5 mr-2" />
-            Mis Cursos
-          </button>
-          <button
-            onClick={() => setActiveTab('assignments')}
-            className={`flex items-center px-4 py-2 rounded-lg transition ${
-              activeTab === 'assignments'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-            }`}
-          >
-            <ClipboardList className="w-5 h-5 mr-2" />
-            Asignar Lecciones
-          </button>
-          <button
-            onClick={() => setActiveTab('productions')}
-            className={`flex items-center px-4 py-2 rounded-lg transition ${
-              activeTab === 'productions'
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-            }`}
-          >
-            <FileText className="w-5 h-5 mr-2" />
-            Producciones
-          </button>
-          <button
-            onClick={() => setActiveTab('studio')}
-            className={`flex items-center px-4 py-2 rounded-lg transition ${
-              activeTab === 'studio'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-            }`}
-          >
-            <PenSquare className="w-5 h-5 mr-2" />
-            Crear Contenido
-          </button>
-          <button
-            onClick={() => setActiveTab('projects')}
-            className={`flex items-center px-4 py-2 rounded-lg transition ${
-              activeTab === 'projects'
-                ? 'bg-teal-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
-            }`}
-          >
-            <FlaskConical className="w-5 h-5 mr-2" />
-            Proyectos
-          </button>
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`flex items-center px-4 py-2 rounded-lg transition ${
+                activeTab === t.id
+                  ? `${t.color} text-white`
+                  : 'bg-white text-gray-700 hover:bg-gray-100 shadow-sm'
+              }`}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {loading ? (
@@ -149,7 +129,7 @@ export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: ()
           </div>
         ) : (
           <>
-            {activeTab === 'courses' ? (
+            {activeTab === 'courses' && (
               <CourseManager
                 courses={courses}
                 onUpdate={loadCourses}
@@ -158,26 +138,18 @@ export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: ()
                   setActiveTab('assignments');
                 }}
               />
-            ) : activeTab === 'assignments' ? (
-              <LessonAssignment
+            )}
+            {activeTab === 'studio' && (
+              <StudioPanel courses={courses} />
+            )}
+            {activeTab === 'assignments' && (
+              <Asignaciones
                 courses={courses}
                 initialCourseId={preselectedCourseId}
               />
-            ) : activeTab === 'productions' ? (
-              <ProductionReviewer />
-            ) : activeTab === 'projects' ? (
-              courses.length > 0 ? (
-                <ProjectManager
-                  courses={courses}
-                  onBack={() => setActiveTab('courses')}
-                />
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  Crea un curso primero para gestionar proyectos.
-                </div>
-              )
-            ) : (
-              <ContentStudio />
+            )}
+            {activeTab === 'evaluations' && (
+              <Evaluaciones />
             )}
           </>
         )}
