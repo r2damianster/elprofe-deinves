@@ -66,12 +66,13 @@ export default function ProjectManager({
   async function load() {
     if (!profile?.id) return;
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from('projects')
       .select('*')
       .eq('professor_id', profile.id)
       .order('created_at', { ascending: false });
-    if (!error) setProjects(data ?? []);
+    if (error) setError(error.message);
+    else setProjects(data ?? []);
     setLoading(false);
   }
 
