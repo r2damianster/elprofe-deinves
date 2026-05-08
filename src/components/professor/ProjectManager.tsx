@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as any;
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, ArrowLeft, FolderOpen } from 'lucide-react';
+import { Plus, ArrowLeft, FolderOpen, Trash2 } from 'lucide-react';
 import ProjectObjectTypesEditor from './ProjectObjectTypesEditor';
 import ProjectLessonMapper from './ProjectLessonMapper';
 import ProjectReviewer from './ProjectReviewer';
@@ -93,6 +93,12 @@ export default function ProjectManager({
 
   async function toggleActive(id: string, current: boolean) {
     await sb.from('projects').update({ is_active: !current }).eq('id', id);
+    await load();
+  }
+
+  async function deleteProject(id: string, title: string) {
+    if (!confirm(`¿Eliminar el proyecto "${title}"? Esta acción no se puede deshacer.`)) return;
+    await sb.from('projects').delete().eq('id', id);
     await load();
   }
 
@@ -245,12 +251,21 @@ export default function ProjectManager({
                   </div>
                   {p.description && <p className="text-sm text-gray-500 mt-1">{p.description}</p>}
                 </div>
+                <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => toggleActive(p.id, p.is_active)}
                   className="text-xs text-gray-500 hover:text-gray-700 whitespace-nowrap"
                 >
                   {p.is_active ? 'Desactivar' : 'Activar'}
                 </button>
+                <button
+                  onClick={() => deleteProject(p.id, p.title)}
+                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                  title="Eliminar proyecto"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                </div>
               </div>
 
               <div className="flex gap-2 mt-3 flex-wrap">
