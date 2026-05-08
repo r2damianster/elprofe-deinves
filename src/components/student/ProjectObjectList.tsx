@@ -186,12 +186,13 @@ export default function ProjectObjectList({ projectId, onBack }: { projectId: st
   async function submitProject() {
     if (!confirm('¿Enviar el proyecto completo al profesor? No podrás editarlo hasta que te lo devuelva.')) return;
     setSubmitting(true);
-    await sb.from('project_submissions').upsert({
+    const { error } = await sb.from('project_submissions').upsert({
       project_id: projectId,
       student_id: user!.id,
       status: 'submitted',
       submitted_at: new Date().toISOString(),
     }, { onConflict: 'project_id,student_id' });
+    if (error) { alert('Error al enviar: ' + error.message); setSubmitting(false); return; }
     await load();
     setSubmitting(false);
   }
