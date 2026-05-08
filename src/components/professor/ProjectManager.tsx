@@ -61,15 +61,13 @@ export default function ProjectManager({
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>({ type: 'list' });
 
-  useEffect(() => { load(); }, [profile?.id]);
+  useEffect(() => { load(); }, []);
 
   async function load() {
-    if (!profile?.id) return;
     setLoading(true);
     const { data, error } = await sb
       .from('projects')
       .select('*')
-      .eq('professor_id', profile.id)
       .order('created_at', { ascending: false });
     if (error) setError(error.message);
     else setProjects(data ?? []);
