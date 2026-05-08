@@ -69,7 +69,6 @@ export default function ProjectManager({
       .from('projects')
       .select('*')
       .order('created_at', { ascending: false });
-    console.log('[ProjectManager] load result:', { data, error });
     if (error) setError(error.message);
     else setProjects(data ?? []);
     setLoading(false);

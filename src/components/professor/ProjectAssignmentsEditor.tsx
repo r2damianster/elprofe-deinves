@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as any;
+import { useAuth } from '../../contexts/AuthContext';
 import { ArrowLeft, Plus, Trash2, BookOpen, Loader2, FolderOpen } from 'lucide-react';
 
 type Assignment = {
@@ -24,6 +25,7 @@ export default function ProjectAssignmentsEditor({
   onMapLessons: (courseId: string) => void;
   onBack: () => void;
 }) {
+  const { profile } = useAuth();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -56,6 +58,7 @@ export default function ProjectAssignmentsEditor({
       project_id: project.id,
       course_id: selectedCourseId,
       student_id: null,
+      professor_id: profile!.id,
     });
     if (error) { setError(error.message); setSaving(false); return; }
     setAdding(false);
