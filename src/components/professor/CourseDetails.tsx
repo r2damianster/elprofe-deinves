@@ -64,6 +64,8 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
         const formatted = data.map((item: any) => ({
           lesson_assignments_id: item.id,
           assigned_at: item.assigned_at,
+          available_from: item.available_from,
+          available_until: item.available_until,
           ...item.lessons,
         }));
         setAssignedLessons(formatted);
