@@ -40,7 +40,7 @@ type View =
   | { type: 'object_types'; project: Project }
   | { type: 'assignments'; project: Project }
   | { type: 'lesson_mapper'; project: Project; courseId: string }
-  | { type: 'reviewer'; project: Project };
+  ;
 
 type Course = { id: string; name: string };
 
