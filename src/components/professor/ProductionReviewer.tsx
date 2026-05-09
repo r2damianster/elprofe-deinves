@@ -122,13 +122,15 @@ export default function ProductionReviewer() {
   async function loadCourseLessons(courseId: string) {
     try {
       const { data, error } = await supabase
-        .from('lesson_courses')
+        .from('lesson_assignments')
         .select('lesson:lessons!lesson_id (id, title)')
         .eq('course_id', courseId);
       if (error) throw error;
+      const seen = new Set<string>();
       const lessons = (data || [])
         .map((row: any) => row.lesson)
-        .filter(Boolean) as { id: string; title: string }[];
+        .filter(Boolean)
+        .filter((l: any) => { if (seen.has(l.id)) return false; seen.add(l.id); return true; }) as { id: string; title: string }[];
       setCourseLessons(lessons);
     } catch (err: any) {
       console.error(err.message);
@@ -157,7 +159,7 @@ export default function ProductionReviewer() {
         query = query.eq('lesson_id', selectedLessonId);
       } else if (selectedCourseId) {
         const { data: lcData } = await supabase
-          .from('lesson_courses')
+          .from('lesson_assignments')
           .select('lesson_id')
           .eq('course_id', selectedCourseId);
         const lessonIds = (lcData || []).map((r: any) => r.lesson_id);
