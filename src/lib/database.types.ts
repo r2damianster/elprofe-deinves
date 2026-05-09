@@ -546,25 +546,34 @@ export type Database = {
         Row: {
           assigned_at: string
           assigned_by: string
+          available_from: string | null
+          available_until: string | null
           course_id: string | null
           id: string
           lesson_id: string
+          order_index: number
           student_id: string | null
         }
         Insert: {
           assigned_at?: string
           assigned_by: string
+          available_from?: string | null
+          available_until?: string | null
           course_id?: string | null
           id?: string
           lesson_id: string
+          order_index?: number
           student_id?: string | null
         }
         Update: {
           assigned_at?: string
           assigned_by?: string
+          available_from?: string | null
+          available_until?: string | null
           course_id?: string | null
           id?: string
           lesson_id?: string
+          order_index?: number
           student_id?: string | null
         }
         Relationships: [
@@ -894,31 +903,60 @@ export type Database = {
       project_assignments: {
         Row: {
           assigned_at: string | null
+          assigned_by: string | null
+          available_from: string | null
+          available_until: string | null
           course_id: string
           id: string
+          order_index: number
+          professor_id: string | null
           project_id: string
           student_id: string | null
         }
         Insert: {
           assigned_at?: string | null
+          assigned_by?: string | null
+          available_from?: string | null
+          available_until?: string | null
           course_id: string
           id?: string
+          order_index?: number
+          professor_id?: string | null
           project_id: string
           student_id?: string | null
         }
         Update: {
           assigned_at?: string | null
+          assigned_by?: string | null
+          available_from?: string | null
+          available_until?: string | null
           course_id?: string
           id?: string
+          order_index?: number
+          professor_id?: string | null
           project_id?: string
           student_id?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: "project_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "project_assignments_course_id_fkey"
             columns: ["course_id"]
             isOneToOne: false
             referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_assignments_professor_id_fkey"
+            columns: ["professor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1111,6 +1149,57 @@ export type Database = {
           },
           {
             foreignKeyName: "project_objects_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_submissions: {
+        Row: {
+          created_at: string | null
+          feedback: string | null
+          id: string
+          project_id: string
+          reviewed_at: string | null
+          score: number | null
+          status: string
+          student_id: string
+          submitted_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          feedback?: string | null
+          id?: string
+          project_id: string
+          reviewed_at?: string | null
+          score?: number | null
+          status?: string
+          student_id: string
+          submitted_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          feedback?: string | null
+          id?: string
+          project_id?: string
+          reviewed_at?: string | null
+          score?: number | null
+          status?: string
+          student_id?: string
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_submissions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_submissions_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "profiles"
