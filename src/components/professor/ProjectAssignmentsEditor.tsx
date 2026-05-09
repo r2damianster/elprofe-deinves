@@ -143,7 +143,7 @@ export default function ProjectAssignmentsEditor({
                 <div className="flex-1">
                   <p className="font-medium text-gray-800 text-sm">{course?.name ?? a.course_id}</p>
                   <p className="text-xs text-gray-400">
-                    Todo el curso · {new Date(a.assigned_at).toLocaleDateString()}
+                    Todo el curso · {a.assigned_at ? new Date(a.assigned_at).toLocaleDateString() : '—'}
                   </p>
                 </div>
                 <button
