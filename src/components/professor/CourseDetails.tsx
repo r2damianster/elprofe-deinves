@@ -181,6 +181,42 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
     setSavingId(null);
   }
 
+  async function loadAvailableLessons() {
+    const { data } = await supabase
+      .from('lessons')
+      .select('id, title, description')
+      .order('order_index', { ascending: true });
+    if (data) {
+      const assignedIds = new Set(assignedLessons.map(l => l.id));
+      const available = data.filter((l: any) => !assignedIds.has(l.id));
+      setAvailableLessons(available);
+      if (available.length > 0) setSelectedLessonId(available[0].id);
+    }
+  }
+
+  async function addLessonInline() {
+    if (!selectedLessonId) return;
+    setSavingNewLesson(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('lesson_assignments').insert({
+      lesson_id: selectedLessonId,
+      course_id: courseId,
+      student_id: null,
+      assigned_by: user!.id,
+      available_from: addLessonFrom ? new Date(addLessonFrom).toISOString() : null,
+      available_until: addLessonUntil ? new Date(addLessonUntil).toISOString() : null,
+    });
+    if (error) alert('Error: ' + error.message);
+    else {
+      setAddingLesson(false);
+      setSelectedLessonId('');
+      setAddLessonFrom('');
+      setAddLessonUntil('');
+      await loadAssignedLessons();
+    }
+    setSavingNewLesson(false);
+  }
+
   // Vista principal con tabs
   return (
     <div className="flex flex-col h-full bg-white">
