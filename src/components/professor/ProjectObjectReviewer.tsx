@@ -257,7 +257,6 @@ export default function ProjectObjectReviewer() {
     finally { setGradingAI(false); }
   }
 
-  const typeMap = Object.fromEntries(types.map(t => [t.id, t]));
   const objByType = Object.fromEntries(studentObjects.map(o => [o.object_type_id, o]));
   const selectedStudent = students.find(s => s.id === selectedStudentId);
   const project = projects.find(p => p.id === selectedProjectId);
