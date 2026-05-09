@@ -104,6 +104,38 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
     }
   }
 
+  async function loadCourseStudents() {
+    if (courseStudents.length > 0) return;
+    const { data } = await supabase
+      .from('course_students')
+      .select('student_id, profiles(id, full_name)')
+      .eq('course_id', courseId);
+    if (data) {
+      setCourseStudents(data.map((r: any) => r.profiles).filter(Boolean));
+    }
+  }
+
+  async function extendAccess(lessonId: string) {
+    if (!extendStudentId) return;
+    setExtendSaving(true);
+    const { error } = await supabase.from('lesson_assignments').insert({
+      lesson_id: lessonId,
+      course_id: courseId,
+      student_id: extendStudentId,
+      assigned_by: (await supabase.auth.getUser()).data.user?.id,
+      available_from: extendFrom ? new Date(extendFrom).toISOString() : null,
+      available_until: extendUntil ? new Date(extendUntil).toISOString() : null,
+    });
+    if (error) alert('Error: ' + error.message);
+    else {
+      setExtendingId(null);
+      setExtendStudentId('');
+      setExtendFrom('');
+      setExtendUntil('');
+    }
+    setExtendSaving(false);
+  }
+
   function toLocalInput(iso: string | null): string {
     if (!iso) return '';
     const d = new Date(iso);
