@@ -128,14 +128,6 @@ export default function ProjectManager({
       />
     );
   }
-  if (view.type === 'reviewer') {
-    return (
-      <ProjectReviewer
-        projectId={view.project.id}
-        onBack={() => setView({ type: 'list' })}
-      />
-    );
-  }
 
   return (
     <div className="space-y-4">
