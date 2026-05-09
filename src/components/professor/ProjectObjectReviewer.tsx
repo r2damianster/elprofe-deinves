@@ -15,6 +15,7 @@ type ObjectType = {
   min_words: number | null;
   max_words: number | null;
   required_words: string[] | null;
+  project_id: string;
 };
 
 type ProjectObjectRow = {
@@ -45,13 +46,16 @@ export default function ProjectObjectReviewer() {
   const { profile } = useAuth();
 
   const [courses, setCourses] = useState<{ id: string; name: string }[]>([]);
-  const [projects, setProjects] = useState<{ id: string; title: string }[]>([]);
+  // allProjects: todos los proyectos del profesor (para el dropdown y la carga inicial)
+  const [allProjects, setAllProjects] = useState<{ id: string; title: string; course_id: string }[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('submitted');
 
   const [types, setTypes] = useState<ObjectType[]>([]);
   const [objects, setObjects] = useState<ProjectObjectRow[]>([]);
+  // projectTitleMap: project_id → title (para mostrar en filas cuando no hay filtro)
+  const [projectTitleMap, setProjectTitleMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -63,45 +67,62 @@ export default function ProjectObjectReviewer() {
   const [generatingRubric, setGeneratingRubric] = useState(false);
   const [gradingId, setGradingId] = useState<string | null>(null);
 
+  // Cargar cursos y todos los proyectos al montar
   useEffect(() => {
     if (!profile?.id) return;
-    supabase
-      .from('courses')
-      .select('id, name')
-      .eq('professor_id', profile.id)
-      .order('name')
-      .then(({ data }) => setCourses(data ?? []));
+    Promise.all([
+      supabase.from('courses').select('id, name').eq('professor_id', profile.id).order('name'),
+      sb.from('projects').select('id, title, course_id').eq('professor_id', profile.id).order('created_at', { ascending: false }),
+    ]).then(([{ data: cData }, { data: pData }]) => {
+      setCourses(cData ?? []);
+      const pList = (pData ?? []) as { id: string; title: string; course_id: string }[];
+      setAllProjects(pList);
+      setProjectTitleMap(Object.fromEntries(pList.map((p: { id: string; title: string }) => [p.id, p.title])));
+    });
   }, [profile?.id]);
 
+  // Proyectos que aparecen en el dropdown (filtrados por curso si hay uno seleccionado)
+  const visibleProjects = selectedCourseId
+    ? allProjects.filter(p => p.course_id === selectedCourseId)
+    : allProjects;
+
+  // Cuando cambia el curso, limpiar proyecto si ya no pertenece al curso
   useEffect(() => {
-    if (!selectedCourseId || !profile?.id) {
-      setProjects([]);
-      setSelectedProjectId('');
-      return;
+    if (selectedCourseId && selectedProjectId) {
+      const stillValid = allProjects.some(
+        p => p.id === selectedProjectId && p.course_id === selectedCourseId
+      );
+      if (!stillValid) setSelectedProjectId('');
     }
-    sb.from('projects')
-      .select('id, title')
-      .eq('course_id', selectedCourseId)
-      .eq('professor_id', profile.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }: any) => {
-        setProjects(data ?? []);
-        setSelectedProjectId('');
-      });
-  }, [selectedCourseId, profile?.id]);
+  }, [selectedCourseId, allProjects, selectedProjectId]);
 
   const loadObjects = useCallback(async () => {
-    if (!selectedProjectId) {
+    if (!profile?.id) return;
+    setLoading(true);
+
+    // Determinar qué project_ids usar según filtros
+    let targetProjectIds: string[] = [];
+    if (selectedProjectId) {
+      targetProjectIds = [selectedProjectId];
+    } else if (selectedCourseId) {
+      targetProjectIds = allProjects
+        .filter(p => p.course_id === selectedCourseId)
+        .map(p => p.id);
+    } else {
+      targetProjectIds = allProjects.map(p => p.id);
+    }
+
+    if (targetProjectIds.length === 0) {
       setObjects([]);
       setTypes([]);
+      setLoading(false);
       return;
     }
-    setLoading(true);
 
     const { data: typesData } = await supabase
       .from('project_object_types')
-      .select('id, name, order_index, min_words, max_words, required_words')
-      .eq('project_id', selectedProjectId)
+      .select('id, name, order_index, min_words, max_words, required_words, project_id')
+      .in('project_id', targetProjectIds)
       .order('order_index');
 
     const typeList: ObjectType[] = typesData ?? [];
@@ -127,8 +148,9 @@ export default function ProjectObjectReviewer() {
 
     setObjects(data ?? []);
     setLoading(false);
-  }, [selectedProjectId, statusFilter]);
+  }, [profile?.id, allProjects, selectedCourseId, selectedProjectId, statusFilter]);
 
+  // Recargar cuando cambian filtros o se terminan de cargar los proyectos
   useEffect(() => { loadObjects(); }, [loadObjects]);
 
   async function submitReview(objectId: string, newStatus: 'approved' | 'needs_revision') {
@@ -164,7 +186,8 @@ export default function ProjectObjectReviewer() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const supabaseUrl = (supabase as any).supabaseUrl as string;
-      const project = projects.find(p => p.id === selectedProjectId);
+      const project = allProjects.find(p => p.id === selectedProjectId);
+      const projectTypes = types.filter(t => t.project_id === selectedProjectId);
       const res = await fetch(`${supabaseUrl}/functions/v1/ai-enhance`, {
         method: 'POST',
         headers: {
@@ -176,7 +199,7 @@ export default function ProjectObjectReviewer() {
           lang: 'es',
           data: {
             lesson_title: project?.title ?? '',
-            instructions: types.map(t => t.name).join(', '),
+            instructions: projectTypes.map(t => t.name).join(', '),
           },
         }),
       });
@@ -222,6 +245,7 @@ export default function ProjectObjectReviewer() {
   }
 
   const typeMap = Object.fromEntries(types.map(t => [t.id, t]));
+  const showProjectColumn = !selectedProjectId;
 
   return (
     <div className="space-y-4">
@@ -229,7 +253,7 @@ export default function ProjectObjectReviewer() {
       <div className="flex flex-wrap gap-3 items-center">
         <select
           value={selectedCourseId}
-          onChange={e => setSelectedCourseId(e.target.value)}
+          onChange={e => { setSelectedCourseId(e.target.value); setSelectedProjectId(''); }}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
         >
           <option value="">Todos los cursos</option>
@@ -239,11 +263,10 @@ export default function ProjectObjectReviewer() {
         <select
           value={selectedProjectId}
           onChange={e => setSelectedProjectId(e.target.value)}
-          disabled={!selectedCourseId}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
         >
-          <option value="">Selecciona un proyecto</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+          <option value="">Todos los proyectos</option>
+          {visibleProjects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
         </select>
 
         <select
@@ -258,11 +281,13 @@ export default function ProjectObjectReviewer() {
         </select>
 
         {objects.length > 0 && (
-          <span className="text-xs text-gray-400 ml-1">{objects.length} entrega{objects.length !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-gray-400 ml-1">
+            {objects.length} entrega{objects.length !== 1 ? 's' : ''}
+          </span>
         )}
       </div>
 
-      {/* Panel IA rúbrica */}
+      {/* Panel IA rúbrica (solo cuando hay proyecto específico seleccionado) */}
       {selectedProjectId && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -292,10 +317,6 @@ export default function ProjectObjectReviewer() {
         <div className="flex justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
         </div>
-      ) : !selectedProjectId ? (
-        <div className="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl text-sm">
-          Selecciona un curso y proyecto para ver entregas.
-        </div>
       ) : objects.length === 0 ? (
         <div className="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl text-sm">
           No hay entregas con el filtro seleccionado.
@@ -310,6 +331,7 @@ export default function ProjectObjectReviewer() {
             const missing = (type?.required_words ?? []).filter(
               w => !obj.content?.toLowerCase().includes(w.toLowerCase())
             );
+            const projectTitle = type ? projectTitleMap[type.project_id] : undefined;
 
             return (
               <div key={obj.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -328,10 +350,15 @@ export default function ProjectObjectReviewer() {
                     ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
                     : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
                   }
-                  <div className="flex-1 grid grid-cols-4 gap-2 items-center min-w-0">
+                  <div className={`flex-1 grid gap-2 items-center min-w-0 ${showProjectColumn ? 'grid-cols-5' : 'grid-cols-4'}`}>
                     <span className="font-medium text-gray-800 text-sm truncate">
                       {obj.student?.full_name ?? 'Estudiante'}
                     </span>
+                    {showProjectColumn && (
+                      <span className="text-xs text-teal-600 truncate font-medium">
+                        {projectTitle ?? '—'}
+                      </span>
+                    )}
                     <span className="text-xs text-gray-500 truncate">{type?.name ?? '—'}</span>
                     <span className="text-xs text-gray-400">{wc} palabras</span>
                     <div className="flex items-center gap-2 justify-end">
@@ -369,7 +396,7 @@ export default function ProjectObjectReviewer() {
                       </div>
                     )}
 
-                    {/* Contenido del estudiante */}
+                    {/* Contenido */}
                     <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
                       {obj.content?.trim()
                         ? obj.content
