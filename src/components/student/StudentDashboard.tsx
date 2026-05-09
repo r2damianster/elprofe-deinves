@@ -416,11 +416,16 @@ function LessonCard({
 }) {
   const pct       = progress?.completion_percentage ?? 0;
   const completed = !!progress?.completed_at;
+  const isLocked  = !!lesson.isLocked;
 
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group overflow-hidden"
+      className={`rounded-xl border transition-all overflow-hidden group ${
+        isLocked
+          ? 'bg-gray-50 border-gray-200 cursor-not-allowed opacity-75'
+          : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-md cursor-pointer'
+      }`}
     >
       <div
         className={`h-0.5 ${completed ? 'bg-green-500' : pct > 0 ? 'bg-blue-500' : 'bg-transparent'}`}
