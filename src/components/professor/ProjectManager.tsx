@@ -6,7 +6,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Plus, ArrowLeft, FolderOpen, Trash2 } from 'lucide-react';
 import ProjectObjectTypesEditor from './ProjectObjectTypesEditor';
 import ProjectLessonMapper from './ProjectLessonMapper';
-import ProjectReviewer from './ProjectReviewer';
 import ProjectAssignmentsEditor from './ProjectAssignmentsEditor';
 
 type Project = {
