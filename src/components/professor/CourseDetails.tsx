@@ -30,6 +30,10 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'lessons' | 'students' | 'groups' | 'present' | 'projects'>('lessons');
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFrom, setEditFrom] = useState('');
+  const [editUntil, setEditUntil] = useState('');
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadAssignedLessons();
