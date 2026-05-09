@@ -164,6 +164,32 @@ export default function LessonAssignment({ courses, initialCourseId }: LessonAss
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Disponible desde <span className="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <input
+              type="datetime-local"
+              value={availableFrom}
+              onChange={e => setAvailableFrom(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Disponible hasta <span className="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <input
+              type="datetime-local"
+              value={availableUntil}
+              onChange={e => setAvailableUntil(e.target.value)}
+              min={availableFrom}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Curso Destino
             </label>
