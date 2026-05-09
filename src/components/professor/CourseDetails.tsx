@@ -357,8 +357,6 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
                 </div>
               </div>
 
-              </div>{/* end flex items-start */}
-
               {extendingId === lesson.lesson_assignments_id && (
                 <div className="mx-4 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl space-y-2">
                   <p className="text-xs font-semibold text-blue-700">Extender acceso individual</p>
