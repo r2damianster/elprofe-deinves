@@ -21,7 +21,6 @@ export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: ()
   const { signOut, profile } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [activeTab, setActiveTab] = useState<ActiveTab>('courses');
-  const [preselectedCourseId, setPreselectedCourseId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
 
   const loadCourses = useCallback(async () => {
