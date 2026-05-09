@@ -9,7 +9,10 @@ type Assignment = {
   id: string;
   course_id: string;
   student_id: string | null;
-  assigned_at: string;
+  assigned_at: string | null;
+  available_from: string | null;
+  available_until: string | null;
+  order_index: number;
 };
 
 type Course = { id: string; name: string };
