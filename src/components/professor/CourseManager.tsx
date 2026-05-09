@@ -15,10 +15,9 @@ interface Course {
 interface CourseManagerProps {
   courses: Course[];
   onUpdate: () => void;
-  onAssignLessons: (courseId: string) => void;
 }
 
-export default function CourseManager({ courses, onUpdate, onAssignLessons }: CourseManagerProps) {
+export default function CourseManager({ courses, onUpdate }: CourseManagerProps) {
   const { profile } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [courseName, setCourseName] = useState('');
