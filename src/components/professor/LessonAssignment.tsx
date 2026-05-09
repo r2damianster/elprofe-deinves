@@ -105,6 +105,8 @@ export default function LessonAssignment({ courses, initialCourseId }: LessonAss
         course_id: assignmentType === 'course' ? selectedCourse : null,
         student_id: assignmentType === 'student' ? selectedStudent : null,
         assigned_by: profile?.id,
+        available_from: availableFrom || null,
+        available_until: availableUntil || null,
       }));
 
       const { error } = await supabase.from('lesson_assignments').insert(assignments);
