@@ -283,6 +283,46 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
           Lecciones Asignadas al Curso
         </h3>
 
+        {addingLesson && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3 mb-4">
+            <p className="text-xs font-semibold text-blue-700">Nueva lección para este curso</p>
+            {availableLessons.length === 0 ? (
+              <p className="text-sm text-gray-500">No hay lecciones disponibles sin asignar.</p>
+            ) : (
+              <select
+                value={selectedLessonId}
+                onChange={e => setSelectedLessonId(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {availableLessons.map(l => (
+                  <option key={l.id} value={l.id}>{resolveField(l.title, courseLanguage)}</option>
+                ))}
+              </select>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Desde <span className="text-gray-400">(opcional)</span></label>
+                <input type="datetime-local" value={addLessonFrom} onChange={e => setAddLessonFrom(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Hasta <span className="text-gray-400">(opcional)</span></label>
+                <input type="datetime-local" value={addLessonUntil} min={addLessonFrom} onChange={e => setAddLessonUntil(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={addLessonInline} disabled={savingNewLesson || !selectedLessonId || availableLessons.length === 0}
+                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                {savingNewLesson ? 'Asignando...' : 'Asignar'}
+              </button>
+              <button onClick={() => setAddingLesson(false)} className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12 text-gray-400">
             <Loader2 className="w-8 h-8 animate-spin mb-3 text-blue-500" />
