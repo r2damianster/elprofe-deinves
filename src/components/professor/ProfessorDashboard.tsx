@@ -140,7 +140,6 @@ export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: ()
             {activeTab === 'assignments' && (
               <Asignaciones
                 courses={courses}
-                initialCourseId={preselectedCourseId}
               />
             )}
             {activeTab === 'evaluations' && (
