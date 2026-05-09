@@ -294,9 +294,8 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
 
         {/* Tab: Asignar (Lecciones + Proyectos unificados) */}
         {view === 'assign' && (<>
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-          <BookOpen className="w-5 h-5 mr-2 text-blue-600" />
-          Lecciones Asignadas al Curso
+        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-blue-500" /> Lecciones
         </h3>
 
         {addingLesson && (
