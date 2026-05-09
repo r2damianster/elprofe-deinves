@@ -34,6 +34,12 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
   const [editFrom, setEditFrom] = useState('');
   const [editUntil, setEditUntil] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [extendingId, setExtendingId] = useState<string | null>(null);
+  const [extendStudentId, setExtendStudentId] = useState('');
+  const [extendFrom, setExtendFrom] = useState('');
+  const [extendUntil, setExtendUntil] = useState('');
+  const [extendSaving, setExtendSaving] = useState(false);
+  const [courseStudents, setCourseStudents] = useState<{id: string; full_name: string}[]>([]);
 
   useEffect(() => {
     loadAssignedLessons();
