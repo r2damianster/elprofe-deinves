@@ -27,6 +27,7 @@ type ProjectObjectRow = {
   feedback: string | null;
   version: number;
   submitted_at: string | null;
+  project_id: string;
   object_type_id: string;
   student: { full_name: string; email: string };
 };
@@ -45,10 +46,8 @@ function statusBadge(status: string) {
 export default function ProjectObjectReviewer() {
   const { profile } = useAuth();
 
-  // Estado solo para dropdowns UI
-  const [courses, setCourses] = useState<{ id: string; name: string }[]>([]);
-  const [allProjects, setAllProjects] = useState<{ id: string; title: string; course_id: string }[]>([]);
-  const [selectedCourseId, setSelectedCourseId] = useState('');
+  // Proyectos del profesor para el dropdown
+  const [allProjects, setAllProjects] = useState<{ id: string; title: string }[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('submitted');
 
@@ -66,34 +65,28 @@ export default function ProjectObjectReviewer() {
   const [generatingRubric, setGeneratingRubric] = useState(false);
   const [gradingId, setGradingId] = useState<string | null>(null);
 
-  // Cargar cursos y proyectos para los dropdowns
+  // Cargar proyectos del profesor para el dropdown (sin course_id)
   useEffect(() => {
     if (!profile?.id) return;
     supabase
-      .from('courses')
-      .select('id, name')
-      .eq('professor_id', profile.id)
-      .order('name')
-      .then(({ data }) => setCourses(data ?? []));
-
-    sb.from('projects')
-      .select('id, title, course_id')
+      .from('projects')
+      .select('id, title')
       .eq('professor_id', profile.id)
       .order('created_at', { ascending: false })
-      .then(({ data }: any) => {
-        const pList = (data ?? []) as { id: string; title: string; course_id: string }[];
+      .then(({ data }) => {
+        const pList = (data ?? []) as { id: string; title: string }[];
         setAllProjects(pList);
         setProjectTitleMap(Object.fromEntries(pList.map(p => [p.id, p.title])));
       });
   }, [profile?.id]);
 
-  // loadObjects consulta proyectos directamente — no depende del estado allProjects
+  // loadObjects usa project_id directo — no pasa por object_type_id
   const loadObjects = useCallback(async () => {
     if (!profile?.id) return;
     setLoading(true);
     setExpanded(null);
 
-    // Obtener project_ids relevantes directo de DB
+    // Obtener project_ids del profesor
     let projectQuery = supabase
       .from('projects')
       .select('id')
@@ -101,13 +94,11 @@ export default function ProjectObjectReviewer() {
 
     if (selectedProjectId) {
       projectQuery = projectQuery.eq('id', selectedProjectId);
-    } else if (selectedCourseId) {
-      projectQuery = projectQuery.eq('course_id', selectedCourseId);
     }
 
     const { data: projectsData, error: projectsError } = await projectQuery;
     if (projectsError) {
-      console.error('ProjectObjectReviewer - projects query error:', projectsError);
+      console.error('[ProjectObjectReviewer] projects error:', projectsError.message);
       setLoading(false);
       return;
     }
@@ -120,47 +111,34 @@ export default function ProjectObjectReviewer() {
       return;
     }
 
-    // Obtener tipos de objeto para esos proyectos
-    const { data: typesData, error: typesError } = await supabase
+    // Obtener tipos para el typeMap (nombres, requisitos)
+    const { data: typesData } = await supabase
       .from('project_object_types')
       .select('id, name, order_index, min_words, max_words, required_words, project_id')
       .in('project_id', targetProjectIds)
       .order('order_index');
 
-    if (typesError) {
-      console.error('ProjectObjectReviewer - types query error:', typesError);
-      setLoading(false);
-      return;
-    }
+    setTypes((typesData ?? []) as ObjectType[]);
 
-    const typeList: ObjectType[] = typesData ?? [];
-    setTypes(typeList);
-
-    const typeIds = typeList.map(t => t.id);
-    if (typeIds.length === 0) {
-      setObjects([]);
-      setLoading(false);
-      return;
-    }
-
+    // Obtener objetos directamente por project_id
     const statusValues = statusFilter === 'all'
       ? ['submitted', 'approved', 'needs_revision']
       : [statusFilter];
 
     const { data, error: objsError } = await sb
       .from('project_objects')
-      .select('id, status, content, word_count, score, feedback, version, submitted_at, object_type_id, student:profiles!student_id(full_name, email)')
-      .in('object_type_id', typeIds)
+      .select('id, status, content, word_count, score, feedback, version, submitted_at, project_id, object_type_id, student:profiles!student_id(full_name, email)')
+      .in('project_id', targetProjectIds)
       .in('status', statusValues)
       .order('submitted_at', { ascending: false });
 
     if (objsError) {
-      console.error('ProjectObjectReviewer - objects query error:', objsError);
+      console.error('[ProjectObjectReviewer] objects error:', objsError.message);
     }
 
     setObjects(data ?? []);
     setLoading(false);
-  }, [profile?.id, selectedCourseId, selectedProjectId, statusFilter]);
+  }, [profile?.id, selectedProjectId, statusFilter]);
 
   useEffect(() => { loadObjects(); }, [loadObjects]);
 
@@ -256,9 +234,6 @@ export default function ProjectObjectReviewer() {
   }
 
   const typeMap = Object.fromEntries(types.map(t => [t.id, t]));
-  const visibleProjects = selectedCourseId
-    ? allProjects.filter(p => p.course_id === selectedCourseId)
-    : allProjects;
   const showProjectColumn = !selectedProjectId;
 
   return (
@@ -266,21 +241,12 @@ export default function ProjectObjectReviewer() {
       {/* Filtros */}
       <div className="flex flex-wrap gap-3 items-center">
         <select
-          value={selectedCourseId}
-          onChange={e => { setSelectedCourseId(e.target.value); setSelectedProjectId(''); }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-        >
-          <option value="">Todos los cursos</option>
-          {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-
-        <select
           value={selectedProjectId}
           onChange={e => setSelectedProjectId(e.target.value)}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
         >
           <option value="">Todos los proyectos</option>
-          {visibleProjects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+          {allProjects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
         </select>
 
         <select
@@ -295,7 +261,7 @@ export default function ProjectObjectReviewer() {
         </select>
 
         {!loading && (
-          <span className="text-xs text-gray-400 ml-1">
+          <span className="text-xs text-gray-400">
             {objects.length} entrega{objects.length !== 1 ? 's' : ''}
           </span>
         )}
@@ -345,7 +311,7 @@ export default function ProjectObjectReviewer() {
             const missing = (type?.required_words ?? []).filter(
               w => !obj.content?.toLowerCase().includes(w.toLowerCase())
             );
-            const projectTitle = type ? projectTitleMap[type.project_id] : undefined;
+            const projectTitle = projectTitleMap[obj.project_id];
 
             return (
               <div key={obj.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
