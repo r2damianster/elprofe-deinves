@@ -276,9 +276,6 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
       {/* Contenido por tab */}
       <div className="p-6 flex-1 overflow-y-auto">
 
-        {/* Tab: Proyectos */}
-        {view === 'projects' && <CourseProjectsManager courseId={courseId} />}
-
         {/* Tab: Estudiantes */}
         {view === 'students' && <StudentManager courseId={courseId} />}
 
@@ -291,12 +288,12 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
             courseId={courseId}
             courseName={courseName}
             courseLanguage={courseLanguage}
-            onBack={() => setView('lessons')}
+            onBack={() => setView('assign')}
           />
         )}
 
-        {/* Tab: Lecciones */}
-        {view === 'lessons' && (<>
+        {/* Tab: Asignar (Lecciones + Proyectos unificados) */}
+        {view === 'assign' && (<>
         <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
           <BookOpen className="w-5 h-5 mr-2 text-blue-600" />
           Lecciones Asignadas al Curso
