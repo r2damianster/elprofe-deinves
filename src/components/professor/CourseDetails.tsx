@@ -225,23 +225,58 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
                   {resolveField(lesson.description, courseLanguage) && (
                     <p className="text-sm text-gray-600 mt-1">{resolveField(lesson.description, courseLanguage)}</p>
                   )}
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      Asignado {new Date(lesson.assigned_at).toLocaleDateString()}
-                    </span>
-                    {lesson.available_from && (
-                      <span className="flex items-center gap-1 text-blue-500">
-                        Desde {new Date(lesson.available_from).toLocaleString()}
-                      </span>
-                    )}
-                    {lesson.available_until && (
-                      <span className="flex items-center gap-1 text-orange-500">
-                        Hasta {new Date(lesson.available_until).toLocaleString()}
-                      </span>
-                    )}
-                    {!lesson.available_from && !lesson.available_until && (
-                      <span className="text-green-500">Siempre disponible</span>
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    {editingId === lesson.lesson_assignments_id ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
+                            <input type="datetime-local" value={editFrom}
+                              onChange={e => setEditFrom(e.target.value)}
+                              className="w-full border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
+                            <input type="datetime-local" value={editUntil} min={editFrom}
+                              onChange={e => setEditUntil(e.target.value)}
+                              className="w-full border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => saveDates(lesson.lesson_assignments_id)}
+                            disabled={savingId === lesson.lesson_assignments_id}
+                            className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                            {savingId === lesson.lesson_assignments_id
+                              ? <Loader2 className="w-3 h-3 animate-spin" />
+                              : <Save className="w-3 h-3" />}
+                            Guardar
+                          </button>
+                          <button onClick={() => setEditingId(null)}
+                            className="flex items-center gap-1 px-3 py-1 text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            <X className="w-3 h-3" /> Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          Asignado {new Date(lesson.assigned_at).toLocaleDateString()}
+                        </span>
+                        {lesson.available_from && (
+                          <span className="text-blue-500">Desde {new Date(lesson.available_from).toLocaleString()}</span>
+                        )}
+                        {lesson.available_until && (
+                          <span className="text-orange-500">Hasta {new Date(lesson.available_until).toLocaleString()}</span>
+                        )}
+                        {!lesson.available_from && !lesson.available_until && (
+                          <span className="text-green-500">Siempre disponible</span>
+                        )}
+                        <button onClick={() => startEdit(lesson)}
+                          className="flex items-center gap-1 text-gray-400 hover:text-blue-600 transition opacity-0 group-hover:opacity-100 ml-1">
+                          <Pencil className="w-3 h-3" /> Editar fechas
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
