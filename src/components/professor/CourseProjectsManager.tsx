@@ -21,7 +21,7 @@ type AvailableProject = {
   object_logic: string;
 };
 
-export default function CourseProjectsManager({ courseId }: { courseId: string }) {
+export default function CourseProjectsManager({ courseId, triggerAdd }: { courseId: string; triggerAdd?: number }) {
   const { profile } = useAuth();
   const [assigned, setAssigned] = useState<AssignedProject[]>([]);
   const [available, setAvailable] = useState<AvailableProject[]>([]);
