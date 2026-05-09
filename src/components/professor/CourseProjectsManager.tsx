@@ -133,11 +133,22 @@ export default function CourseProjectsManager({ courseId }: { courseId: string }
                 <option key={p.id} value={p.id}>{p.title}</option>
               ))}
             </select>
-            <button
-              onClick={assign}
-              disabled={saving}
-              className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50"
-            >
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Desde <span className="text-gray-400">(opcional)</span></label>
+              <input type="datetime-local" value={availableFrom} onChange={e => setAvailableFrom(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Hasta <span className="text-gray-400">(opcional)</span></label>
+              <input type="datetime-local" value={availableUntil} min={availableFrom} onChange={e => setAvailableUntil(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={assign} disabled={saving}
+              className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50">
               {saving ? 'Asignando...' : 'Asignar'}
             </button>
             <button onClick={() => setAdding(false)} className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700">
