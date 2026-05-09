@@ -459,7 +459,11 @@ function LessonCard({
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {completed ? (
+          {isLocked ? (
+            <span className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-red-100 text-red-600">
+              <Lock className="w-3.5 h-3.5" /> Acceso cerrado
+            </span>
+          ) : completed ? (
             <span className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-green-100 text-green-700">
               <CheckCircle className="w-3.5 h-3.5" /> Completada
             </span>
@@ -476,7 +480,7 @@ function LessonCard({
               Sin empezar
             </span>
           )}
-          <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-blue-400 transition-colors" />
+          {!isLocked && <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-blue-400 transition-colors" />}
         </div>
       </div>
     </div>
