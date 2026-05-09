@@ -4,8 +4,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { resolveField } from '../../lib/i18n';
 import {
   Trophy, ChevronDown, ChevronRight, CheckCircle, XCircle,
-  FileText, Loader2, BarChart2, RefreshCw, Star, BookOpen
+  FileText, Loader2, BarChart2, RefreshCw, Star, BookOpen, FlaskConical,
 } from 'lucide-react';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sb = supabase as any;
 
 interface LessonSummary {
   lesson_id: string;
@@ -38,6 +41,15 @@ interface ProductionSummary {
   integrity_score: number;
 }
 
+interface ProjectResult {
+  id: string;
+  title: string;
+  status: 'submitted' | 'reviewed';
+  score: number | null;
+  feedback: string | null;
+  submitted_at: string | null;
+}
+
 const STATUS_LABEL: Record<string, string> = {
   draft:     'Borrador',
   submitted: 'Enviada',
@@ -51,9 +63,10 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function StudentResults() {
   const { profile } = useAuth();
-  const [loading, setLoading]   = useState(true);
-  const [lessons, setLessons]   = useState<LessonSummary[]>([]);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [loading, setLoading]       = useState(true);
+  const [lessons, setLessons]       = useState<LessonSummary[]>([]);
+  const [projectResults, setProjectResults] = useState<ProjectResult[]>([]);
+  const [expanded, setExpanded]     = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -166,6 +179,31 @@ export default function StudentResults() {
       });
 
       setLessons(summaries);
+
+      // 7. Project submissions (sent or reviewed)
+      try {
+        const { data: subs } = await sb
+          .from('project_submissions')
+          .select('id, status, score, feedback, submitted_at, projects(id, title)')
+          .eq('student_id', profile!.id)
+          .in('status', ['submitted', 'reviewed'])
+          .order('submitted_at', { ascending: false });
+
+        const results: ProjectResult[] = (subs ?? [])
+          .filter((s: any) => s.projects)
+          .map((s: any) => ({
+            id:           s.id,
+            title:        s.projects.title,
+            status:       s.status,
+            score:        s.score,
+            feedback:     s.feedback,
+            submitted_at: s.submitted_at,
+          }));
+
+        setProjectResults(results);
+      } catch {
+        // project_submissions may not exist yet; fail silently
+      }
     } finally {
       setLoading(false);
     }
@@ -194,7 +232,7 @@ export default function StudentResults() {
     );
   }
 
-  if (lessons.length === 0) {
+  if (lessons.length === 0 && projectResults.length === 0) {
     return (
       <div className="text-center py-20 text-gray-400">
         <BarChart2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
@@ -412,6 +450,74 @@ export default function StudentResults() {
           </div>
         );
       })}
+
+      {/* ── Proyectos ────────────────────────────────────────── */}
+      {projectResults.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-4">
+            <FlaskConical className="w-5 h-5 text-indigo-500" />
+            <h2 className="text-lg font-bold text-gray-800">Proyectos enviados</h2>
+            <span className="text-sm text-gray-400 ml-auto">
+              {projectResults.length} proyecto{projectResults.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {projectResults.map(pr => (
+              <div
+                key={pr.id}
+                className={`rounded-xl border overflow-hidden shadow-sm ${
+                  pr.status === 'reviewed'
+                    ? 'bg-emerald-50 border-emerald-200'
+                    : 'bg-white border-gray-200'
+                }`}
+              >
+                <div className="px-5 py-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800 truncate">{pr.title}</p>
+                      {pr.submitted_at && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          Enviado el {new Date(pr.submitted_at).toLocaleDateString('es', { day: '2-digit', month: 'long', year: 'numeric' })}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {pr.score !== null && pr.score !== undefined && (
+                        <span className="flex items-center gap-1 text-sm font-bold text-emerald-700">
+                          <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                          {pr.score}/10
+                        </span>
+                      )}
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                        pr.status === 'reviewed'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {pr.status === 'reviewed' ? 'Evaluado' : 'En revisión'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {pr.feedback && (
+                    <div className="mt-3 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
+                      <p className="text-xs font-semibold text-blue-600 mb-1">Retroalimentación del profesor</p>
+                      <p className="text-sm text-blue-800 leading-relaxed">{pr.feedback}</p>
+                    </div>
+                  )}
+
+                  {pr.status === 'reviewed' && !pr.feedback && (
+                    <div className="mt-3 flex items-center gap-2 text-sm text-emerald-600">
+                      <CheckCircle className="w-4 h-4" />
+                      Proyecto evaluado
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
