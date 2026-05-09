@@ -18,6 +18,7 @@ interface Lesson {
   description: any;
   has_production: boolean;
   production_unlock_percentage: number;
+  isLocked?: boolean;
 }
 
 interface Progress {
