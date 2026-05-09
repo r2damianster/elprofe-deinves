@@ -499,6 +499,11 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
             ))}
           </div>
         )}
+
+        {/* Proyectos */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <CourseProjectsManager courseId={courseId} triggerAdd={projectAddTrigger} />
+        </div>
         </>)}
       </div>
     </div>
