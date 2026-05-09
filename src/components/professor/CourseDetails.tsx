@@ -227,8 +227,8 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
             <h2 className="text-2xl font-bold text-gray-800">{courseName}</h2>
             <p className="text-sm text-gray-500 mt-1">Gestión del curso</p>
           </div>
-          {view === 'lessons' && (
-            <button onClick={onAssignLessons}
+          {view === 'lessons' && !addingLesson && (
+            <button onClick={() => { setAddingLesson(true); loadAvailableLessons(); }}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
               <Plus className="w-4 h-4 mr-2" /> Asignar Lección
             </button>
