@@ -131,22 +131,34 @@ export default function StudentDashboard() {
   async function loadAssignedLessons() {
     try {
       const courseIds = await getCourseIds();
-      const now = new Date().toISOString();
+      const nowIso = new Date().toISOString();
       const { data: assignments } = await supabase
         .from('lesson_assignments')
-        .select('lesson_id, course_id, lessons(*), courses(language)')
+        .select('lesson_id, course_id, student_id, available_until, lessons(*), courses(language)')
         .or(`student_id.eq.${profile?.id},course_id.in.(${courseIds})`)
-        .or(`available_from.is.null,available_from.lte.${now}`);
+        .or(`available_from.is.null,available_from.lte.${nowIso}`);
 
       if (assignments) {
-        const uniqueLessons = Array.from(
-          new Map(
-            assignments
-              .filter((a: any) => a.lessons)
-              .map((a: any) => [a.lessons.id, a.lessons])
-          ).values()
-        );
-        setAssignedLessons(uniqueLessons as Lesson[]);
+        const now = new Date();
+        // Group by lesson_id to determine lock status
+        const byLesson = new Map<string, any[]>();
+        assignments.filter((a: any) => a.lessons).forEach((a: any) => {
+          const lid = a.lessons.id;
+          if (!byLesson.has(lid)) byLesson.set(lid, []);
+          byLesson.get(lid)!.push(a);
+        });
+
+        const uniqueLessons: Lesson[] = Array.from(byLesson.entries()).map(([, asgns]) => {
+          // Individual assignment (student_id set) takes priority over course-level
+          const individual = asgns.filter((a: any) => a.student_id === profile?.id);
+          const relevant = individual.length > 0 ? individual : asgns;
+          const hasActive = relevant.some(
+            (a: any) => !a.available_until || new Date(a.available_until) >= now
+          );
+          return { ...asgns[0].lessons, isLocked: !hasActive };
+        });
+
+        setAssignedLessons(uniqueLessons);
 
         const langMap: Record<string, 'es' | 'en'> = {};
         assignments.forEach((a: any) => {
@@ -156,7 +168,7 @@ export default function StudentDashboard() {
         });
         setLessonLang(langMap);
 
-        await loadProgress(uniqueLessons.map((l: any) => l.id));
+        await loadProgress(uniqueLessons.map(l => l.id));
       }
     } catch (error) {
       console.error('Error loading lessons:', error);
