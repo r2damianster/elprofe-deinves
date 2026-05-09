@@ -158,13 +158,14 @@ export default function ProductionReviewer() {
       if (selectedLessonId) {
         query = query.eq('lesson_id', selectedLessonId);
       } else if (selectedCourseId) {
-        const { data: lcData } = await supabase
-          .from('lesson_assignments')
-          .select('lesson_id')
-          .eq('course_id', selectedCourseId);
-        const lessonIds = (lcData || []).map((r: any) => r.lesson_id);
-        if (lessonIds.length > 0) {
-          query = query.in('lesson_id', lessonIds);
+        const [{ data: lcData }, { data: csData }] = await Promise.all([
+          supabase.from('lesson_assignments').select('lesson_id').eq('course_id', selectedCourseId),
+          supabase.from('course_students').select('student_id').eq('course_id', selectedCourseId),
+        ]);
+        const lessonIds = [...new Set((lcData || []).map((r: any) => r.lesson_id))];
+        const studentIds = (csData || []).map((r: any) => r.student_id);
+        if (lessonIds.length > 0 && studentIds.length > 0) {
+          query = query.in('lesson_id', lessonIds).in('student_id', studentIds);
         } else {
           setProductions([]);
           setLoading(false);
