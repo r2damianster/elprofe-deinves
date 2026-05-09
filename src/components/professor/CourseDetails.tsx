@@ -98,17 +98,27 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
     }
   }
 
+  function toLocalInput(iso: string | null): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  }
+
   function startEdit(lesson: AssignedLesson) {
     setEditingId(lesson.lesson_assignments_id);
-    setEditFrom(lesson.available_from ? lesson.available_from.slice(0, 16) : '');
-    setEditUntil(lesson.available_until ? lesson.available_until.slice(0, 16) : '');
+    setEditFrom(toLocalInput(lesson.available_from));
+    setEditUntil(toLocalInput(lesson.available_until));
   }
 
   async function saveDates(assignmentId: string) {
     setSavingId(assignmentId);
     const { error } = await supabase
       .from('lesson_assignments')
-      .update({ available_from: editFrom || null, available_until: editUntil || null })
+      .update({
+        available_from: editFrom ? new Date(editFrom).toISOString() : null,
+        available_until: editUntil ? new Date(editUntil).toISOString() : null,
+      })
       .eq('id', assignmentId);
     if (error) {
       alert('Error al guardar: ' + error.message);
