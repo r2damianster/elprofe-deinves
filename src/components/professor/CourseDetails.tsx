@@ -196,9 +196,24 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
                   {resolveField(lesson.description, courseLanguage) && (
                     <p className="text-sm text-gray-600 mt-1">{resolveField(lesson.description, courseLanguage)}</p>
                   )}
-                  <div className="flex items-center text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
-                    <Clock className="w-3.5 h-3.5 mr-1" />
-                    Asignado el {new Date(lesson.assigned_at).toLocaleDateString()}
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      Asignado {new Date(lesson.assigned_at).toLocaleDateString()}
+                    </span>
+                    {lesson.available_from && (
+                      <span className="flex items-center gap-1 text-blue-500">
+                        Desde {new Date(lesson.available_from).toLocaleString()}
+                      </span>
+                    )}
+                    {lesson.available_until && (
+                      <span className="flex items-center gap-1 text-orange-500">
+                        Hasta {new Date(lesson.available_until).toLocaleString()}
+                      </span>
+                    )}
+                    {!lesson.available_from && !lesson.available_until && (
+                      <span className="text-green-500">Siempre disponible</span>
+                    )}
                   </div>
                 </div>
                 <button
