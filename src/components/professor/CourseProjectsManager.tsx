@@ -182,14 +182,13 @@ export default function CourseProjectsManager({ courseId, triggerAdd }: { course
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <FolderOpen className="w-5 h-5 text-purple-600" />
-          Proyectos del curso
+        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+          <FolderOpen className="w-4 h-4 text-purple-500" /> Proyectos
         </h3>
         {available.length > 0 && (
           <button
             onClick={() => { setAdding(true); setError(null); }}
-            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-medium shadow-sm"
+            className="flex items-center px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-xs font-medium shadow-sm"
           >
             <Plus className="w-4 h-4 mr-2" /> Añadir proyecto
           </button>
