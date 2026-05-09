@@ -389,7 +389,7 @@ export default function StudentDashboard() {
                       lesson={item.lesson}
                       progress={progress[item.lesson.id] ?? null}
                       lang={lessonLang[item.lesson.id] ?? 'es'}
-                      onClick={() => setSelectedLesson(item.lesson.id)}
+                      onClick={() => !item.lesson.isLocked && setSelectedLesson(item.lesson.id)}
                     />
                   : <ProjectCard
                       key={`project-${item.project.id}`}
