@@ -133,10 +133,6 @@ export default function ProfessorDashboard({ onSwitchView }: { onSwitchView?: ()
               <CourseManager
                 courses={courses}
                 onUpdate={loadCourses}
-                onAssignLessons={(courseId) => {
-                  setPreselectedCourseId(courseId);
-                  setActiveTab('assignments');
-                }}
               />
             )}
             {activeTab === 'studio' && (
