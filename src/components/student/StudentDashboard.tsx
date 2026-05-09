@@ -130,10 +130,13 @@ export default function StudentDashboard() {
   async function loadAssignedLessons() {
     try {
       const courseIds = await getCourseIds();
+      const now = new Date().toISOString();
       const { data: assignments } = await supabase
         .from('lesson_assignments')
         .select('lesson_id, course_id, lessons(*), courses(language)')
-        .or(`student_id.eq.${profile?.id},course_id.in.(${courseIds})`);
+        .or(`student_id.eq.${profile?.id},course_id.in.(${courseIds})`)
+        .or(`available_from.is.null,available_from.lte.${now}`)
+        .or(`available_until.is.null,available_until.gte.${now}`);
 
       if (assignments) {
         const uniqueLessons = Array.from(
