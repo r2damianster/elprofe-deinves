@@ -353,7 +353,7 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
               Este curso no tiene material asignado. Empieza asignando tu primera lección para que los estudiantes puedan estudiar.
             </p>
             <button
-              onClick={() => { setAddingLesson(true); loadAvailableLessons(); }}
+              onClick={() => { setAddChoiceOpen(true); }}
               className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow"
             >
               Asignar mi primera lección
