@@ -125,7 +125,11 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
     } else {
       setAssignedLessons(prev => prev.map(l =>
         l.lesson_assignments_id === assignmentId
-          ? { ...l, available_from: editFrom || null, available_until: editUntil || null }
+          ? {
+              ...l,
+              available_from: editFrom ? new Date(editFrom).toISOString() : null,
+              available_until: editUntil ? new Date(editUntil).toISOString() : null,
+            }
           : l
       ));
       setEditingId(null);
