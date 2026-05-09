@@ -109,6 +109,71 @@ export default function CourseProjectsManager({ courseId }: { courseId: string }
     await load();
   }
 
+  function toLocalInput(iso: string | null): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  }
+
+  async function loadCourseStudents() {
+    if (courseStudents.length > 0) return;
+    const { data } = await supabase
+      .from('course_students')
+      .select('student_id, profiles(id, full_name)')
+      .eq('course_id', courseId);
+    if (data) {
+      setCourseStudents(data.map((r: any) => r.profiles).filter(Boolean));
+    }
+  }
+
+  async function saveDates(assignmentId: string) {
+    setSavingEdit(true);
+    const { error: err } = await sb
+      .from('project_assignments')
+      .update({
+        available_from: editFrom ? new Date(editFrom).toISOString() : null,
+        available_until: editUntil ? new Date(editUntil).toISOString() : null,
+      })
+      .eq('id', assignmentId);
+    if (err) {
+      alert('Error al guardar: ' + err.message);
+    } else {
+      setAssigned(prev => prev.map(p =>
+        p.assignment_id === assignmentId
+          ? {
+              ...p,
+              available_from: editFrom ? new Date(editFrom).toISOString() : null,
+              available_until: editUntil ? new Date(editUntil).toISOString() : null,
+            }
+          : p
+      ));
+      setEditingId(null);
+    }
+    setSavingEdit(false);
+  }
+
+  async function extendAccess(projectId: string) {
+    if (!extendStudentId) return;
+    setExtendSaving(true);
+    const { error: err } = await sb.from('project_assignments').insert({
+      project_id: projectId,
+      course_id: courseId,
+      student_id: extendStudentId,
+      professor_id: profile!.id,
+      available_from: extendFrom ? new Date(extendFrom).toISOString() : null,
+      available_until: extendUntil ? new Date(extendUntil).toISOString() : null,
+    });
+    if (err) alert('Error: ' + err.message);
+    else {
+      setExtendingId(null);
+      setExtendStudentId('');
+      setExtendFrom('');
+      setExtendUntil('');
+    }
+    setExtendSaving(false);
+  }
+
   const LOGIC_LABELS: Record<string, string> = {
     ordinal: 'Ordinal', causal: 'Causal', structural: 'Estructural',
   };
