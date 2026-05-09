@@ -85,8 +85,8 @@ export default function CourseProjectsManager({ courseId }: { courseId: string }
       course_id: courseId,
       student_id: null,
       professor_id: profile!.id,
-      available_from: availableFrom || null,
-      available_until: availableUntil || null,
+      available_from: availableFrom ? new Date(availableFrom).toISOString() : null,
+      available_until: availableUntil ? new Date(availableUntil).toISOString() : null,
     });
     if (error) { setError(error.message); setSaving(false); return; }
     setAdding(false);
