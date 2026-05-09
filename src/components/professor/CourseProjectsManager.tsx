@@ -263,38 +263,142 @@ export default function CourseProjectsManager({ courseId }: { courseId: string }
       ) : (
         <div className="space-y-3">
           {assigned.map(p => (
-            <div key={p.assignment_id} className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl bg-white hover:border-purple-200 transition group">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="font-semibold text-gray-800">{p.title}</h4>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {p.is_active ? 'Activo' : 'Inactivo'}
-                  </span>
-                  {LOGIC_LABELS[p.object_logic] && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
-                      {LOGIC_LABELS[p.object_logic]}
+            <div key={p.assignment_id} className="border border-gray-200 rounded-xl bg-white hover:border-purple-300 transition-colors group">
+              <div className="flex items-start p-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-semibold text-gray-800">{p.title}</h4>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {p.is_active ? 'Activo' : 'Inactivo'}
                     </span>
-                  )}
+                    {LOGIC_LABELS[p.object_logic] && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                        {LOGIC_LABELS[p.object_logic]}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    {editingId === p.assignment_id ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
+                            <input type="datetime-local" value={editFrom}
+                              onChange={e => setEditFrom(e.target.value)}
+                              className="w-full border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
+                            <input type="datetime-local" value={editUntil} min={editFrom}
+                              onChange={e => setEditUntil(e.target.value)}
+                              className="w-full border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => saveDates(p.assignment_id)}
+                            disabled={savingEdit}
+                            className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 disabled:opacity-50">
+                            {savingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                            Guardar
+                          </button>
+                          <button onClick={() => setEditingId(null)}
+                            className="flex items-center gap-1 px-3 py-1 text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            <X className="w-3 h-3" /> Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                        </span>
+                        {p.available_from && (
+                          <span className="text-blue-500">Desde {new Date(p.available_from).toLocaleString()}</span>
+                        )}
+                        {p.available_until && (
+                          <span className="text-orange-500">Hasta {new Date(p.available_until).toLocaleString()}</span>
+                        )}
+                        {!p.available_from && !p.available_until && (
+                          <span className="text-green-500">Siempre disponible</span>
+                        )}
+                        <button
+                          onClick={() => {
+                            setEditingId(p.assignment_id);
+                            setEditFrom(toLocalInput(p.available_from));
+                            setEditUntil(toLocalInput(p.available_until));
+                          }}
+                          className="flex items-center gap-1 text-gray-400 hover:text-purple-600 transition opacity-0 group-hover:opacity-100 ml-1">
+                          <Pencil className="w-3 h-3" /> Editar fechas
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-400">
-                  {p.available_from
-                    ? <span className="text-blue-500">Desde {new Date(p.available_from).toLocaleString()}</span>
-                    : null}
-                  {p.available_until
-                    ? <span className="text-orange-500">Hasta {new Date(p.available_until).toLocaleString()}</span>
-                    : null}
-                  {!p.available_from && !p.available_until && (
-                    <span className="text-green-500">Siempre disponible</span>
-                  )}
+                <div className="ml-3 flex flex-col gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => {
+                      setExtendingId(extendingId === p.assignment_id ? null : p.assignment_id);
+                      loadCourseStudents();
+                      setExtendStudentId('');
+                      setExtendFrom('');
+                      setExtendUntil('');
+                    }}
+                    className="p-2 text-gray-400 hover:text-purple-500 hover:bg-purple-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                    title="Extender acceso a estudiante"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => unassign(p.assignment_id)}
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                    title="Quitar del curso"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={() => unassign(p.assignment_id)}
-                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100"
-                title="Quitar del curso"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+
+              {extendingId === p.assignment_id && (
+                <div className="mx-4 mb-4 p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-2">
+                  <p className="text-xs font-semibold text-purple-700">Extender acceso individual</p>
+                  <select
+                    value={extendStudentId}
+                    onChange={e => setExtendStudentId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  >
+                    <option value="">Selecciona estudiante…</option>
+                    {courseStudents.map(s => (
+                      <option key={s.id} value={s.id}>{s.full_name}</option>
+                    ))}
+                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Desde</label>
+                      <input type="datetime-local" value={extendFrom} onChange={e => setExtendFrom(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Hasta</label>
+                      <input type="datetime-local" value={extendUntil} min={extendFrom} onChange={e => setExtendUntil(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => extendAccess(p.project_id)}
+                      disabled={!extendStudentId || extendSaving}
+                      className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      {extendSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
+                      Extender
+                    </button>
+                    <button onClick={() => setExtendingId(null)}
+                      className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
