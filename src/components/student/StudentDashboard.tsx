@@ -165,11 +165,19 @@ export default function StudentDashboard() {
 
   async function loadProjects() {
     try {
-      const { data: projData } = await sb
-        .from('projects')
-        .select('id, title, description, object_logic')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
+      const courseIds = await getCourseIds();
+      const now = new Date().toISOString();
+      const { data: assignmentData } = await sb
+        .from('project_assignments')
+        .select('project_id, projects(id, title, description, object_logic, is_active)')
+        .in('course_id', courseIds.split(',').filter(Boolean))
+        .is('student_id', null)
+        .or(`available_from.is.null,available_from.lte.${now}`)
+        .or(`available_until.is.null,available_until.gte.${now}`);
+
+      const projData = (assignmentData ?? [])
+        .map((a: any) => a.projects)
+        .filter((p: any) => p && p.is_active);
 
       if (!projData || projData.length === 0) {
         setProjects([]);
