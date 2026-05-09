@@ -28,6 +28,8 @@ export default function CourseProjectsManager({ courseId }: { courseId: string }
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [selectedId, setSelectedId] = useState('');
+  const [availableFrom, setAvailableFrom] = useState('');
+  const [availableUntil, setAvailableUntil] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
