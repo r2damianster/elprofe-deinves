@@ -265,10 +265,8 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
         ) : (
           <div className="space-y-3">
             {assignedLessons.map((lesson, idx) => (
-              <div
-                key={lesson.lesson_assignments_id}
-                className="flex items-start p-4 border border-gray-200 rounded-xl bg-white hover:border-blue-300 transition-colors group"
-              >
+              <div key={lesson.lesson_assignments_id} className="border border-gray-200 rounded-xl bg-white hover:border-blue-300 transition-colors group">
+              <div className="flex items-start p-4">
                 <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm mr-4 mt-0.5 flex-shrink-0">
                   {idx + 1}
                 </div>
