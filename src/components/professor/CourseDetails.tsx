@@ -43,6 +43,9 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
         .select(`
           id,
           assigned_at,
+          available_from,
+          available_until,
+          order_index,
           lessons (
             id,
             title,
@@ -50,7 +53,8 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
           )
         `)
         .eq('course_id', courseId)
-        .is('student_id', null) // Tareas asignadas a todo el curso, no a individuos
+        .is('student_id', null)
+        .order('order_index', { ascending: true })
         .order('assigned_at', { ascending: false });
 
       if (error) throw error;
