@@ -398,7 +398,7 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
                   </div>
                 </div>
               )}
-              </div>{/* end outer card wrapper */}
+              </div>
             ))}
           </div>
         )}
