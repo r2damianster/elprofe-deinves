@@ -11,6 +11,8 @@ type AssignedProject = {
   title: string;
   object_logic: string;
   is_active: boolean;
+  available_from: string | null;
+  available_until: string | null;
 };
 
 type AvailableProject = {
