@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Users, BookOpen, Clock, Loader2, Trash2, UsersRound, Monitor, FolderOpen } from 'lucide-react';
+import { Plus, Users, BookOpen, Clock, Loader2, Trash2, UsersRound, Monitor, FolderOpen, Pencil, Save, X } from 'lucide-react';
 import StudentManager from './StudentManager';
 import GroupManager from './GroupManager';
 import CourseProjectsManager from './CourseProjectsManager';
