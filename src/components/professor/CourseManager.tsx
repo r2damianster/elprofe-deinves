@@ -164,11 +164,6 @@ export default function CourseManager({ courses, onUpdate, onAssignLessons }: Co
               courseId={selectedCourse.id}
               courseName={selectedCourse.name}
               courseLanguage={selectedCourse.language}
-              onClose={() => setSelectedCourseId(null)}
-              onAssignLessons={() => {
-                setSelectedCourseId(null);
-                onAssignLessons(selectedCourse.id);
-              }}
             />
           </div>
         </div>
