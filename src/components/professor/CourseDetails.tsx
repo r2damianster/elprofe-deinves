@@ -98,6 +98,31 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
     }
   }
 
+  function startEdit(lesson: AssignedLesson) {
+    setEditingId(lesson.lesson_assignments_id);
+    setEditFrom(lesson.available_from ? lesson.available_from.slice(0, 16) : '');
+    setEditUntil(lesson.available_until ? lesson.available_until.slice(0, 16) : '');
+  }
+
+  async function saveDates(assignmentId: string) {
+    setSavingId(assignmentId);
+    const { error } = await supabase
+      .from('lesson_assignments')
+      .update({ available_from: editFrom || null, available_until: editUntil || null })
+      .eq('id', assignmentId);
+    if (error) {
+      alert('Error al guardar: ' + error.message);
+    } else {
+      setAssignedLessons(prev => prev.map(l =>
+        l.lesson_assignments_id === assignmentId
+          ? { ...l, available_from: editFrom || null, available_until: editUntil || null }
+          : l
+      ));
+      setEditingId(null);
+    }
+    setSavingId(null);
+  }
+
   // Vista principal con tabs
   return (
     <div className="flex flex-col h-full bg-white">
