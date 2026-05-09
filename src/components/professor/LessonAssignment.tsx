@@ -35,6 +35,8 @@ export default function LessonAssignment({ courses, initialCourseId }: LessonAss
   const [selectedLessons, setSelectedLessons] = useState<string[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [assignmentType, setAssignmentType] = useState<'course' | 'student'>('course');
+  const [availableFrom, setAvailableFrom] = useState<string>('');
+  const [availableUntil, setAvailableUntil] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [fetchingLessons, setFetchingLessons] = useState(true);
 
