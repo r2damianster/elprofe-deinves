@@ -21,10 +21,9 @@ interface CourseDetailsProps {
   courseId: string;
   courseName: string;
   courseLanguage?: Lang;
-  onClose: () => void;
 }
 
-export default function CourseDetails({ courseId, courseName, courseLanguage = 'es', onClose }: CourseDetailsProps) {
+export default function CourseDetails({ courseId, courseName, courseLanguage = 'es' }: CourseDetailsProps) {
   const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'lessons' | 'students' | 'groups' | 'present' | 'projects'>('lessons');
