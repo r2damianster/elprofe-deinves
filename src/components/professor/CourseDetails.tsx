@@ -332,17 +332,74 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={() => removeLesson(lesson.lesson_assignments_id, resolveField(lesson.title, courseLanguage))}
-                  disabled={removingId === lesson.lesson_assignments_id}
-                  className="ml-3 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100"
-                  title="Desasignar lección"
-                >
-                  {removingId === lesson.lesson_assignments_id
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <Trash2 className="w-4 h-4" />}
-                </button>
+                <div className="ml-3 flex flex-col gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => {
+                      setExtendingId(extendingId === lesson.lesson_assignments_id ? null : lesson.lesson_assignments_id);
+                      loadCourseStudents();
+                      setExtendStudentId('');
+                      setExtendFrom('');
+                      setExtendUntil('');
+                    }}
+                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                    title="Extender acceso a estudiante"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => removeLesson(lesson.lesson_assignments_id, resolveField(lesson.title, courseLanguage))}
+                    disabled={removingId === lesson.lesson_assignments_id}
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                    title="Desasignar lección"
+                  >
+                    {removingId === lesson.lesson_assignments_id
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Trash2 className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
+
+              {extendingId === lesson.lesson_assignments_id && (
+                <div className="mx-4 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl space-y-2">
+                  <p className="text-xs font-semibold text-blue-700">Extender acceso individual</p>
+                  <select
+                    value={extendStudentId}
+                    onChange={e => setExtendStudentId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    <option value="">Selecciona estudiante…</option>
+                    {courseStudents.map(s => (
+                      <option key={s.id} value={s.id}>{s.full_name}</option>
+                    ))}
+                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Desde</label>
+                      <input type="datetime-local" value={extendFrom} onChange={e => setExtendFrom(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Hasta</label>
+                      <input type="datetime-local" value={extendUntil} min={extendFrom} onChange={e => setExtendUntil(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => extendAccess(lesson.id)}
+                      disabled={!extendStudentId || extendSaving}
+                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {extendSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
+                      Extender
+                    </button>
+                    <button onClick={() => setExtendingId(null)}
+                      className="px-3 py-1 text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
             ))}
           </div>
         )}
