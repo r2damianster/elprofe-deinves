@@ -135,8 +135,7 @@ export default function StudentDashboard() {
         .from('lesson_assignments')
         .select('lesson_id, course_id, lessons(*), courses(language)')
         .or(`student_id.eq.${profile?.id},course_id.in.(${courseIds})`)
-        .or(`available_from.is.null,available_from.lte.${now}`)
-        .or(`available_until.is.null,available_until.gte.${now}`);
+        .or(`available_from.is.null,available_from.lte.${now}`);
 
       if (assignments) {
         const uniqueLessons = Array.from(
