@@ -171,8 +171,7 @@ export default function StudentDashboard() {
         .select('project_id, projects(id, title, description, object_logic, is_active)')
         .in('course_id', courseIds.split(',').filter(Boolean))
         .is('student_id', null)
-        .or(`available_from.is.null,available_from.lte.${now}`)
-        .or(`available_until.is.null,available_until.gte.${now}`);
+        .or(`available_from.is.null,available_from.lte.${now}`);
 
       const projData = (assignmentData ?? [])
         .map((a: any) => a.projects)
