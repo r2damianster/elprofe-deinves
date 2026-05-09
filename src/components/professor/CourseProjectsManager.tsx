@@ -32,6 +32,16 @@ export default function CourseProjectsManager({ courseId }: { courseId: string }
   const [availableUntil, setAvailableUntil] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFrom, setEditFrom] = useState('');
+  const [editUntil, setEditUntil] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [extendingId, setExtendingId] = useState<string | null>(null);
+  const [courseStudents, setCourseStudents] = useState<{id: string; full_name: string}[]>([]);
+  const [extendStudentId, setExtendStudentId] = useState('');
+  const [extendFrom, setExtendFrom] = useState('');
+  const [extendUntil, setExtendUntil] = useState('');
+  const [extendSaving, setExtendSaving] = useState(false);
 
   useEffect(() => { load(); }, [courseId]);
 
