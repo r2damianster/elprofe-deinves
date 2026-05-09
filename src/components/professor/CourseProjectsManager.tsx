@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as any;
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, Trash2, Loader2, FolderOpen } from 'lucide-react';
+import { Plus, Trash2, Loader2, FolderOpen, Pencil, Save, X, UserPlus, Clock } from 'lucide-react';
 
 type AssignedProject = {
   assignment_id: string;
