@@ -19,6 +19,10 @@ Todas en `supabase/migrations/` — aplicadas en orden de timestamp.
 | `20260411100000_content_studio_professor_access.sql` | 2026-04-11 | Políticas RLS para Content Studio: profesores pueden gestionar su propio contenido (lessons, activities) |
 | `20260412100000_add_group_set_active.sql` | 2026-04-12 | Columna `is_active` en `group_sets` para archivar agrupaciones |
 | `20260412120000_add_admin_flag_to_profiles.sql` | 2026-04-12 | Columna `is_admin` (boolean) en `profiles`. Función `get_user_role()` que retorna `'admin'` si `is_admin = true`. |
+| `20260419100000_activities_title_to_jsonb.sql` | 2026-04-19 | Convierte `activities.title` de TEXT → JSONB bilingüe `{es, en}`. Limpia contaminación de doble-anidado JSON (Bug-002). |
+| `20260419200000_fix_production_rls_policies.sql` | 2026-04-19 | Fija RLS de `production_rules` (lectura pública a autenticados) y `productions` (estudiantes gestión propia, profesores/admins lectura y update). |
+| `20260430000000_add_example_text_to_production_rules.sql` | 2026-04-30 | Columna `example_text jsonb` en `production_rules` (texto de ejemplo bilingüe para orientar al estudiante). |
+| `20260507100000_add_research_projects.sql` | 2026-05-07 | Módulo Proyectos: tablas `projects`, `project_object_types`, `lesson_project_objects`, `project_objects`, `project_object_edit_requests`. RLS completo. Trigger `updated_at` en `project_objects`. |
 
 ## Convenciones
 

@@ -14,26 +14,43 @@ App.tsx
 │       ├── GroupManager.tsx
 │       └── StudentManager.tsx
 │
-├── ProfessorDashboard.tsx     # Dashboard profesor
-│   ├── CourseManager.tsx      # Gestión de cursos
-│   ├── GroupManager.tsx       # Gestión de grupos + agrupaciones (group_sets)
-│   ├── StudentManager.tsx     # Gestión de estudiantes
-│   ├── LessonAssignment.tsx   # Asignar lecciones
-│   ├── ProfessorLessonView.tsx  # Ver lección como profesor
-│   ├── ProductionReviewer.tsx   # Revisar producciones
-│   ├── PresentationController.tsx  # Controlar presentación realtime
+├── ProfessorDashboard.tsx     # Dashboard profesor — 4 tabs
 │   │
-│   └── ContentStudio/         # Suite de creación de contenido
+│   ├── [Tab: Cursos] CourseManager.tsx      # Gestión de cursos
+│   │   └── CourseDetails.tsx               # Detalle de curso + tab Proyectos
+│   │       └── CourseProjectsManager.tsx   # Asignar proyectos al curso
+│   │
+│   ├── [Tab: Asignaciones] Asignaciones.tsx
+│   │   ├── LessonAssignment.tsx   # Asignar lecciones a cursos/estudiantes
+│   │   └── ProjectAssignment.tsx  # Asignar proyectos (espejo de LessonAssignment)
+│   │
+│   ├── [Tab: Evaluaciones] Evaluaciones.tsx
+│   │   ├── ProductionReviewer.tsx   # Revisar producciones escritas (filtra por lesson_assignments)
+│   │   └── ProjectReviewer.tsx      # Revisar proyectos como documento continuo (acordeón por estudiante + calificación IA)
+│   │
+│   └── [Tab: Studio] StudioPanel.tsx
 │       ├── ContentStudio.tsx      # Hub principal
 │       ├── ActivityEditor.tsx     # Editor de actividades
 │       ├── ActivityBank.tsx       # Banco de actividades
 │       ├── LessonEditor.tsx       # Editor de lecciones
 │       ├── LessonAssembler.tsx    # Ensamblador de lecciones
 │       ├── MediaUploader.tsx      # Subir multimedia
-│       └── TagInput.tsx           # Input de etiquetas
+│       ├── TagInput.tsx           # Input de etiquetas
+│       └── ProjectManager.tsx            # Crear/editar proyectos
+│           ├── ProjectObjectTypesEditor.tsx  # Editar tipos de objeto del proyecto
+│           ├── ProjectLessonMapper.tsx       # Mapear tipos de objeto a lecciones
+│           └── ProjectAssignmentsEditor.tsx  # Gestionar asignaciones de proyecto
 │
-└── StudentDashboard.tsx         # Dashboard estudiante
+│   (Componentes sueltos del profesor)
+│   ├── ProfessorLessonView.tsx  # Ver lección como profesor
+│   ├── GroupManager.tsx         # Gestión de grupos + agrupaciones (group_sets)
+│   ├── StudentManager.tsx       # Gestión de estudiantes
+│   └── PresentationController.tsx  # Controlar presentación realtime
+│
+└── StudentDashboard.tsx         # Dashboard estudiante — vista unificada lecciones + proyectos
     ├── GroupEnrollment.tsx      # Inscribirse a grupos
+    │
+    ├── [Sección Lecciones]
     ├── LessonViewer.tsx         # Ver lección con pasos
     │   └── ContentRenderer.tsx  # Renderizar contenido
     ├── ActivityRenderer.tsx     # Renderizar actividades
@@ -51,8 +68,15 @@ App.tsx
     │   ├── ErrorSpotting.tsx
     │   ├── CategorySorting.tsx
     │   └── MatrixGrid.tsx
-    ├── ProductionEditor.tsx     # Editor de producción
+    ├── ProductionEditor.tsx     # Editor de producción escrita
     ├── LessonResults.tsx        # Resultados de lección
+    │
+    ├── [Sección Proyectos]
+    ├── ProjectDashboard.tsx     # Panel principal del proyecto (estudiante)
+    │   └── ProjectObjectList.tsx   # Lista de objetos con acordeón
+    │       └── ProjectObjectWriter.tsx  # Editor de un objeto del proyecto
+    ├── ProjectPresentation.tsx  # Vista del proyecto como documento continuo
+    │
     ├── StudentResults.tsx       # Resultados generales
     └── PresentationViewer.tsx   # Ver presentación realtime
 ```

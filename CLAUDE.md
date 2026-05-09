@@ -73,11 +73,15 @@ Plataforma educativa para ULEAM. SPA React con Supabase como backend completo (P
 ```
 src/components/
 ├── admin/          # AdminDashboard, StudentDiagnosticPage
-├── professor/
+├── professor/      # ProfessorDashboard (4 tabs: Cursos, Asignaciones, Evaluaciones, Studio)
 │   ├── studio/     # ContentStudio, LessonEditor, ActivityBank, ActivityEditor, TagInput, MediaUploader
-│   └── ...         # CourseManager, GroupManager, ProductionReviewer, PresentationController
+│   ├── Asignaciones.tsx, Evaluaciones.tsx, StudioPanel.tsx  # wrappers de cada tab
+│   ├── ProjectManager, ProjectObjectTypesEditor, ProjectLessonMapper, ProjectAssignmentsEditor
+│   ├── ProjectReviewer, ProjectAssignment, CourseProjectsManager
+│   └── ...         # CourseManager, CourseDetails, GroupManager, ProductionReviewer, PresentationController
 └── student/
-    ├── activities/ # 14 componentes, uno por tipo de actividad
+    ├── activities/ # 16 componentes, uno por tipo de actividad
+    ├── ProjectDashboard, ProjectObjectList, ProjectObjectWriter, ProjectPresentation
     └── ...         # LessonViewer, ActivityRenderer, ProductionEditor, StudentResults
 ```
 
@@ -111,6 +115,11 @@ El cliente está en `src/lib/supabase.ts`. Usar siempre el cliente tipado. Para 
 | `group_sets` | Agrupaciones (contiene varios `groups`) |
 | `group_production_locks` | Lock al primer envío en producción grupal |
 | `presentation_sessions` | Estado de presentación en vivo (sincronizado por Realtime) |
+| `projects` | Proyectos de investigación/escritura con `object_logic` (ordinal/causal/structural) |
+| `project_object_types` | Secciones/tipos de objeto del proyecto (templates definidos por el profesor) |
+| `lesson_project_objects` | Mapeo lección → tipos de objeto que se trabajan en esa lección |
+| `project_objects` | Objetos reales escritos por el estudiante (con `status`, `version`, `score`) |
+| `project_object_edit_requests` | Solicitudes de re-edición cuando `edit_policy = 'requires_approval'` |
 
 RLS activo en todas las tablas. Los profesores solo ven sus cursos; los estudiantes solo sus datos.
 

@@ -171,6 +171,85 @@ Reglas para producciones de una lección
 | prohibited_words | text[] | Palabras prohibidas |
 | instructions | jsonb | { es: string, en: string } |
 | extra_rules | jsonb | Reglas adicionales flexibles |
+| example_text | jsonb | Texto de ejemplo orientativo { es, en } |
+
+### projects
+Contenedor general de un proyecto de investigación/escritura
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | uuid | PK |
+| title | text | Título del proyecto |
+| description | text | Descripción opcional |
+| professor_id | uuid | FK → profiles |
+| course_id | uuid | FK → courses |
+| object_logic | text | `'ordinal'` \| `'causal'` \| `'structural'` |
+| is_active | boolean | Visible para estudiantes |
+| created_at | timestamptz | Fecha de creación |
+
+### project_object_types
+Tipos de objeto definidos por el profesor (templates)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | uuid | PK |
+| project_id | uuid | FK → projects |
+| name | text | Nombre del tipo de objeto |
+| description | text | Descripción |
+| instructions | text | Instrucciones para el estudiante |
+| order_index | integer | Orden |
+| parent_object_type_id | uuid | FK → project_object_types (dependencia causal) |
+| edit_policy | text | `'always'` \| `'requires_approval'` \| `'locked_after_submit'` |
+| min_words | integer | Mínimo de palabras |
+| max_words | integer | Máximo de palabras (o null) |
+| required_words | text[] | Palabras requeridas |
+| created_at | timestamptz | Fecha de creación |
+
+### lesson_project_objects
+Mapeo lección → tipos de objeto que se trabajan en esa lección
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | uuid | PK |
+| lesson_id | uuid | FK → lessons |
+| object_type_id | uuid | FK → project_object_types |
+| is_new_object | boolean | ¿Objeto nuevo o revisión? |
+| order_index | integer | Orden dentro de la lección |
+| created_at | timestamptz | Fecha de creación |
+
+### project_objects
+Objetos reales escritos por el estudiante
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | uuid | PK |
+| project_id | uuid | FK → projects |
+| object_type_id | uuid | FK → project_object_types |
+| student_id | uuid | FK → profiles |
+| content | text | Texto escrito |
+| status | text | `'draft'` \| `'submitted'` \| `'approved'` \| `'needs_revision'` |
+| word_count | integer | Conteo de palabras |
+| version | integer | Versión actual |
+| feedback | text | Retroalimentación del profesor |
+| score | numeric | Puntaje |
+| submitted_at | timestamptz | Fecha de envío |
+| reviewed_at | timestamptz | Fecha de revisión |
+| created_at | timestamptz | Fecha de creación |
+| updated_at | timestamptz | Última actualización (trigger automático) |
+
+### project_object_edit_requests
+Solicitudes de re-edición (cuando `edit_policy = 'requires_approval'`)
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| id | uuid | PK |
+| project_object_id | uuid | FK → project_objects |
+| student_id | uuid | FK → profiles |
+| reason | text | Motivo de la solicitud |
+| status | text | `'pending'` \| `'approved'` \| `'denied'` |
+| professor_note | text | Nota del profesor al resolver |
+| created_at | timestamptz | Fecha de creación |
+| resolved_at | timestamptz | Fecha de resolución |
 
 ### presentation_sessions
 Sesiones de presentación en tiempo real
@@ -226,4 +305,13 @@ activities 1:N activity_responses
 profiles 1:N student_progress (student)
 profiles 1:N productions (student)
 profiles 1:N activity_responses (student)
+
+profiles 1:N projects (professor)
+courses 1:N projects
+projects 1:N project_object_types
+project_object_types 1:N lesson_project_objects
+lessons 1:N lesson_project_objects
+project_object_types 1:N project_objects
+profiles 1:N project_objects (student)
+project_objects 1:N project_object_edit_requests
 ```
