@@ -227,21 +227,40 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
             <h2 className="text-2xl font-bold text-gray-800">{courseName}</h2>
             <p className="text-sm text-gray-500 mt-1">Gestión del curso</p>
           </div>
-          {view === 'lessons' && !addingLesson && (
-            <button onClick={() => { setAddingLesson(true); loadAvailableLessons(); }}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
-              <Plus className="w-4 h-4 mr-2" /> Asignar Lección
-            </button>
+          {view === 'assign' && (
+            <div className="relative">
+              <button
+                onClick={() => setAddChoiceOpen(!addChoiceOpen)}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm"
+              >
+                <Plus className="w-4 h-4 mr-2" /> Asignar <ChevronDown className="w-3.5 h-3.5 ml-1" />
+              </button>
+              {addChoiceOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden min-w-[140px]">
+                  <button
+                    onClick={() => { setAddChoiceOpen(false); setAddingLesson(true); loadAvailableLessons(); }}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                  >
+                    <BookOpen className="w-4 h-4" /> Lección
+                  </button>
+                  <button
+                    onClick={() => { setAddChoiceOpen(false); setProjectAddTrigger(t => t + 1); }}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition"
+                  >
+                    <FolderOpen className="w-4 h-4" /> Proyecto
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
         {/* Tabs */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {[
-            { key: 'lessons',  label: 'Lecciones',   icon: BookOpen },
-            { key: 'students', label: 'Estudiantes',  icon: Users },
-            { key: 'groups',   label: 'Grupos',       icon: UsersRound },
-            { key: 'projects', label: 'Proyectos',    icon: FolderOpen },
-            { key: 'present',  label: 'Presentar',    icon: Monitor },
+            { key: 'assign',   label: 'Asignar',     icon: ClipboardList },
+            { key: 'present',  label: 'Presentar',   icon: Monitor },
+            { key: 'groups',   label: 'Grupal',      icon: UsersRound },
+            { key: 'students', label: 'Estudiantes', icon: Users },
           ].map(({ key, label, icon: Icon }) => (
             <button key={key}
               onClick={() => setView(key as any)}
