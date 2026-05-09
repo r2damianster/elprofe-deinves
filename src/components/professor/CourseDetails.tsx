@@ -26,7 +26,9 @@ interface CourseDetailsProps {
 export default function CourseDetails({ courseId, courseName, courseLanguage = 'es' }: CourseDetailsProps) {
   const [assignedLessons, setAssignedLessons] = useState<AssignedLesson[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'lessons' | 'students' | 'groups' | 'present' | 'projects'>('lessons');
+  const [view, setView] = useState<'assign' | 'present' | 'groups' | 'students'>('assign');
+  const [addChoiceOpen, setAddChoiceOpen] = useState(false);
+  const [projectAddTrigger, setProjectAddTrigger] = useState(0);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFrom, setEditFrom] = useState('');
