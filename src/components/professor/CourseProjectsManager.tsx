@@ -42,7 +42,7 @@ export default function CourseProjectsManager({ courseId }: { courseId: string }
     const [assignmentsRes, projectsRes] = await Promise.all([
       sb
         .from('project_assignments')
-        .select('id, project_id, projects(id, title, object_logic, is_active)')
+        .select('id, project_id, available_from, available_until, projects(id, title, object_logic, is_active)')
         .eq('course_id', courseId)
         .is('student_id', null),
       sb
