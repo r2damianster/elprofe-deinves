@@ -201,6 +201,17 @@ export default function CourseProjectsManager({ courseId }: { courseId: string }
                     </span>
                   )}
                 </div>
+                <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-400">
+                  {p.available_from
+                    ? <span className="text-blue-500">Desde {new Date(p.available_from).toLocaleString()}</span>
+                    : null}
+                  {p.available_until
+                    ? <span className="text-orange-500">Hasta {new Date(p.available_until).toLocaleString()}</span>
+                    : null}
+                  {!p.available_from && !p.available_until && (
+                    <span className="text-green-500">Siempre disponible</span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={() => unassign(p.assignment_id)}
