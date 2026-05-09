@@ -104,7 +104,7 @@ export default function LessonAssignment({ courses, initialCourseId }: LessonAss
         lesson_id: lessonId,
         course_id: assignmentType === 'course' ? selectedCourse : null,
         student_id: assignmentType === 'student' ? selectedStudent : null,
-        assigned_by: profile?.id,
+        assigned_by: profile!.id,
         available_from: availableFrom || null,
         available_until: availableUntil || null,
       }));
