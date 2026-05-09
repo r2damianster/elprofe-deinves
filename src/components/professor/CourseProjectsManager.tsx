@@ -61,6 +61,8 @@ export default function CourseProjectsManager({ courseId }: { courseId: string }
       title: a.projects?.title ?? '—',
       object_logic: a.projects?.object_logic ?? '',
       is_active: a.projects?.is_active ?? false,
+      available_from: a.available_from ?? null,
+      available_until: a.available_until ?? null,
     }));
 
     const assignedIds = new Set(assignedList.map(a => a.project_id));
