@@ -272,12 +272,6 @@ export default function ProjectManager({
                 >
                   Asignar a cursos
                 </button>
-                <button
-                  onClick={() => setView({ type: 'reviewer', project: p })}
-                  className="px-3 py-1.5 text-xs bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition"
-                >
-                  Revisar objetos
-                </button>
               </div>
             </div>
           ))}
