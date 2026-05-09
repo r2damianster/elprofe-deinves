@@ -44,6 +44,7 @@ export default function CourseProjectsManager({ courseId, triggerAdd }: { course
   const [extendSaving, setExtendSaving] = useState(false);
 
   useEffect(() => { load(); }, [courseId]);
+  useEffect(() => { if (triggerAdd) { setAdding(true); setError(null); } }, [triggerAdd]);
 
   async function load() {
     setLoading(true);
