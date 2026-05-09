@@ -122,7 +122,7 @@ export default function CourseDetails({ courseId, courseName, courseLanguage = '
       lesson_id: lessonId,
       course_id: courseId,
       student_id: extendStudentId,
-      assigned_by: (await supabase.auth.getUser()).data.user?.id,
+      assigned_by: (await supabase.auth.getUser()).data.user!.id,
       available_from: extendFrom ? new Date(extendFrom).toISOString() : null,
       available_until: extendUntil ? new Date(extendUntil).toISOString() : null,
     });
