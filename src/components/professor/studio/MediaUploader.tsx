@@ -59,7 +59,7 @@ export default function MediaUploader({ value, onChange, accept = 'any', label =
 
     const { data, error: uploadError } = await supabase.storage
       .from('lesson-media')
-      .upload(path, file, { upsert: true });
+      .upload(path, file, { upsert: true, contentType: file.type });
 
     if (uploadError) {
       setError(uploadError.message);
