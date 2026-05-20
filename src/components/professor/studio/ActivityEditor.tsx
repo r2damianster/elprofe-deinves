@@ -762,9 +762,18 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
             <div className="space-y-2">
               <div>
                 <label className="label-sm">Descripción breve 🇪🇸</label>
-                <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)}
-                  placeholder="Ej: Seleccionar la forma correcta del verbo en pasado simple."
-                  className="input-field resize-none" />
+                <div className="flex gap-2 items-start">
+                  <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)}
+                    placeholder="Ej: Seleccionar la forma correcta del verbo en pasado simple."
+                    className="input-field resize-none flex-1" />
+                  <button type="button" onClick={handleTranslateDescription}
+                    disabled={!description || !!aiLoading}
+                    title="Traducir ES → EN con IA"
+                    className="flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition disabled:opacity-40 text-xs font-medium whitespace-nowrap shrink-0">
+                    {aiLoading === 'translatees' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
+                    Traducir
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="label-sm">Brief description 🇺🇸</label>
