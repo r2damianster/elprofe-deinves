@@ -582,6 +582,12 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
     if (translated) setTitleEn(translated);
   }
 
+  async function handleTranslateDescription() {
+    if (!description) return;
+    const translated = await enhance('translate', 'es', { text: description, from_lang: 'es' });
+    if (translated) setDescriptionEn(translated);
+  }
+
   async function handleCompleteWithAI() {
     const result = await enhance('complete_activity', 'es', {
       type,
@@ -590,6 +596,7 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
     if (!result) return;
     if (result.title_es) setTitleEs(result.title_es);
     if (result.title_en) setTitleEn(result.title_en);
+    if (result.content_es) setContentEs({ _lang: 'es', ...result.content_es });
     if (result.content_en) setContentEn({ _lang: 'en', ...result.content_en });
     if (result.tags?.length) setTags(result.tags);
     if (result.description) setDescription(result.description);
