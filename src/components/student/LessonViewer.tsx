@@ -305,10 +305,20 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
 
     const activitiesData = joinData?.map((item: any) => ({ ...item.activities, order_index: item.order_index })) || [];
     const raw = lessonData?.content;
-    const contentSteps: CombinedStep[] = (Array.isArray(raw) ? raw : Array.isArray(raw?.steps) ? raw.steps : []) as CombinedStep[];
-    const activitySteps: CombinedStep[] = activitiesData.map((a: Activity) => ({ ...a, isActivity: true as const }));
+    const rawSteps = (Array.isArray(raw) ? raw : Array.isArray(raw?.steps) ? raw.steps : []);
+    const resolvedSteps: CombinedStep[] = rawSteps.map((step: any) => {
+      if (step.type === 'activity') {
+        const act = activitiesData.find((a: any) => a.id === step.activity_id);
+        return act ? { ...act, isActivity: true as const } : null;
+      }
+      return { ...step, isActivity: false };
+    }).filter(Boolean) as CombinedStep[];
+    const matchedIds = new Set(rawSteps.filter((s: any) => s.type === 'activity').map((s: any) => s.activity_id));
+    const unmatched = activitiesData
+      .filter((a: any) => !matchedIds.has(a.id))
+      .map((a: any) => ({ ...a, isActivity: true as const }));
     setProductionActivities([]);
-    setCombinedSteps([...contentSteps, ...activitySteps]);
+    setCombinedSteps([...resolvedSteps, ...unmatched] as CombinedStep[]);
     setLoading(false);
   }
 
