@@ -4,7 +4,8 @@
       "mcp__supabase__list_edge_functions",
       "Read(//c/Users/User/Documents/Desarrollo/ Web/elprofe-deinves/**)",
       "Read(//c/Users/User/Documents/Desarrollo Web/**)",
-      "Read(//c/Users/User/.claude/**)"
+      "Read(//c/Users/User/.claude/**)",
+      "mcp__supabase__get_advisors"
     ],
     "additionalDirectories": [
       "c:\\Users\\User\\.claude\\projects\\c--Users-User-Documents-Desarrollo-Web-elprofe-deinves\\memory",
@@ -19,10 +20,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "$d = 'c:\\Users\\User\\Documents\\Desarrollo Web\\elprofe-deinves'; Set-Location $d; $s = git status --porcelain; if ($s) { git add -A; $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'; git commit -m \"auto: $ts\"; git push origin master } 2>$null",
             "shell": "powershell",
-            "async": true,
             "statusMessage": "Auto-pushing to GitHub...",
-            "command": "$d = 'c:\\Users\\User\\Documents\\Desarrollo Web\\elprofe-deinves'; Set-Location $d; $s = git status --porcelain; if ($s) { git add -A; $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'; git commit -m \"auto: $ts\"; git push origin master } 2>$null"
+            "async": true
           }
         ]
       }
