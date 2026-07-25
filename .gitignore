@@ -25,3 +25,5 @@ dist-ssr
 .claude/lean-ctx-main/
 .qwen/
 .claude/settings.local.json.lean-ctx.bak
+
+graphify-out/

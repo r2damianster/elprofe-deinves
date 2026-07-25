@@ -22,7 +22,8 @@
       "Bash(/c/Users/User/AppData/Roaming/npm/lean-ctx.exe --version)",
       "Bash(/c/Users/User/AppData/Roaming/npm/lean-ctx.exe doctor *)",
       "Bash(lean-ctx.exe --version)",
-      "Bash(lean-ctx.exe doctor *)"
+      "Bash(lean-ctx.exe doctor *)",
+      "PowerShell(graphify *)"
     ]
   },
   "enableAllProjectMcpServers": true,
