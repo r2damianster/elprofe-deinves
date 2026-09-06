@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import { callAiEnhance } from '../../lib/aiEnhance';
 import {
   ArrowLeft, AlertCircle, CheckCircle, Save, Send,
   ShieldAlert, BarChart, Clock, FileText, Info, X,
