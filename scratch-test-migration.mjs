@@ -36,14 +36,12 @@ function makeActor() {
       json = await res.json();
     }
     if (!res.ok) throw new Error(`signUp/signIn ${email}: ${JSON.stringify(json)}`);
-    accessToken = json.token ?? json.session?.access_token ?? null;
-    if (!accessToken) {
-      // fallback: pedir token explícito
-      const tokenRes = await authFetch('/token');
-      const tokenJson = await tokenRes.json();
-      accessToken = tokenJson.token;
-    }
-    if (!accessToken) throw new Error(`No se obtuvo JWT para ${email}: ${JSON.stringify(json)}`);
+    // json.token es el session token opaco (cookie), no el JWT. El JWT real
+    // se pide aparte al endpoint /token usando la cookie de sesión.
+    const tokenRes = await authFetch('/token');
+    const tokenJson = await tokenRes.json();
+    accessToken = tokenJson.token;
+    if (!accessToken) throw new Error(`No se obtuvo JWT para ${email}: ${JSON.stringify(tokenJson)}`);
     return json.user;
   }
 
