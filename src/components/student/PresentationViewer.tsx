@@ -82,32 +82,25 @@ export default function PresentationViewer({ session, onSessionEnd }: Props) {
     loadSlides();
   }, [session.lesson_id]);
 
-  // ── Realtime: seguir el paso del profesor ───────────────────────────────
+  // ── Polling: seguir el paso del profesor (sin Realtime en Neon) ─────────
 
   useEffect(() => {
-    const channel = supabase
-      .channel(`presentation_${session.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event:  'UPDATE',
-          schema: 'public',
-          table:  'presentation_sessions',
-          filter: `id=eq.${session.id}`,
-        },
-        (payload) => {
-          const updated = payload.new as any;
-          if (!updated.is_active) {
-            // Profesor terminó la sesión
-            onSessionEnd();
-            return;
-          }
-          setCurrent(updated.current_step_index);
-        }
-      )
-      .subscribe();
+    async function checkStep() {
+      const { data } = await supabase
+        .from('presentation_sessions')
+        .select('is_active, current_step_index')
+        .eq('id', session.id)
+        .maybeSingle();
 
-    return () => { supabase.removeChannel(channel); };
+      if (!data || !data.is_active) {
+        onSessionEnd();
+        return;
+      }
+      setCurrent(data.current_step_index);
+    }
+
+    const interval = setInterval(checkStep, 3000);
+    return () => clearInterval(interval);
   }, [session.id]);
 
   // ── Render ──────────────────────────────────────────────────────────────
