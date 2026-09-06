@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import { callAiEnhance } from '../../lib/aiEnhance';
 import { useAuth } from '../../contexts/AuthContext';
 import { resolveField } from '../../lib/i18n';
 import {
