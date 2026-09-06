@@ -249,26 +249,11 @@ export default function ProductionReviewer() {
     if (selectedProductions.length === 0) return;
     setGeneratingRubric(true);
     try {
-      const supabaseUrl = (supabase as any).supabaseUrl as string;
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const res = await fetch(`${supabaseUrl}/functions/v1/ai-enhance`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          task: 'suggest_rubric',
-          lang: 'es',
-          data: {
-            productions: selectedProductions.map(p => ({ content: p.content })),
-            lesson_context: selectedLessonTitle || 'Producción escrita'
-          }
-        })
+      const result = await callAiEnhance<{ rubric_prompt?: string }>('suggest_rubric', 'es', {
+        productions: selectedProductions.map(p => ({ content: p.content })),
+        lesson_context: selectedLessonTitle || 'Producción escrita'
       });
-      const json = await res.json();
-      setRubricPrompt(json.result?.rubric_prompt ?? '');
+      setRubricPrompt(result?.rubric_prompt ?? '');
     } catch (err: any) {
       alert('Error al generar rúbrica: ' + err.message);
     } finally {
@@ -280,15 +265,8 @@ export default function ProductionReviewer() {
     if (!rubricPrompt.trim()) return;
     setImprovingRubric(true);
     try {
-      const supabaseUrl = (supabase as any).supabaseUrl as string;
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${supabaseUrl}/functions/v1/ai-enhance`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ task: 'improve_rubric', lang: 'es', data: { rubric_draft: rubricPrompt } })
-      });
-      const json = await res.json();
-      if (json.result) setRubricPrompt(json.result);
+      const result = await callAiEnhance<string>('improve_rubric', 'es', { rubric_draft: rubricPrompt });
+      if (result) setRubricPrompt(result);
     } catch (err: any) {
       alert('Error al mejorar rúbrica: ' + err.message);
     } finally {
@@ -300,32 +278,16 @@ export default function ProductionReviewer() {
     if (!rubricPrompt.trim() || selectedProductions.length === 0) return;
     setBatchLoading(true);
     try {
-      const supabaseUrl = (supabase as any).supabaseUrl as string;
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const res = await fetch(`${supabaseUrl}/functions/v1/ai-enhance`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          task: 'batch_grade',
-          lang: 'es',
-          data: {
-            rubric_prompt: rubricPrompt,
-            productions: selectedProductions.map(p => ({
-              id: p.id,
-              content: p.content,
-              word_count: p.word_count,
-              compliance_score: p.compliance_score
-            }))
-          }
-        })
+      const result = await callAiEnhance<{ results?: any[] }>('batch_grade', 'es', {
+        rubric_prompt: rubricPrompt,
+        productions: selectedProductions.map(p => ({
+          id: p.id,
+          content: p.content,
+          word_count: p.word_count,
+          compliance_score: p.compliance_score
+        }))
       });
-      const json = await res.json();
-      if (json.error) throw new Error(json.error + (json.raw ? `\n\nRespuesta del modelo:\n${json.raw}` : ''));
-      const results = json.result?.results ?? [];
+      const results = result?.results ?? [];
       if (results.length === 0) throw new Error('La IA no devolvió resultados. Intenta de nuevo.');
       setBatchResults(results);
     } catch (err: any) {
