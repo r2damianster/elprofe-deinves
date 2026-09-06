@@ -55,7 +55,7 @@ export default function PresentationViewer({ session, onSessionEnd }: Props) {
 
         if (rawUrl) {
           const isSlides = rawUrl.includes('docs.google.com/presentation');
-          const isPdf    = rawUrl.includes('.pdf') || rawUrl.includes('supabase.co/storage');
+          const isPdf    = rawUrl.includes('.pdf') || rawUrl.includes('.storage.') && rawUrl.includes('.neon.tech');
           const isVideo  = rawUrl.includes('youtube') || rawUrl.includes('youtu.be') || rawUrl.includes('vimeo');
 
           if (isSlides) {
