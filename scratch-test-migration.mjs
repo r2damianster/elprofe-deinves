@@ -1,5 +1,13 @@
 import { createClient, SupabaseAuthAdapter, defaultDeriveNeonUrls } from '@neondatabase/neon-js';
 
+const ORIGIN = 'http://localhost:5173';
+const originalFetch = globalThis.fetch;
+globalThis.fetch = (input, init = {}) => {
+  const headers = new Headers(init.headers || {});
+  if (!headers.has('origin')) headers.set('origin', ORIGIN);
+  return originalFetch(input, { ...init, headers });
+};
+
 const neonUrl = 'https://ep-floral-credit-ax4v683g.c-4.us-east-2.aws.neon.tech/elprofe_deinves';
 const { auth: authUrl, dataApi: dataApiUrl } = defaultDeriveNeonUrls(neonUrl);
 
