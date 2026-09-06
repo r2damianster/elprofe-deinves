@@ -12,6 +12,7 @@
     "typecheck:errors": "tsc --noEmit -p tsconfig.app.json 2>&1 | grep 'error TS' | grep -v node_modules | head -30 || true"
   },
   "dependencies": {
+    "@neondatabase/neon-js": "^0.7.0-beta",
     "@supabase/supabase-js": "^2.57.4",
     "lucide-react": "^0.344.0",
     "pocketbase": "^0.26.8",

@@ -1,0 +1,328 @@
+const GROQ_API_KEY = process.env.GROQ_URL ?? process.env.GROQ_API_KEY ?? '';
+const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+const MODEL = 'llama-3.3-70b-versatile';
+
+function cors(request: Request) {
+  return {
+    'Access-Control-Allow-Origin': request.headers.get('origin') ?? '*',
+    'Access-Control-Allow-Headers': 'authorization, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  };
+}
+
+type EnhanceTask =
+  | 'improve_title'
+  | 'improve_description'
+  | 'improve_instructions'
+  | 'generate_activity_options'
+  | 'suggest_required_words'
+  | 'review_production'
+  | 'translate'
+  | 'suggest_rubric'
+  | 'batch_grade'
+  | 'complete_activity'
+  | 'suggest_tags'
+  | 'improve_rubric'
+  | 'generate_example'
+  | 'review_essay';
+
+interface RequestBody {
+  task: EnhanceTask;
+  lang: 'es' | 'en';
+  data: Record<string, any>;
+}
+
+function buildMessages(task: EnhanceTask, lang: 'es' | 'en', data: Record<string, any>) {
+  const langLabel = lang === 'es' ? 'español' : 'English';
+  const isEs = lang === 'es';
+
+  switch (task) {
+    case 'improve_title':
+      return [
+        {
+          role: 'system',
+          content: isEs
+            ? `Eres un experto en diseño de actividades educativas. Mejora el título de una actividad para que sea específico y diferenciador. Usa el formato "Categoría General: Diferenciador Específico" cuando aplique (ej: "Vacío de Investigación: Contradicción", "Presente Simple: Rutinas Diarias", "Caso Monkey Selfies"). El título debe ser corto (máx 7 palabras), evocador y único — no genérico. Responde SOLO con el título mejorado, sin comillas, sin explicaciones.`
+            : `You are an educational activity design expert. Improve the activity title to be specific and differentiating. Use the format "General Category: Specific Differentiator" when applicable (e.g. "Research Gap: Contradiction", "Simple Present: Daily Routines", "Monkey Selfies Case"). Title must be short (max 7 words), evocative and unique — not generic. Reply ONLY with the improved title, no quotes, no explanations.`,
+        },
+        {
+          role: 'user',
+          content: isEs
+            ? `Mejora este título de actividad en ${langLabel}: "${data.title}"\nContexto: ${data.context ?? 'plataforma de enseñanza de idiomas'}`
+            : `Improve this activity title in ${langLabel}: "${data.title}"\nContext: ${data.context ?? 'language teaching platform'}`,
+        },
+      ];
+
+    case 'improve_description':
+      return [
+        {
+          role: 'system',
+          content: isEs
+            ? `Eres experto en redacción pedagógica. Escribe descripciones breves (máx 2 oraciones) para lecciones de idiomas. Deben comunicar qué aprenderá el estudiante. Responde SOLO con la descripción, sin comillas.`
+            : `You are a pedagogical writing expert. Write brief descriptions (max 2 sentences) for language lessons. They must communicate what the student will learn. Reply ONLY with the description, no quotes.`,
+        },
+        {
+          role: 'user',
+          content: isEs
+            ? `Escribe una descripción en ${langLabel} para la lección titulada: "${data.title}".\nContenido de la lección: ${data.content ?? 'no especificado'}`
+            : `Write a description in ${langLabel} for the lesson titled: "${data.title}".\nLesson content: ${data.content ?? 'not specified'}`,
+        },
+      ];
+
+    case 'improve_instructions':
+      return [
+        {
+          role: 'system',
+          content: isEs
+            ? `Eres un docente de idiomas. Mejora las instrucciones de actividades de producción escrita para que sean claras, motivadoras y con un propósito comunicativo auténtico. Máximo 3 oraciones. Responde SOLO con las instrucciones mejoradas.`
+            : `You are a language teacher. Improve writing production activity instructions to be clear, motivating, and with an authentic communicative purpose. Maximum 3 sentences. Reply ONLY with the improved instructions.`,
+        },
+        {
+          role: 'user',
+          content: isEs
+            ? `Mejora estas instrucciones en ${langLabel}: "${data.instructions}"\nTema de la lección: ${data.lessonTitle ?? ''}`
+            : `Improve these instructions in ${langLabel}: "${data.instructions}"\nLesson topic: ${data.lessonTitle ?? ''}`,
+        },
+      ];
+
+    case 'generate_activity_options':
+      return [
+        {
+          role: 'system',
+          content: isEs
+            ? `Eres un diseñador instruccional experto en enseñanza de idiomas. Genera opciones de opción múltiple pedagógicamente correctas: un distractor plausible, uno incorrecto claro, y la respuesta correcta. Responde SOLO en JSON: {"options": [{"id": "a", "text": "..."}, ...], "correct_id": "b"}`
+            : `You are an instructional designer expert in language teaching. Generate pedagogically sound multiple choice options: one plausible distractor, one clearly wrong, and the correct answer. Reply ONLY in JSON: {"options": [{"id": "a", "text": "..."}, ...], "correct_id": "b"}`,
+        },
+        {
+          role: 'user',
+          content: isEs
+            ? `Genera 4 opciones para esta pregunta en ${langLabel}: "${data.question}"\nRespuesta correcta esperada: ${data.correct ?? 'no especificada'}`
+            : `Generate 4 options for this question in ${langLabel}: "${data.question}"\nExpected correct answer: ${data.correct ?? 'not specified'}`,
+        },
+      ];
+
+    case 'suggest_required_words':
+      return [
+        {
+          role: 'system',
+          content: isEs
+            ? `Eres un lingüista especializado en enseñanza de idiomas. Sugiere palabras o frases clave que un estudiante DEBERÍA usar en una producción escrita sobre el tema dado. Responde SOLO en JSON: {"required_words": ["word1", "word2", ...]}`
+            : `You are a linguist specializing in language teaching. Suggest key words or phrases that a student SHOULD use in a written production about the given topic. Reply ONLY in JSON: {"required_words": ["word1", "word2", ...]}`,
+        },
+        {
+          role: 'user',
+          content: isEs
+            ? `Sugiere 5-8 palabras o frases clave en ${langLabel} para una producción escrita sobre: "${data.lessonTitle}"\nNivel de idioma: ${data.level ?? 'intermedio'}`
+            : `Suggest 5-8 key words or phrases in ${langLabel} for a written production about: "${data.lessonTitle}"\nLanguage level: ${data.level ?? 'intermediate'}`,
+        },
+      ];
+
+    case 'review_production':
+      return [
+        {
+          role: 'system',
+          content: `Eres un docente experto en evaluación de producción escrita en español. Analiza el ensayo del estudiante y devuelve SOLO JSON con este formato exacto (sin markdown, sin bloques de código):
+{"score":<0-10>,"summary":"<resumen en 1 oración>","strengths":["<fortaleza1>","<fortaleza2>"],"improvements":["<mejora1>","<mejora2>","<mejora3>"]}
+
+Criterios de puntuación: coherencia, gramática, vocabulario, cumplimiento de instrucciones y reglas.`,
+        },
+        {
+          role: 'user',
+          content: `Instrucciones de la tarea: ${data.instructions ?? 'Redacción libre'}
+Reglas: mínimo ${data.min_words ?? 0} palabras${data.max_words ? `, máximo ${data.max_words}` : ''}.${data.required_words?.length ? `\nPalabras requeridas: ${data.required_words.join(', ')}` : ''}${data.prohibited_words?.length ? `\nPalabras prohibidas: ${data.prohibited_words.join(', ')}` : ''}
+
+Ensayo:
+${data.content}`,
+        },
+      ];
+
+    case 'translate':
+      return [
+        {
+          role: 'system',
+          content: data.from_lang === 'es'
+            ? 'You are a professional translator. Translate the given text from Spanish to English accurately. Reply ONLY with the translated text, no explanations, no quotes.'
+            : 'Eres un traductor profesional. Traduce el texto dado del inglés al español con precisión. Responde SOLO con el texto traducido, sin explicaciones, sin comillas.',
+        },
+        {
+          role: 'user',
+          content: data.text,
+        },
+      ];
+
+    case 'suggest_rubric':
+      return [
+        {
+          role: 'system',
+          content: `Eres un experto en evaluación educativa. Analiza los ensayos de estudiantes y propón UN criterio de evaluación claro y específico para calificarlos (máximo 150 palabras). El criterio debe mencionar: coherencia, vocabulario, gramática, y cumplimiento del tema. Responde SOLO en JSON: {"rubric_prompt": "..."}`,
+        },
+        {
+          role: 'user',
+          content: `Tema de la lección: ${data.lesson_context}. Analiza estos ${data.productions.length} ensayos y propón el criterio. Ensayos:\n${(data.productions as Array<{ content: string }>).map((p, i) => `${i + 1}. ${p.content}`).join('\n')}`,
+        },
+      ];
+
+    case 'batch_grade':
+      return [
+        {
+          role: 'system',
+          content: `Eres un evaluador experto. Evalúa cada ensayo según el criterio dado y devuelve SOLO JSON con este formato exacto (sin markdown, sin bloques de código): {"results":[{"id":"<id>","score":<0-10>,"feedback":"<1-2 oraciones>"},...]}`,
+        },
+        {
+          role: 'user',
+          content: `Criterio de evaluación: ${data.rubric_prompt}. Evalúa estos ${(data.productions as Array<{ id: string; content: string; word_count: number; compliance_score: number }>).length} ensayos:\n${(data.productions as Array<{ id: string; content: string; word_count: number; compliance_score: number }>).map((p) => `ID: ${p.id}\nPalabras: ${p.word_count}\nCumplimiento: ${p.compliance_score}%\nEnsayo: ${p.content}`).join('\n\n')}`,
+        },
+      ];
+
+    case 'complete_activity':
+      return [
+        {
+          role: 'system',
+          content: `Eres un diseñador experto de actividades para plataformas de enseñanza de idiomas. Recibes el contenido de una actividad en español y debes devolver SOLO JSON con este formato exacto (sin markdown):
+{"title_es":"<título corto en español>","title_en":"<título corto en inglés>","content_en":<mismo JSON que content_es pero con textos traducidos al inglés>,"tags":["tag1","tag2","tag3"],"description":"<1 oración en español describiendo qué practica el estudiante>","description_en":"<same sentence translated to English>","difficulty":<1|2|3>}
+
+Reglas CRÍTICAS para content_en:
+- Mantén EXACTAMENTE la misma estructura JSON que content_es
+- Si content_es tiene un array "options" con N elementos, content_en DEBE tener exactamente N elementos con los mismos IDs. NUNCA omitas ni combines opciones.
+- Traduce solo los valores de texto (questions, statements, options text, hints, instruction, prompt, etc.)
+- NO cambies IDs, correct_id, correct, números, booleanos, min_words, max_words ni campos de referencia
+- difficulty: 1=fácil, 2=medio, 3=difícil según el vocabulario y complejidad del tema`,
+        },
+        {
+          role: 'user',
+          content: `Tipo de actividad: ${data.type}\nContenido en español:\n${JSON.stringify(data.content_es, null, 2)}`,
+        },
+      ];
+
+    case 'suggest_tags':
+      return [
+        {
+          role: 'system',
+          content: `Eres un experto en diseño curricular. Sugiere 4-6 etiquetas cortas (1-2 palabras cada una) para clasificar una lección educativa de idiomas. Devuelve SOLO JSON: {"tags_es":["etiqueta1","etiqueta2",...],"tags_en":["tag1","tag2",...]}`,
+        },
+        {
+          role: 'user',
+          content: `Título: ${data.title ?? ''}\nDescripción: ${data.description ?? ''}`,
+        },
+      ];
+
+    case 'improve_rubric':
+      return [
+        {
+          role: 'system',
+          content: `Eres un experto en evaluación educativa. El profesor te proporciona un borrador de criterio de evaluación para producción escrita. Tu tarea es mejorar su redacción: hazlo más claro, específico y operativo (máximo 180 palabras). Mantén la intención original del profesor. Responde SOLO con el criterio mejorado, sin explicaciones, sin comillas, sin prefijos.`,
+        },
+        {
+          role: 'user',
+          content: `Borrador del criterio:\n${data.rubric_draft}`,
+        },
+      ];
+
+    case 'generate_example':
+      return [
+        {
+          role: 'system',
+          content: `Eres un docente experto en enseñanza de idiomas. Escribe un texto de ejemplo modelo que un estudiante podría entregar como respuesta a la consigna dada. El ejemplo debe ser claro, bien estructurado y cumplir todos los requisitos indicados. Devuelve SOLO JSON: {"example_text":"<texto ejemplo>"}`,
+        },
+        {
+          role: 'user',
+          content: `Consigna: ${data.prompt}\nMínimo de palabras: ${data.min_words ?? 50}${data.max_words ? `\nMáximo de palabras: ${data.max_words}` : ''}${data.required_words?.length ? `\nPalabras que debe incluir: ${data.required_words.join(', ')}` : ''}${data.rubric ? `\nCriterio de evaluación: ${data.rubric}` : ''}`,
+        },
+      ];
+
+    case 'review_essay':
+      return [
+        {
+          role: 'system',
+          content: `Eres un docente experto en evaluación de producción escrita. Analiza el texto del estudiante y devuelve SOLO JSON con este formato exacto (sin markdown):
+{"score":<0-10>,"summary":"<resumen en 1 oración>","strengths":["<fortaleza1>","<fortaleza2>"],"improvements":["<mejora1>","<mejora2>","<mejora3>"]}
+
+Criterios: coherencia, gramática, vocabulario, cumplimiento de consigna y requisitos.`,
+        },
+        {
+          role: 'user',
+          content: `Consigna: ${data.prompt ?? 'Redacción libre'}
+Mínimo: ${data.min_words ?? 0} palabras${data.max_words ? `, máximo ${data.max_words}` : ''}.${data.required_words?.length ? `\nPalabras requeridas: ${data.required_words.join(', ')}` : ''}${data.forbidden_words?.length ? `\nPalabras prohibidas: ${data.forbidden_words.join(', ')}` : ''}${data.rubric ? `\nCriterio de evaluación: ${data.rubric}` : ''}
+
+Texto del estudiante:
+${data.content}`,
+        },
+      ];
+
+    default:
+      throw new Error(`Unknown task: ${task}`);
+  }
+}
+
+const jsonTasks: EnhanceTask[] = ['generate_activity_options', 'suggest_required_words', 'review_production', 'suggest_rubric', 'batch_grade', 'complete_activity', 'suggest_tags', 'generate_example', 'review_essay'];
+
+async function handleRequest(request: Request): Promise<Response> {
+  const corsHeaders = cors(request);
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  try {
+    if (!GROQ_API_KEY) {
+      throw new Error('GROQ_API_KEY not configured in the function environment');
+    }
+
+    const body: RequestBody = await request.json();
+    const { task, lang, data } = body;
+
+    const messages = buildMessages(task, lang, data);
+    const maxTokens = task === 'batch_grade' ? 2000 : task === 'suggest_rubric' ? 600 : task === 'complete_activity' ? 2000 : task === 'generate_example' ? 600 : 400;
+
+    const groqRes = await fetch(GROQ_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        temperature: 0.4,
+        max_tokens: maxTokens,
+        ...(jsonTasks.includes(task) ? { response_format: { type: 'json_object' } } : {}),
+      }),
+    });
+
+    if (!groqRes.ok) {
+      const err = await groqRes.text();
+      throw new Error(`GROQ error ${groqRes.status}: ${err}`);
+    }
+
+    const groqData = await groqRes.json();
+    const result = groqData.choices[0]?.message?.content?.trim() ?? '';
+
+    if (jsonTasks.includes(task)) {
+      const jsonStr = result.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+      try {
+        const parsed = JSON.parse(jsonStr);
+        return new Response(JSON.stringify({ result: parsed }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch {
+        return new Response(JSON.stringify({ error: 'Invalid JSON from model', raw: jsonStr }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    return new Response(JSON.stringify({ result }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+export default {
+  fetch: handleRequest,
+};
