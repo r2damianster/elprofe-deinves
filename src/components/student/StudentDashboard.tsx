@@ -74,16 +74,8 @@ export default function StudentDashboard() {
 
     const interval = setInterval(checkActiveSession, 5000);
 
-    const channel = supabase
-      .channel('student_presentation_watch')
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'presentation_sessions',
-      }, () => { checkActiveSession(); })
-      .subscribe();
-
     return () => {
       clearInterval(interval);
-      supabase.removeChannel(channel);
     };
   }, [profile?.id]);
 
