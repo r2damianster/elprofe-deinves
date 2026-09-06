@@ -539,28 +539,20 @@ export default function ProductionEditor({ lessonId, onBack }: { lessonId: strin
     setAiError(null);
     setActiveTab('ia');
     try {
-      const { data: invokeData, error: invokeError } = await (supabase as any).functions.invoke('ai-enhance', {
-        body: {
-          task: 'review_production',
-          lang: 'es',
-          data: {
-            content,
-            instructions: rules?.instructions
-              ? resolveField(rules.instructions, 'es')
-              : 'Redacción libre',
-            min_words: rules?.min_words,
-            max_words: rules?.max_words,
-            required_words: resolveWords(rules?.required_words, 'es'),
-            prohibited_words: resolveWords(rules?.prohibited_words, 'es'),
-          },
-        },
+      const result = await callAiEnhance('review_production', 'es', {
+        content,
+        instructions: rules?.instructions
+          ? resolveField(rules.instructions, 'es')
+          : 'Redacción libre',
+        min_words: rules?.min_words,
+        max_words: rules?.max_words,
+        required_words: resolveWords(rules?.required_words, 'es'),
+        prohibited_words: resolveWords(rules?.prohibited_words, 'es'),
       });
-      if (invokeError) throw new Error(invokeError.message);
-      const json = invokeData;
       // Guardar timestamp del uso exitoso
       localStorage.setItem(aiStorageKey, Date.now().toString());
       setAiCooldownMin(120);
-      setAiFeedback(json.result);
+      setAiFeedback(result);
     } catch (err: any) {
       setAiError(err.message);
       showToast('Error al analizar con IA', 'error');
