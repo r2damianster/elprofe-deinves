@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { callAiEnhance } from '../../lib/aiEnhance';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Users, CheckCircle, RotateCcw, Loader2, Sparkles, Save
