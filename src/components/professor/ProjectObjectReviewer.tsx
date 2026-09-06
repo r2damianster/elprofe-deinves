@@ -211,20 +211,11 @@ export default function ProjectObjectReviewer() {
     setGradingAI(true);
     setAiResult(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const supabaseUrl = (supabase as any).supabaseUrl as string;
-      const res = await fetch(`${supabaseUrl}/functions/v1/ai-enhance`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({
-          task: 'review_production',
-          lang: 'es',
-          data: { content: fullContent, rubric_prompt: rubricPrompt, word_count: totalWords },
-        }),
+      const r = await callAiEnhance<any>('review_production', 'es', {
+        content: fullContent,
+        rubric_prompt: rubricPrompt,
+        word_count: totalWords,
       });
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-      const r = json.result;
       const score = String(r.score ?? r.nota ?? '');
       const feedback = r.feedback ?? r.retroalimentacion ?? '';
       setAiResult({ score, feedback });
