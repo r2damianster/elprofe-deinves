@@ -23,12 +23,19 @@ function makeActor() {
   }
 
   async function signUp(email, name) {
-    const res = await authFetch('/sign-up/email', {
+    let res = await authFetch('/sign-up/email', {
       method: 'POST',
       body: JSON.stringify({ email, password: PASSWORD, name }),
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(`signUp ${email}: ${JSON.stringify(json)}`);
+    let json = await res.json();
+    if (!res.ok && json.code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL') {
+      res = await authFetch('/sign-in/email', {
+        method: 'POST',
+        body: JSON.stringify({ email, password: PASSWORD }),
+      });
+      json = await res.json();
+    }
+    if (!res.ok) throw new Error(`signUp/signIn ${email}: ${JSON.stringify(json)}`);
     accessToken = json.token ?? json.session?.access_token ?? null;
     if (!accessToken) {
       // fallback: pedir token explícito
