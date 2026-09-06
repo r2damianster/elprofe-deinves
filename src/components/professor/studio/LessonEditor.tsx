@@ -65,9 +65,7 @@ function useAI() {
   async function enhance(task: string, lang: Lang, data: Record<string, any>): Promise<any | null> {
     setLoading(task + lang);
     try {
-      const { data: res, error } = await supabase.functions.invoke('ai-enhance', { body: { task, lang, data } });
-      if (error) throw error;
-      return res?.result ?? null;
+      return await callAiEnhance(task, lang, data);
     } catch (e) { console.error(e); return null; }
     finally { setLoading(null); }
   }
