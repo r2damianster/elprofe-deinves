@@ -1,120 +1,142 @@
-import { createClient, SupabaseAuthAdapter, defaultDeriveNeonUrls } from '@neondatabase/neon-js';
-
+const AUTH_URL = 'https://ep-floral-credit-ax4v683g.neonauth.c-4.us-east-2.aws.neon.tech/elprofe_deinves/auth';
+const DATA_API_URL = 'https://ep-floral-credit-ax4v683g.apirest.c-4.us-east-2.aws.neon.tech/elprofe_deinves/rest/v1';
 const ORIGIN = 'http://localhost:5173';
-const originalFetch = globalThis.fetch;
-globalThis.fetch = (input, init = {}) => {
-  const headers = new Headers(init.headers || {});
-  if (!headers.has('origin')) headers.set('origin', ORIGIN);
-  return originalFetch(input, { ...init, headers });
-};
-
-const neonUrl = 'https://ep-floral-credit-ax4v683g.c-4.us-east-2.aws.neon.tech/elprofe_deinves';
-const { auth: authUrl, dataApi: dataApiUrl } = defaultDeriveNeonUrls(neonUrl);
-
-function newClient() {
-  const jar = new Map();
-  const baseFetch = globalThis.fetch;
-  const scopedFetch = (input, init = {}) => {
-    const headers = new Headers(init.headers || {});
-    if (!headers.has('origin')) headers.set('origin', ORIGIN);
-    const cookieHeader = [...jar.values()].join('; ');
-    if (cookieHeader) headers.set('cookie', cookieHeader);
-    return baseFetch(input, { ...init, headers }).then(res => {
-      const setCookie = res.headers.get('set-cookie');
-      if (setCookie) {
-        setCookie.split(/,(?=[^;]+=[^;]+)/).forEach(c => {
-          const [pair] = c.trim().split(';');
-          const [name] = pair.split('=');
-          jar.set(name, pair);
-        });
-      }
-      return res;
-    });
-  };
-  globalThis.fetch = scopedFetch;
-  const client = createClient({
-    auth: { adapter: SupabaseAuthAdapter(), url: authUrl },
-    dataApi: { url: dataApiUrl },
-  });
-  globalThis.fetch = baseFetch;
-  return client;
-}
-
 const PASSWORD = 'TestPass123!';
 
-async function signUpAndProfile(email, fullName, role) {
-  const client = newClient();
-  const { data, error } = await client.auth.signUp({ email, password: PASSWORD });
-  if (error) throw new Error(`signUp ${email}: ${error.message}`);
-  const userId = data.user.id;
-  const { error: profileError } = await client.from('profiles').insert({
-    id: userId, email, full_name: fullName, role,
+function makeActor() {
+  const cookies = new Map();
+  let accessToken = null;
+
+  async function authFetch(path, init = {}) {
+    const headers = new Headers(init.headers || {});
+    headers.set('origin', ORIGIN);
+    headers.set('content-type', 'application/json');
+    if (cookies.size) headers.set('cookie', [...cookies.entries()].map(([k, v]) => `${k}=${v}`).join('; '));
+    const res = await fetch(`${AUTH_URL}${path}`, { ...init, headers });
+    const setCookies = typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [];
+    for (const c of setCookies) {
+      const [pair] = c.split(';');
+      const idx = pair.indexOf('=');
+      cookies.set(pair.slice(0, idx), pair.slice(idx + 1));
+    }
+    return res;
+  }
+
+  async function signUp(email, name) {
+    const res = await authFetch('/sign-up/email', {
+      method: 'POST',
+      body: JSON.stringify({ email, password: PASSWORD, name }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(`signUp ${email}: ${JSON.stringify(json)}`);
+    accessToken = json.token ?? json.session?.access_token ?? null;
+    if (!accessToken) {
+      // fallback: pedir token explícito
+      const tokenRes = await authFetch('/token');
+      const tokenJson = await tokenRes.json();
+      accessToken = tokenJson.token;
+    }
+    if (!accessToken) throw new Error(`No se obtuvo JWT para ${email}: ${JSON.stringify(json)}`);
+    return json.user;
+  }
+
+  async function dataApi(path, init = {}) {
+    const headers = new Headers(init.headers || {});
+    headers.set('content-type', 'application/json');
+    headers.set('authorization', `Bearer ${accessToken}`);
+    const res = await fetch(`${DATA_API_URL}${path}`, { ...init, headers });
+    const text = await res.text();
+    let json;
+    try { json = text ? JSON.parse(text) : null; } catch { json = text; }
+    return { ok: res.ok, status: res.status, data: json };
+  }
+
+  return { signUp, dataApi, getToken: () => accessToken };
+}
+
+async function insertProfile(actor, id, email, fullName, role) {
+  const { ok, status, data } = await actor.dataApi('/profiles', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ id, email, full_name: fullName, role }),
   });
-  if (profileError) throw new Error(`profile insert ${email}: ${profileError.message}`);
-  console.log(`OK signup+profile: ${email} (${role}) -> ${userId}`);
-  return { client, userId };
+  if (!ok) throw new Error(`insert profile ${email}: ${status} ${JSON.stringify(data)}`);
+  return data[0];
 }
 
 async function main() {
   console.log('--- 1. Signup profesor ---');
-  const prof = await signUpAndProfile('arturo.rodriguez@uleam.ddu.ec', 'Arturo Rodríguez', 'professor');
+  const prof = makeActor();
+  const profUser = await prof.signUp('arturo.rodriguez@uleam.ddu.ec', 'Arturo Rodríguez');
+  await insertProfile(prof, profUser.id, profUser.email, 'Arturo Rodríguez', 'professor');
+  console.log('OK profesor:', profUser.id);
 
   console.log('--- 2. Signup 3 estudiantes ---');
-  const s1 = await signUpAndProfile('estudiante1@test.com', 'Estudiante Uno', 'student');
-  const s2 = await signUpAndProfile('estudiante2@test.com', 'Estudiante Dos', 'student');
-  const s3 = await signUpAndProfile('estudiante3@test.com', 'Estudiante Tres', 'student');
+  const students = [];
+  for (const [email, name] of [
+    ['estudiante1@test.com', 'Estudiante Uno'],
+    ['estudiante2@test.com', 'Estudiante Dos'],
+    ['estudiante3@test.com', 'Estudiante Tres'],
+  ]) {
+    const actor = makeActor();
+    const user = await actor.signUp(email, name);
+    await insertProfile(actor, user.id, user.email, name, 'student');
+    students.push({ actor, user });
+    console.log('OK estudiante:', email, user.id);
+  }
+  const [s1, s2, s3] = students;
 
   console.log('--- 3. Profesor crea curso ---');
-  const { data: course, error: courseErr } = await prof.client
-    .from('courses')
-    .insert({ name: 'Inglés A1 - Prueba', professor_id: prof.userId, language: 'es' })
-    .select()
-    .single();
-  if (courseErr) throw new Error('crear curso: ' + courseErr.message);
-  console.log('OK curso creado:', course.id);
+  const courseRes = await prof.dataApi('/courses', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ name: 'Inglés A1 - Prueba', professor_id: profUser.id, language: 'es' }),
+  });
+  if (!courseRes.ok) throw new Error('crear curso: ' + JSON.stringify(courseRes.data));
+  const course = courseRes.data[0];
+  console.log('OK curso:', course.id);
 
-  console.log('--- 4. Profesor matricula a los 3 estudiantes ---');
-  for (const s of [s1, s2, s3]) {
-    const { error } = await prof.client.from('course_students').insert({ course_id: course.id, student_id: s.userId });
-    if (error) throw new Error('matricular: ' + error.message);
+  console.log('--- 4. Matricular 3 estudiantes ---');
+  for (const s of students) {
+    const r = await prof.dataApi('/course_students', {
+      method: 'POST',
+      body: JSON.stringify({ course_id: course.id, student_id: s.user.id }),
+    });
+    if (!r.ok) throw new Error('matricular: ' + JSON.stringify(r.data));
   }
   console.log('OK 3 matriculados');
 
-  console.log('--- 5. Estudiante 1 ve el curso (RLS enrolled) ---');
-  const { data: coursesSeen, error: seeErr } = await s1.client.from('courses').select('*').eq('id', course.id);
-  if (seeErr) throw new Error('estudiante ve curso: ' + seeErr.message);
-  console.log(coursesSeen.length === 1 ? 'OK estudiante1 ve su curso' : `FALLO: estudiante1 ve ${coursesSeen.length} filas (esperaba 1)`);
+  console.log('--- 5. Estudiante1 ve el curso (RLS enrolled) ---');
+  const seenByS1 = await s1.actor.dataApi(`/courses?id=eq.${course.id}`);
+  console.log(seenByS1.ok && seenByS1.data.length === 1 ? 'OK estudiante1 ve su curso' : `FALLO: ${JSON.stringify(seenByS1)}`);
 
-  console.log('--- 6. Profesor crea lección ---');
-  const { data: lesson, error: lessonErr } = await prof.client
-    .from('lessons')
-    .insert({ title: { es: 'Saludos', en: 'Greetings' }, content: {}, created_by: prof.userId })
-    .select()
-    .single();
-  if (lessonErr) throw new Error('crear leccion: ' + lessonErr.message);
-  console.log('OK leccion creada:', lesson.id);
+  console.log('--- 6. Profesor crea leccion ---');
+  const lessonRes = await prof.dataApi('/lessons', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ title: { es: 'Saludos', en: 'Greetings' }, content: {}, created_by: profUser.id }),
+  });
+  if (!lessonRes.ok) throw new Error('crear leccion: ' + JSON.stringify(lessonRes.data));
+  const lesson = lessonRes.data[0];
+  console.log('OK leccion:', lesson.id);
 
   console.log('--- 7. Estudiante1 crea su produccion ---');
-  const { data: prod, error: prodErr } = await s1.client
-    .from('productions')
-    .insert({ student_id: s1.userId, lesson_id: lesson.id, content: 'Hello, my name is student one.' })
-    .select()
-    .single();
-  if (prodErr) throw new Error('crear produccion: ' + prodErr.message);
-  console.log('OK produccion creada:', prod.id);
+  const prodRes = await s1.actor.dataApi('/productions', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ student_id: s1.user.id, lesson_id: lesson.id, content: 'Hello, my name is student one.' }),
+  });
+  if (!prodRes.ok) throw new Error('crear produccion: ' + JSON.stringify(prodRes.data));
+  const prod = prodRes.data[0];
+  console.log('OK produccion:', prod.id);
 
-  console.log('--- 8. Estudiante2 intenta leer la produccion de estudiante1 (debe fallar/vacio) ---');
-  const { data: peekAttempt } = await s2.client.from('productions').select('*').eq('id', prod.id);
-  console.log(peekAttempt.length === 0 ? 'OK RLS bloquea: estudiante2 no ve la produccion ajena' : `FALLO RLS: estudiante2 ve ${peekAttempt.length} fila(s) ajenas`);
+  console.log('--- 8. Estudiante2 intenta leer la produccion de estudiante1 ---');
+  const peek = await s2.actor.dataApi(`/productions?id=eq.${prod.id}`);
+  console.log(peek.ok && peek.data.length === 0 ? 'OK RLS bloquea a estudiante2' : `FALLO RLS: ${JSON.stringify(peek)}`);
 
-  console.log('--- 9. Profesor lee la produccion de estudiante1 (debe funcionar) ---');
-  const { data: profSees, error: profSeesErr } = await prof.client.from('productions').select('*').eq('id', prod.id);
-  if (profSeesErr) throw new Error('profesor lee produccion: ' + profSeesErr.message);
-  console.log(profSees.length === 1 ? 'OK profesor ve la produccion del estudiante' : `FALLO: profesor ve ${profSees.length} filas`);
-
-  console.log('--- 10. get_user_role() vía tabla profiles (chequeo directo) ---');
-  const { data: profRow } = await prof.client.from('profiles').select('role, is_admin').eq('id', prof.userId).single();
-  console.log('profile profesor:', profRow);
+  console.log('--- 9. Profesor lee la produccion de estudiante1 ---');
+  const profSees = await prof.dataApi(`/productions?id=eq.${prod.id}`);
+  console.log(profSees.ok && profSees.data.length === 1 ? 'OK profesor ve la produccion' : `FALLO: ${JSON.stringify(profSees)}`);
 
   console.log('\n=== TODO OK ===');
 }
