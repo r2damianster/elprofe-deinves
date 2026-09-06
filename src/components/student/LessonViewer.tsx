@@ -228,21 +228,11 @@ export default function LessonViewer({ lessonId, onBack, previewMode = false, la
       setGroupInfo(prev => prev ? { ...prev, completedBy: completedByMap } : prev);
     }
 
-    // Polling cada 5s
+    // Polling cada 5s (sin Realtime en Neon)
     const interval = setInterval(refreshGroupCompletions, 5000);
-
-    // Realtime
-    const channel = supabase
-      .channel(`group_completions_${groupInfo.groupId}`)
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'group_activity_completions',
-        filter: `group_id=eq.${groupInfo.groupId}`,
-      }, () => { refreshGroupCompletions(); })
-      .subscribe();
 
     return () => {
       clearInterval(interval);
-      supabase.removeChannel(channel);
     };
   }, [groupInfo?.groupId]);
 
