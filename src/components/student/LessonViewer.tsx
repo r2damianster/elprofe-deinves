@@ -103,7 +103,7 @@ function toEmbedUrl(url: string): string {
 function ContentStepRenderer({ step, readingTaskLabel }: { step: ContentStep; readingTaskLabel: string }) {
   // Normalise: media_url is the primary field in DB; url is fallback
   const effectiveUrl = step.media_url || step.url;
-  const effectivePdfUrl = step.pdf_url || (effectiveUrl?.includes('.pdf') || effectiveUrl?.includes('supabase.co/storage') ? effectiveUrl : undefined);
+  const effectivePdfUrl = step.pdf_url || (effectiveUrl?.includes('.pdf') || (effectiveUrl?.includes('.storage.') && effectiveUrl?.includes('.neon.tech')) ? effectiveUrl : undefined);
 
   switch (step.type) {
     case 'VIDEO':
