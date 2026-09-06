@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '../../../lib/supabase';
+import { callAiEnhance } from '../../../lib/aiEnhance';
 import { Wand2, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useIntegrity } from './useIntegrity';
 import MetricsBar from './MetricsBar';
