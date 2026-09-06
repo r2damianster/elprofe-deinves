@@ -29,7 +29,15 @@ async function fetchAll(table) {
   return rows;
 }
 
-function prepValue(v) {
+// Columnas que son text[] nativo en el schema Neon (no jsonb) — el array JS
+// debe pasarse tal cual para que pg lo serialice como literal de array Postgres.
+const NATIVE_ARRAY_COLUMNS = {
+  activities: new Set(['tags']),
+  project_object_types: new Set(['required_words']),
+};
+
+function prepValue(v, table, col) {
+  if (Array.isArray(v) && NATIVE_ARRAY_COLUMNS[table]?.has(col)) return v;
   if (v !== null && typeof v === 'object') return JSON.stringify(v);
   return v;
 }
@@ -44,7 +52,7 @@ async function copyTable(table) {
   const colList = cols.map(c => `"${c}"`).join(', ');
   let inserted = 0;
   for (const row of rows) {
-    const values = cols.map(c => prepValue(row[c]));
+    const values = cols.map(c => prepValue(row[c], table, c));
     const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
     try {
       await client.query(
