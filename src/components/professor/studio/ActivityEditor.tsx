@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { callAiEnhance } from '../../../lib/aiEnhance';
 import { useAuth } from '../../../contexts/AuthContext';
 import { X, Plus, Trash2, Loader2, Wand2, GripVertical, ArrowRight } from 'lucide-react';
 import MediaUploader from './MediaUploader';
