@@ -53,27 +53,36 @@ export default function MediaUploader({ value, onChange, accept = 'any', label =
     setUploading(true);
     setError('');
 
-    // Path: {userId}/{timestamp}_{filename}
-    const ext = file.name.split('.').pop();
-    const path = `${profile.id}/${Date.now()}.${ext}`;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const presignRes = await fetch(import.meta.env.VITE_NEON_MEDIA_UPLOAD_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size }),
+      });
 
-    const { data, error: uploadError } = await supabase.storage
-      .from('lesson-media')
-      .upload(path, file, { upsert: true });
+      const presignData = await presignRes.json();
+      if (!presignRes.ok) throw new Error(presignData.error || 'Error al preparar la subida');
 
-    if (uploadError) {
-      setError(uploadError.message);
+      const { uploadUrl, publicUrl } = presignData;
+
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error('Error al subir el archivo');
+
+      onChange(publicUrl);
+      setUrlInput(publicUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al subir el archivo');
+    } finally {
       setUploading(false);
-      return;
     }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('lesson-media')
-      .getPublicUrl(data.path);
-
-    onChange(publicUrl);
-    setUrlInput(publicUrl);
-    setUploading(false);
   }
 
   const previewType = accept === 'image' || (value && /\.(jpg|jpeg|png|gif|webp)$/i.test(value))
