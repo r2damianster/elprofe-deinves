@@ -184,20 +184,12 @@ export default function ProjectObjectReviewer() {
     if (!selectedProjectId) return;
     setGeneratingRubric(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const supabaseUrl = (supabase as any).supabaseUrl as string;
       const project = projects.find(p => p.id === selectedProjectId);
-      const res = await fetch(`${supabaseUrl}/functions/v1/ai-enhance`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({
-          task: 'suggest_rubric',
-          lang: 'es',
-          data: { lesson_title: project?.title ?? '', instructions: types.map(t => t.name).join(', ') },
-        }),
+      const result = await callAiEnhance<string>('suggest_rubric', 'es', {
+        lesson_title: project?.title ?? '',
+        instructions: types.map(t => t.name).join(', '),
       });
-      const json = await res.json();
-      if (json.result) setRubricPrompt(json.result);
+      if (result) setRubricPrompt(result);
     } catch (err: any) { alert('Error IA: ' + err.message); }
     finally { setGeneratingRubric(false); }
   }
