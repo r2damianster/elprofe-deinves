@@ -579,6 +579,12 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
     if (translated) setTitleEn(translated);
   }
 
+  async function handleTranslateDescription() {
+    if (!description) return;
+    const translated = await enhance('translate', 'es', { text: description, from_lang: 'es' });
+    if (translated) setDescriptionEn(translated);
+  }
+
   async function handleCompleteWithAI() {
     const result = await enhance('complete_activity', 'es', {
       type,
@@ -587,6 +593,7 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
     if (!result) return;
     if (result.title_es) setTitleEs(result.title_es);
     if (result.title_en) setTitleEn(result.title_en);
+    if (result.content_es) setContentEs({ _lang: 'es', ...result.content_es });
     if (result.content_en) setContentEn({ _lang: 'en', ...result.content_en });
     if (result.tags?.length) setTags(result.tags);
     if (result.description) setDescription(result.description);
@@ -752,9 +759,18 @@ export default function ActivityEditor({ activity, onSave, onCancel }: Props) {
             <div className="space-y-2">
               <div>
                 <label className="label-sm">Descripción breve 🇪🇸</label>
-                <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)}
-                  placeholder="Ej: Seleccionar la forma correcta del verbo en pasado simple."
-                  className="input-field resize-none" />
+                <div className="flex gap-2 items-start">
+                  <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)}
+                    placeholder="Ej: Seleccionar la forma correcta del verbo en pasado simple."
+                    className="input-field resize-none flex-1" />
+                  <button type="button" onClick={handleTranslateDescription}
+                    disabled={!description || !!aiLoading}
+                    title="Traducir ES → EN con IA"
+                    className="flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition disabled:opacity-40 text-xs font-medium whitespace-nowrap shrink-0">
+                    {aiLoading === 'translatees' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
+                    Traducir
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="label-sm">Brief description 🇺🇸</label>

@@ -177,11 +177,19 @@ ${data.content}`,
       return [
         {
           role: 'system',
-          content: `Eres un diseñador experto de actividades para plataformas de enseñanza de idiomas. Recibes el contenido de una actividad en español y debes devolver SOLO JSON con este formato exacto (sin markdown):
-{"title_es":"<título corto en español>","title_en":"<título corto en inglés>","content_en":<mismo JSON que content_es pero con textos traducidos al inglés>,"tags":["tag1","tag2","tag3"],"description":"<1 oración en español describiendo qué practica el estudiante>","description_en":"<same sentence translated to English>","difficulty":<1|2|3>}
+          content: `Eres un diseñador experto de actividades para plataformas de enseñanza de idiomas. Recibes el contenido parcial de una actividad en español y debes devolver SOLO JSON con este formato exacto (sin markdown):
+{"title_es":"<título corto en español>","title_en":"<título corto en inglés>","content_es":<JSON completo en español con todos los campos generados>,"content_en":<mismo JSON que content_es pero con textos traducidos al inglés>,"tags":["tag1","tag2","tag3"],"description":"<1 oración en español describiendo qué practica el estudiante>","description_en":"<same sentence translated to English>","difficulty":<1|2|3>}
+
+Reglas CRÍTICAS para content_es:
+- Conserva todos los campos ya rellenados por el usuario (question, statement, prompt, etc.)
+- Si hay arrays vacíos (options:[], items:[], pairs:[], etc.), GENÉRALOS en español con contenido pedagógicamente correcto
+- Para multiple_choice/listening: genera 4 opciones, una correcta y tres distractores plausibles; actualiza correct_id
+- Para true_false: si correct no está definido, ponlo en true
+- Para fill_blank: si accepted_answers está vacío, genera 2-3 respuestas aceptables en español
+- Para ordering/matching/drag_drop: completa los arrays con ítems en español
 
 Reglas CRÍTICAS para content_en:
-- Mantén EXACTAMENTE la misma estructura JSON que content_es
+- Mantén EXACTAMENTE la misma estructura JSON que content_es (ya completo)
 - Si content_es tiene un array "options" con N elementos, content_en DEBE tener exactamente N elementos con los mismos IDs. NUNCA omitas ni combines opciones.
 - Traduce solo los valores de texto (questions, statements, options text, hints, instruction, prompt, etc.)
 - NO cambies IDs, correct_id, correct, números, booleanos, min_words, max_words ni campos de referencia
@@ -189,7 +197,7 @@ Reglas CRÍTICAS para content_en:
         },
         {
           role: 'user',
-          content: `Tipo de actividad: ${data.type}\nContenido en español:\n${JSON.stringify(data.content_es, null, 2)}`,
+          content: `Tipo de actividad: ${data.type}\nContenido en español (puede estar incompleto):\n${JSON.stringify(data.content_es, null, 2)}`,
         },
       ];
 
