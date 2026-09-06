@@ -78,22 +78,16 @@ export default function Essay({ content, onSubmit, disabled, points }: EssayProp
     setAiLoading(true);
     setAiResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-enhance', {
-        body: {
-          task: 'review_essay',
-          lang: 'es',
-          data: {
-            prompt: content.prompt,
-            min_words: minWords,
-            max_words: maxWords,
-            required_words: reqWords,
-            forbidden_words: fobWords,
-            rubric: content.rubric,
-            content: text,
-          },
-        },
+      const result = await callAiEnhance<AiResult>('review_essay', 'es', {
+        prompt: content.prompt,
+        min_words: minWords,
+        max_words: maxWords,
+        required_words: reqWords,
+        forbidden_words: fobWords,
+        rubric: content.rubric,
+        content: text,
       });
-      if (!error && data?.result) setAiResult(data.result as AiResult);
+      if (result) setAiResult(result);
     } finally {
       setAiLoading(false);
     }
