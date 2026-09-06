@@ -12,10 +12,32 @@ const neonUrl = 'https://ep-floral-credit-ax4v683g.c-4.us-east-2.aws.neon.tech/e
 const { auth: authUrl, dataApi: dataApiUrl } = defaultDeriveNeonUrls(neonUrl);
 
 function newClient() {
-  return createClient({
+  const jar = new Map();
+  const baseFetch = globalThis.fetch;
+  const scopedFetch = (input, init = {}) => {
+    const headers = new Headers(init.headers || {});
+    if (!headers.has('origin')) headers.set('origin', ORIGIN);
+    const cookieHeader = [...jar.values()].join('; ');
+    if (cookieHeader) headers.set('cookie', cookieHeader);
+    return baseFetch(input, { ...init, headers }).then(res => {
+      const setCookie = res.headers.get('set-cookie');
+      if (setCookie) {
+        setCookie.split(/,(?=[^;]+=[^;]+)/).forEach(c => {
+          const [pair] = c.trim().split(';');
+          const [name] = pair.split('=');
+          jar.set(name, pair);
+        });
+      }
+      return res;
+    });
+  };
+  globalThis.fetch = scopedFetch;
+  const client = createClient({
     auth: { adapter: SupabaseAuthAdapter(), url: authUrl },
     dataApi: { url: dataApiUrl },
   });
+  globalThis.fetch = baseFetch;
+  return client;
 }
 
 const PASSWORD = 'TestPass123!';
