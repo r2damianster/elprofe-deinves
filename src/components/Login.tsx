@@ -1,15 +1,12 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { GraduationCap } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -17,11 +14,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      if (mode === 'signup') {
-        await signUp(email, password, fullName);
-      } else {
-        await signIn(email, password);
-      }
+      await signIn(email, password);
     } catch (err: any) {
       setError(err.message || 'An error occurred');
     } finally {
@@ -38,7 +31,7 @@ export default function Login() {
         </div>
 
         <h2 className="text-2xl font-semibold text-center mb-6 text-gray-700">
-          {mode === 'signup' ? 'Crear cuenta (temporal, migración)' : 'Iniciar Sesión'}
+          Iniciar Sesión
         </h2>
 
         {error && (
@@ -48,21 +41,6 @@ export default function Login() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === 'signup' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre completo
-              </label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              />
-            </div>
-          )}
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Correo Electrónico
@@ -94,15 +72,7 @@ export default function Login() {
             disabled={loading}
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Procesando...' : mode === 'signup' ? 'Crear cuenta' : 'Iniciar Sesión'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setMode(m => m === 'signup' ? 'signin' : 'signup'); setError(''); }}
-            className="w-full text-sm text-blue-600 hover:underline"
-          >
-            {mode === 'signup' ? '← Volver a iniciar sesión' : 'Crear cuenta nueva (migración)'}
+            {loading ? 'Procesando...' : 'Iniciar Sesión'}
           </button>
         </form>
       </div>
