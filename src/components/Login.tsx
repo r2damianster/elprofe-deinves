@@ -5,9 +5,11 @@ import { GraduationCap } from 'lucide-react';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, signUp } = useAuth();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -15,7 +17,11 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      if (mode === 'signup') {
+        await signUp(email, password, fullName);
+      } else {
+        await signIn(email, password);
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred');
     } finally {
