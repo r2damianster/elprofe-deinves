@@ -154,7 +154,7 @@ const result = await callAiEnhance('complete_activity', 'es', { type, content_es
 
 **Producción grupal:** `group_production_locks` registra quién envió primero. Los demás miembros ven el ensayo del primero como referencia y no pueden enviar el propio.
 
-**Presentación en vivo:** `PresentationController` (profesor) escribe `current_step_index` en `presentation_sessions`. `PresentationViewer` (estudiante) escucha por Supabase Realtime y navega automáticamente.
+**Presentación en vivo:** `PresentationController` (profesor) escribe `current_step_index` en `presentation_sessions`. `PresentationViewer` (estudiante) hace polling cada 3s sobre esa fila y navega automáticamente (Neon no tiene Realtime nativo; antes era una suscripción `postgres_changes` de Supabase).
 
 **Doble registro de actividades:** Cuando se vincula una actividad a una lección se escribe en `lesson_activities` Y en el campo `content` JSONB de `lessons`. Deben mantenerse sincronizados.
 
