@@ -106,7 +106,7 @@ npm run dev
 - **Transición de Producción Independiente:**
   En versiones anteriores, el motor de escritura (ensayos) era un bloque final al final de la lección leyendo de `production_rules`. Ahora, la **Producción Extensa** (Ensayo, Respuesta Larga, Abierta, etc.) es estructural e independientemente inyectable en cualquier parte del flujo como un paso natural dentro del carrusel, autoadministrando internamente el puntaje (compliance score), validando palabras mínimas, máximas, palabras obligatorias y palabras prohibidas según la configuración alojada en el `content` de dicha actividad.
 - **Sistema de Categorización Nativo:**
-  Para no alterar los esquemas migrados en la base de datos Supabase, toda meta-información y ontología (ej. Etiquetas y Palabras Clave o `tags`) se almacena como Arrays de texto (`string[]`) directamente inyectados en la columna `content` de tipo JSONB en `lessons` y `activities`.
+  Para no alterar los esquemas heredados de la base de datos, toda meta-información y ontología (ej. Etiquetas y Palabras Clave o `tags`) se almacena como Arrays de texto (`string[]`) directamente inyectados en la columna `content` de tipo JSONB en `lessons` y `activities`.
 - Producción escrita desbloqueada al superar el porcentaje mínimo configurado
 
 **Grupos (tab "Mis Grupos")**
