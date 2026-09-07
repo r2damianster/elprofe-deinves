@@ -62,7 +62,9 @@ El código fuente de lean-ctx está en `C:\Users\User\Downloads\lean-ctx-main\` 
 
 ## Arquitectura general
 
-Plataforma educativa para ULEAM. SPA React con Supabase como backend completo (PostgreSQL + Auth + Realtime + Edge Functions).
+Plataforma educativa para ULEAM. SPA React con **Neon** como backend completo (Postgres + Data API + Managed Better Auth + Object Storage + Neon Functions).
+
+> **Historial:** hasta 2026-09 el backend era Supabase (proyecto en otra cuenta, ya dada de baja). Se migró por completo a Neon — schema, RLS, datos reales, Auth, Storage y las Edge Functions. El proyecto **ya no está conectado a Supabase de ninguna forma**; `supabase/migrations/*.sql` queda solo como referencia histórica del schema, no se aplica a nada. Detalle completo de la migración en `.claude/troubleshooting/` (buscar el hilo de migración Supabase→Neon) y en la memoria del proyecto.
 
 **Roles:** `admin` | `professor` | `student`. Un usuario con `profiles.is_admin = true` puede alternar entre admin y profesor sin reautenticarse (lógica en `App.tsx` → `DashboardSelector`).
 
