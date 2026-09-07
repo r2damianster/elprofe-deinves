@@ -191,3 +191,4 @@ profiles                     (usuarios: admin, professor, student, is_admin bool
 | [`.claude/docs/architecture/lesson-jsonb-spec.md`](./.claude/docs/architecture/lesson-jsonb-spec.md) | Especificación JSONB de lecciones y sincronización con lesson_activities |
 | [`.claude/contexts/database/schema.sql`](./.claude/contexts/database/schema.sql) | Esquema SQL completo con 18 tablas y 9 consultas de diagnóstico |
 | [`.claude/docs/architecture/conventions.md`](./.claude/docs/architecture/conventions.md) | Convenciones de código, estilos, TypeScript y comandos |
+| [`.claude/troubleshooting/migration-001-supabase-to-neon.md`](./.claude/troubleshooting/migration-001-supabase-to-neon.md) | Migración completa de Supabase a Neon: mapeo de arquitectura, gotchas, patrón de merge de identidad de usuarios |
