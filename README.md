@@ -164,7 +164,7 @@ student_progress             (progreso individual por lección)
 profiles                     (usuarios: admin, professor, student, is_admin boolean)
 ```
 
-### Migraciones aplicadas (en orden)
+### Migraciones aplicadas (en orden, histórico de Supabase — ver nota de migración a Neon arriba)
 
 | Archivo | Contenido |
 |---------|-----------|
