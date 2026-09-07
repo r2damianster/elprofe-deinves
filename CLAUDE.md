@@ -125,21 +125,28 @@ El cliente está en `src/lib/supabase.ts` (nombre histórico, mantenido para no 
 
 RLS activo en todas las tablas. Los profesores solo ven sus cursos; los estudiantes solo sus datos.
 
-## Edge Function: ai-enhance
+## Neon Functions
 
-`supabase/functions/ai-enhance/index.ts` — proxy hacia GROQ (llama-3.3-70b-versatile). Clave en el secret `GROQ_URL` del proyecto Supabase. `verify_jwt: false`.
+Dos funciones desplegadas en el branch de Neon (`aienhance`, `mediaupload`), fuente en `neon-functions/*.ts`, declaradas en `neon.ts`. Deploy vía `neon deploy`/`neon functions deploy` (CLI, requiere `neon link` interactivo) o directo por el MCP de Neon (`deploy_function`, bundle propio con esbuild — ver `.claude/troubleshooting/migration-001-supabase-to-neon.md` para el procedimiento exacto).
 
-Tasks disponibles: `improve_title`, `improve_description`, `improve_instructions`, `generate_activity_options`, `suggest_required_words`, `review_production`, `translate`, `suggest_rubric`, `batch_grade`, `complete_activity`.
+### `aienhance` — proxy GROQ
+
+`neon-functions/ai-enhance.ts` — proxy hacia GROQ (`openai/gpt-oss-120b`). Clave en la env var `GROQ_URL` de la función.
+
+Tasks disponibles: `improve_title`, `improve_description`, `improve_instructions`, `generate_activity_options`, `suggest_required_words`, `review_production`, `translate`, `suggest_rubric`, `batch_grade`, `complete_activity`, `suggest_tags`, `improve_rubric`, `generate_example`, `review_essay`.
 
 Las tasks que devuelven JSON usan `response_format: {type: 'json_object'}` + strip de bloques markdown como fallback. Si una task JSON falla el parse devuelve HTTP 502 con `{error, raw}`.
 
-Llamada desde frontend:
+Llamada desde frontend — siempre vía el helper `callAiEnhance` (`src/lib/aiEnhance.ts`), nunca `fetch` directo:
 ```typescript
-const { data, error } = await supabase.functions.invoke('ai-enhance', {
-  body: { task: 'complete_activity', lang: 'es', data: { type, content_es } }
-});
-// data.result contiene el objeto parseado
+import { callAiEnhance } from '../../lib/aiEnhance';
+const result = await callAiEnhance('complete_activity', 'es', { type, content_es });
+// result ya viene parseado (objeto o string según la task)
 ```
+
+### `mediaupload` — subida a Object Storage
+
+`neon-functions/media-upload.ts` — valida rol (admin/professor) contra el Data API con el JWT del caller, y devuelve una URL S3 presignada (SigV4 hecho a mano, sin SDK de AWS) para subir directo al bucket `lesson-media` desde el navegador. Usado por `MediaUploader.tsx`. Env var `VITE_NEON_MEDIA_UPLOAD_URL` en el frontend.
 
 ## Flujos no obvios
 
