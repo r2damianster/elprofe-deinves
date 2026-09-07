@@ -1,6 +1,7 @@
 import { createHash, createHmac } from 'crypto';
 
 const BUCKET = 'lesson-media';
+const DATA_API_URL = 'https://ep-floral-credit-ax4v683g.apirest.c-4.us-east-2.aws.neon.tech/elprofe_deinves/rest/v1';
 const MAX_SIZE_BYTES = 50 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
