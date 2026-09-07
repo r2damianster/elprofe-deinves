@@ -3,7 +3,7 @@ import{createRequire as ___cr}from"module";import{fileURLToPath as ___f}from"url
 // neon-functions/ai-enhance.ts
 var GROQ_API_KEY = process.env.GROQ_URL ?? process.env.GROQ_API_KEY ?? "";
 var GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
-var MODEL = "llama-3.3-70b-versatile";
+var MODEL = "openai/gpt-oss-120b";
 function cors(request) {
   return {
     "Access-Control-Allow-Origin": request.headers.get("origin") ?? "*",
