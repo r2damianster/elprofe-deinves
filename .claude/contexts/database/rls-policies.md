@@ -1,6 +1,8 @@
-# RLS Policies — Estado Actual (2026-04-19)
+# RLS Policies — Estado en Supabase, histórico (2026-04-19)
 
-> Las migraciones Supabase NUNCA se han aplicado al remote via `supabase db push`.
+> **Migrado a Neon en 2026-09.** Este documento describe el estado de las políticas RLS cuando el backend todavía era Supabase — se usó como base para reconstruir las ~62 políticas equivalentes en Neon (`auth.uid()` → `auth.user_id()::uuid`). Para el estado actual ver `.claude/troubleshooting/migration-001-supabase-to-neon.md`. Queda como referencia, no se aplica a nada en producción.
+
+> Las migraciones Supabase NUNCA se aplicaron al remote via `supabase db push`.
 > Todo el schema y las políticas fueron configurados manualmente en el dashboard.
 > `supabase list_migrations` devuelve `[]`.
 
