@@ -100,8 +100,8 @@ Títulos, descripciones e instrucciones se guardan como `{es: "...", en: "..."}`
 ### Contenido de actividades
 El campo `activities.content` es JSONB con estructura `{es: {...}, en: {...}}`. La forma interna varía por tipo. Cada tipo tiene su sub-formulario en `ActivityEditor.tsx` y su renderer en `src/components/student/activities/`.
 
-### Guardado en Supabase
-El cliente está en `src/lib/supabase.ts`. Usar siempre el cliente tipado. Para operaciones que rompen los tipos generados (e.g. `integrity_events` como `Json`), usar `as unknown as Json`.
+### Guardado en Neon
+El cliente está en `src/lib/supabase.ts` (nombre histórico, mantenido para no tocar el import en ~20 archivos) — internamente es un cliente `@neondatabase/neon-js` apuntando al Data API de Neon, con API compatible con `supabase-js` (`.from().select()/.insert()/...`, `.auth.signIn/signUp/getSession`). Usar siempre el cliente tipado. Para operaciones que rompen los tipos generados (e.g. `integrity_events` como `Json`), usar `as unknown as Json`.
 
 ## Tablas clave de la BD
 
