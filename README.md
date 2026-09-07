@@ -42,8 +42,10 @@ npm install
 
 Crea un archivo `.env` en la raíz:
 ```env
-VITE_SUPABASE_URL=tu_url_de_supabase
-VITE_SUPABASE_ANON_KEY=tu_anon_key_de_supabase
+VITE_NEON_URL=tu_host_y_db_de_neon           # host+dbname del connection string, servido por https
+VITE_NEON_AI_ENHANCE_URL=url_de_la_function  # neon functions get aienhance
+VITE_NEON_MEDIA_UPLOAD_URL=url_de_la_function # neon functions get mediaupload
+GROQ_URL=tu_api_key_de_groq                  # usada por la Neon Function aienhance
 ```
 
 ```bash
