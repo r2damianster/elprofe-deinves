@@ -8,8 +8,10 @@ Plataforma web para la Universidad Laica Eloy Alfaro de Manabí (ULEAM), diseña
 |------|-----------|
 | Frontend | React 18 + TypeScript + Vite |
 | Estilos | Tailwind CSS + Lucide React |
-| Backend | Supabase (PostgreSQL + PostgREST + Auth) |
+| Backend | Neon (Postgres + Data API + Managed Better Auth + Object Storage + Neon Functions) |
 | Seguridad | Row Level Security (RLS) por rol |
+
+> Hasta 2026-09 el backend era Supabase (cuenta distinta, ya dada de baja). El proyecto se migró por completo a Neon — base de datos, autenticación, storage de archivos y las funciones de IA. Ya no queda ninguna conexión a Supabase. Detalle de la migración en [`.claude/troubleshooting/migration-001-supabase-to-neon.md`](./.claude/troubleshooting/migration-001-supabase-to-neon.md).
 
 Roles: `admin`, `professor`, `student`
 
