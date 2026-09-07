@@ -132,7 +132,7 @@ async function handleRequest(request: Request): Promise<Response> {
     // El Data API valida criptográficamente el JWT y aplica RLS; si el token
     // es inválido o expiró, esta llamada falla y no seguimos.
     const profileRes = await fetch(
-      `${process.env.NEON_DATA_API_URL}/profiles?select=role,is_admin&id=eq.${userId}`,
+      `${DATA_API_URL}/profiles?select=role,is_admin&id=eq.${userId}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     if (!profileRes.ok) {
