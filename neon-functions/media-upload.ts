@@ -1,7 +1,4 @@
-import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { createHash, createHmac } from 'crypto';
-import { Pool } from 'pg';
-import { attachDatabasePool } from '@neon/functions';
 
 const BUCKET = 'lesson-media';
 const MAX_SIZE_BYTES = 50 * 1024 * 1024;
@@ -17,12 +14,6 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
 ]);
 
-const jwks = createRemoteJWKSet(new URL(process.env.NEON_AUTH_JWKS_URL!));
-const issuer = new URL(process.env.NEON_AUTH_BASE_URL!).origin;
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 5 });
-attachDatabasePool(pool);
-
 function hmac(key: Buffer | string, data: string): Buffer {
   return createHmac('sha256', key).update(data, 'utf8').digest();
 }
@@ -31,8 +22,8 @@ function sha256Hex(data: string): string {
   return createHash('sha256').update(data, 'utf8').digest('hex');
 }
 
-// Presigned S3 PUT URL via SigV4 query-string auth, sin depender del SDK de AWS
-// (el SDK completo agrega ~1.5MB al bundle, demasiado para desplegar por MCP).
+// Presigned S3 PUT URL via SigV4 query-string auth — implementado a mano
+// (sin @aws-sdk/client-s3) para mantener el bundle de esta función mínimo.
 function presignPutUrl(bucket: string, key: string, contentType: string, expiresInSeconds: number): string {
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID!;
   const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY!;
@@ -88,6 +79,17 @@ function presignPutUrl(bucket: string, key: string, contentType: string, expires
   return `${endpoint.origin}${canonicalUri}?${canonicalQuerystring}&X-Amz-Signature=${signature}`;
 }
 
+function decodeJwtSub(token: string): string | null {
+  try {
+    const payloadB64 = token.split('.')[1];
+    const json = Buffer.from(payloadB64, 'base64url').toString('utf8');
+    const payload = JSON.parse(json);
+    return typeof payload.sub === 'string' ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
 function cors(request: Request) {
   return {
     'Access-Control-Allow-Origin': request.headers.get('origin') ?? '*',
@@ -117,9 +119,8 @@ async function handleRequest(request: Request): Promise<Response> {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const { payload } = await jwtVerify(authHeader.slice(7), jwks, { issuer });
-    const userId = payload.sub;
+    const token = authHeader.slice(7);
+    const userId = decodeJwtSub(token);
     if (!userId) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -127,11 +128,20 @@ async function handleRequest(request: Request): Promise<Response> {
       });
     }
 
-    const { rows } = await pool.query(
-      'SELECT role, is_admin FROM public.profiles WHERE id = $1',
-      [userId]
+    // El Data API valida criptográficamente el JWT y aplica RLS; si el token
+    // es inválido o expiró, esta llamada falla y no seguimos.
+    const profileRes = await fetch(
+      `${process.env.NEON_DATA_API_URL}/profiles?select=role,is_admin&id=eq.${userId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
     );
-    const profile = rows[0];
+    if (!profileRes.ok) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const profiles = await profileRes.json();
+    const profile = profiles[0];
     const canUpload = profile && (profile.is_admin || profile.role === 'admin' || profile.role === 'professor');
     if (!canUpload) {
       return new Response(JSON.stringify({ error: 'Forbidden: solo admin/professor pueden subir archivos' }), {
