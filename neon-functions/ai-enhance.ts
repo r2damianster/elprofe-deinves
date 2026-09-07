@@ -1,6 +1,6 @@
 const GROQ_API_KEY = process.env.GROQ_URL ?? process.env.GROQ_API_KEY ?? '';
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'llama-3.3-70b-versatile';
+const MODEL = 'openai/gpt-oss-120b';
 
 function cors(request: Request) {
   return {
